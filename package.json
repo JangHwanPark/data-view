@@ -1,0 +1,43 @@
+{
+  "name": "data-view",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "postinstall": "node scripts/copy-duckdb.mjs",
+    "dev": "next dev -H 127.0.0.1",
+    "build": "next build",
+    "start": "next start -H 127.0.0.1",
+    "lint": "eslint",
+    "fixtures": "node scripts/generate-game-fixtures.mjs && node scripts/generate-doc-fixtures.mjs"
+  },
+  "dependencies": {
+    "@duckdb/duckdb-wasm": "^1.32.0",
+    "@tanstack/react-table": "^9.3.1",
+    "@tanstack/react-virtual": "^3.14.25",
+    "@xyflow/react": "12.12.0",
+    "apache-arrow": "^17.0.0",
+    "jszip": "3.10.2",
+    "lucide-react": "^1.67.0",
+    "mysql2": "^3.24.6",
+    "next": "16.4.4",
+    "pdfjs-dist": "6.4.299",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "server-only": "^0.0.1",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  },
+  "devDependencies": {
+    "@pdf-lib/fontkit": "1.1.1",
+    "@tailwindcss/turbopack": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "docx": "9.8.1",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.4",
+    "pdf-lib": "1.17.1",
+    "pptxgenjs": "4.0.1",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

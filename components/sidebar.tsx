@@ -1,0 +1,350 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import {
+  BookOpen,
+  ChevronDown,
+  ChevronRight,
+  Database,
+  FileSpreadsheet,
+  FileText,
+  FolderOpen,
+  GitFork,
+  Loader2,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Search,
+  Sheet,
+  TableProperties,
+} from "lucide-react";
+import { sourceVersion, useWorkspace, type WorkspaceSource } from "@/components/workspace-provider";
+import { loadRowCounts, tableKey } from "@/lib/client/schema";
+
+const NAV = [
+  { href: "/", label: "데이터 소스", icon: FolderOpen },
+  { href: "/docs", label: "기획서", icon: BookOpen },
+  { href: "/relations", label: "관계", icon: GitFork },
+  { href: "/search", label: "값 검색", icon: Search },
+  { href: "/join", label: "합친 표", icon: TableProperties },
+];
+
+// 접힘 상태는 브라우저에 기억한다. 서버 렌더링 때는 펼친 상태로 그린다.
+const COLLAPSED_KEY = "data-view:sidebar-collapsed";
+const listeners = new Set<() => void>();
+
+function readCollapsed() {
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeCollapsed(value: boolean) {
+  try {
+    localStorage.setItem(COLLAPSED_KEY, value ? "1" : "0");
+  } catch {
+    // 저장이 막힌 브라우저에서는 이번 화면에서만 접힌다.
+  }
+  listeners.forEach((l) => l());
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+export function Sidebar() {
+  const collapsed = useSyncExternalStore(subscribe, readCollapsed, () => false);
+
+  if (collapsed) {
+    return (
+      <aside className="sticky top-0 flex h-screen w-11 shrink-0 flex-col items-center gap-1 border-r border-zinc-200 bg-white py-2 dark:border-zinc-800 dark:bg-zinc-900">
+        <button
+          type="button"
+          onClick={() => writeCollapsed(false)}
+          className="rounded p-1.5 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          aria-label="사이드바 펼치기"
+        >
+          <PanelLeftOpen className="size-4" aria-hidden />
+        </button>
+        {NAV.map(({ href, label, icon: Icon }) => (
+          <Link
+            key={href}
+            href={href}
+            title={label}
+            aria-label={label}
+            className="rounded p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+          >
+            <Icon className="size-4" aria-hidden />
+          </Link>
+        ))}
+      </aside>
+    );
+  }
+
+  return (
+    <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-zinc-200 bg-white text-[13px] dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex h-10 items-center gap-2 border-b border-zinc-200 px-3 dark:border-zinc-800">
+        <Database className="size-4" aria-hidden />
+        <Link href="/" className="flex-1 font-semibold">
+          data-view
+        </Link>
+        <button
+          type="button"
+          onClick={() => writeCollapsed(true)}
+          className="rounded p-1 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          aria-label="사이드바 접기"
+        >
+          <PanelLeftClose className="size-4" aria-hidden />
+        </button>
+      </div>
+      <SidebarNav />
+      <TableTree />
+    </aside>
+  );
+}
+
+function SidebarNav() {
+  const pathname = usePathname();
+  return (
+    <nav className="flex flex-col gap-px border-b border-zinc-200 p-1.5 dark:border-zinc-800">
+      {NAV.map(({ href, label, icon: Icon }) => {
+        const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+        return (
+          <Link
+            key={href}
+            href={href}
+            className={`flex items-center gap-2 rounded px-2 py-1 ${
+              active
+                ? "bg-zinc-100 font-medium text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
+                : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100"
+            }`}
+          >
+            <Icon className="size-4" aria-hidden />
+            {label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+const GROUPS = [
+  { label: "파일", match: (kind: string) => kind === "excel" || kind === "csv" },
+  { label: "데이터베이스", match: (kind: string) => kind === "mysql" },
+];
+
+// 지금 보고 있는 테이블. 경로가 /sources/[id]/tables/[table] 일 때만 있다.
+function activeTable(pathname: string) {
+  const m = pathname.match(/^\/sources\/([^/]+)(?:\/tables\/([^/]+))?/);
+  if (!m) return null;
+  return { sourceId: m[1], table: m[2] ? decodeURIComponent(m[2]) : null };
+}
+
+function TableTree() {
+  const { sources, relations, docs, initialized } = useWorkspace();
+  const pathname = usePathname();
+  const active = activeTable(pathname);
+  const activeDocId = pathname.match(/^\/docs\/([^/]+)/)?.[1];
+  const [filter, setFilter] = useState("");
+  const [toggled, setToggled] = useState<Record<string, boolean>>({});
+  const [counts, setCounts] = useState<Map<string, number>>(new Map());
+
+  const ready = sources.filter((s) => s.status === "ready");
+  const schemaVersion = ready.map(sourceVersion).join("|");
+
+  useEffect(() => {
+    if (!schemaVersion) return;
+    let active = true;
+    loadRowCounts()
+      .then((map) => active && setCounts(map))
+      .catch(() => {
+        // 행 수는 보조 정보라 못 읽어도 트리는 보여준다.
+      });
+    return () => {
+      active = false;
+    };
+  }, [schemaVersion]);
+
+  // 테이블마다 걸린 관계 수
+  const relationCount = new Map<string, number>();
+  for (const { from, to } of relations) {
+    for (const end of [from, to]) {
+      const key = tableKey(end.sourceId, end.table);
+      relationCount.set(key, (relationCount.get(key) ?? 0) + 1);
+    }
+  }
+
+  const q = filter.trim().toLowerCase();
+  const visible = sources
+    .map((s) => {
+      const nameHit = s.meta.name.toLowerCase().includes(q);
+      const tables = !q || nameHit ? s.tables : s.tables.filter((t) => t.toLowerCase().includes(q));
+      return { source: s, tables };
+    })
+    .filter(({ source, tables }) => !q || tables.length > 0 || source.meta.name.toLowerCase().includes(q));
+  const tableTotal = sources.reduce((sum, s) => sum + s.tables.length, 0);
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex flex-col gap-1.5 p-2">
+        <p className="px-1 text-xs text-zinc-500">테이블 {tableTotal.toLocaleString()}개</p>
+        <input
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="시트, 파일 이름으로 찾기"
+          aria-label="테이블 거르기"
+          className="w-full rounded border border-zinc-300 bg-white px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-950"
+        />
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-3">
+        {!initialized ? (
+          <p className="px-2 text-xs text-zinc-500">불러오는 중...</p>
+        ) : sources.length === 0 && docs.length === 0 ? (
+          <p className="px-2 text-xs text-zinc-500">열어 둔 파일이 없습니다.</p>
+        ) : (
+          <>
+            {docs.length > 0 && (
+              <div className="pb-1">
+                <p className="px-2 pt-1 pb-0.5 text-[11px] font-medium tracking-wide text-zinc-400">기획서</p>
+                {docs
+                  .filter((d) => !q || d.meta.name.toLowerCase().includes(q))
+                  .map((d) => (
+                    <Link
+                      key={d.meta.id}
+                      href={`/docs/${d.meta.id}`}
+                      title={d.meta.name}
+                      className={`flex items-center gap-1.5 rounded px-1.5 py-0.5 ${
+                        d.meta.id === activeDocId
+                          ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                          : "text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
+                      }`}
+                    >
+                      <BookOpen className="size-3.5 shrink-0 opacity-60" aria-hidden />
+                      <span className="min-w-0 flex-1 truncate">{d.meta.name}</span>
+                      {d.status === "loading" && <Loader2 className="size-3 shrink-0 animate-spin" aria-label="불러오는 중" />}
+                    </Link>
+                  ))}
+              </div>
+            )}
+            {visible.length === 0 && <p className="px-2 text-xs text-zinc-500">맞는 테이블이 없습니다.</p>}
+            {/* 소스 종류별로 묶는다. 소스가 없는 묶음은 숨긴다. 벡터 DB 묶음은 해당 단계에서 같은 모양으로 붙인다. */}
+            {GROUPS.map((group) => {
+              const members = visible.filter(({ source }) => group.match(source.meta.kind));
+              if (members.length === 0) return null;
+              return (
+                <div key={group.label} className="pb-1">
+                  <p className="px-2 pt-1 pb-0.5 text-[11px] font-medium tracking-wide text-zinc-400">{group.label}</p>
+                  {members.map(({ source, tables }) => {
+                    const containsActive = active?.sourceId === source.meta.id;
+                    const open = q ? true : (toggled[source.meta.id] ?? containsActive);
+                    return (
+                      <SourceNode
+                        key={source.meta.id}
+                        source={source}
+                        tables={tables}
+                        open={open}
+                        onToggle={() => setToggled((prev) => ({ ...prev, [source.meta.id]: !open }))}
+                        activeTable={containsActive ? active?.table ?? null : null}
+                        sourceActive={containsActive && !active?.table}
+                        counts={counts}
+                        relationCount={relationCount}
+                      />
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface SourceNodeProps {
+  source: WorkspaceSource;
+  tables: string[];
+  open: boolean;
+  onToggle: () => void;
+  activeTable: string | null;
+  sourceActive: boolean;
+  counts: Map<string, number>;
+  relationCount: Map<string, number>;
+}
+
+function SourceNode({ source, tables, open, onToggle, activeTable, sourceActive, counts, relationCount }: SourceNodeProps) {
+  const { meta, status } = source;
+  const Icon = meta.kind === "mysql" ? Database : meta.kind === "excel" ? FileSpreadsheet : FileText;
+  const Chevron = open ? ChevronDown : ChevronRight;
+  return (
+    <div>
+      <div
+        className={`group flex items-center gap-1 rounded px-1 py-0.5 ${
+          sourceActive ? "bg-zinc-100 dark:bg-zinc-800" : "hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
+        }`}
+      >
+        <button
+          type="button"
+          onClick={onToggle}
+          className="rounded p-0.5 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+          aria-label={open ? `${meta.name} 접기` : `${meta.name} 펼치기`}
+          aria-expanded={open}
+        >
+          <Chevron className="size-3.5" aria-hidden />
+        </button>
+        <Icon className="size-3.5 shrink-0 text-zinc-500" aria-hidden />
+        <Link href={`/sources/${meta.id}`} className="min-w-0 flex-1 truncate" title={meta.name}>
+          {meta.name}
+        </Link>
+        {status === "loading" && <Loader2 className="size-3 shrink-0 animate-spin text-zinc-400" aria-label="불러오는 중" />}
+        {status === "error" && <span className="shrink-0 text-[11px] text-red-600">오류</span>}
+        {status === "ready" && <span className="shrink-0 text-[11px] text-zinc-400">{source.tables.length}</span>}
+      </div>
+      {open && status === "ready" && (
+        <ul className="ml-4 border-l border-zinc-200 pl-1 dark:border-zinc-800">
+          {tables.map((table) => {
+            const key = tableKey(meta.id, table);
+            const isActive = table === activeTable;
+            const rows = counts.get(key);
+            const rels = relationCount.get(key);
+            return (
+              <li key={table}>
+                <Link
+                  href={`/sources/${meta.id}/tables/${encodeURIComponent(table)}`}
+                  className={`flex items-center gap-1.5 rounded px-1.5 py-0.5 ${
+                    isActive
+                      ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                      : "text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
+                  }`}
+                  title={table}
+                >
+                  <Sheet className={`size-3 shrink-0 ${isActive ? "" : "text-zinc-400"}`} aria-hidden />
+                  <span className="min-w-0 flex-1 truncate">{table}</span>
+                  {rels ? (
+                    <span
+                      className={`inline-flex shrink-0 items-center gap-0.5 text-[11px] ${isActive ? "" : "text-blue-600 dark:text-blue-400"}`}
+                      title={`관계 ${rels}개`}
+                    >
+                      <GitFork className="size-3" aria-hidden />
+                      {rels}
+                    </span>
+                  ) : null}
+                  {rows !== undefined && (
+                    <span className={`w-12 shrink-0 text-right text-[11px] tabular-nums ${isActive ? "" : "text-zinc-400"}`}>
+                      {rows.toLocaleString()}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}

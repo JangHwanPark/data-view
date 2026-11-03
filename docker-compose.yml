@@ -1,0 +1,13 @@
+# 개발용 MySQL. 게임 테스트 데이터(fixtures/mysql/seed.sql)를 넣어 띄운다.
+# 먼저 npm run fixtures 로 시드를 만든 뒤 docker compose up -d
+# 접속: 127.0.0.1:3307, 데이터베이스 game, 읽기 전용 계정 viewer / viewer (로컬 테스트용 값)
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: data-view-mysql
+    ports:
+      - "127.0.0.1:3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - ./fixtures/mysql:/docker-entrypoint-initdb.d:ro
