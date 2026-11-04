@@ -1,0 +1,52 @@
+"use client";
+
+import { usePathname, useSearchParams } from "next/navigation";
+import { useSyncExternalStore } from "react";
+import { Network, Table2 } from "lucide-react";
+import { TableRelationView } from "@/components/relation-view/table-relation-view";
+import { TablePreview } from "@/components/table-preview";
+import { parseView, readLastView, rememberView, subscribeLastView, type TableView } from "@/lib/client/table-view";
+
+// 테이블 화면(설계 4.13 G1, G2). 관계도와 데이터 두 보기로 나눈다.
+// 주소에 view가 없으면, 기획서의 "행 열기"(row)나 따라가기(trail)는 데이터로, 그 밖은 마지막으로 고른 보기(처음에는 관계도)로 연다.
+export function TablePage({ id, table }: { id: string; table: string }) {
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  // 서버에서 그릴 때는 브라우저 저장소가 없으므로 관계도로 그리고, 브라우저에서 기억한 보기로 바꾼다.
+  const last = useSyncExternalStore(subscribeLastView, readLastView, () => "graph" as TableView);
+  const explicit = parseView(searchParams.get("view"));
+  const view: TableView = explicit ?? (searchParams.get("row") || searchParams.get("trail") ? "data" : last);
+
+  function choose(next: TableView) {
+    rememberView(next);
+    // 보기를 바꿀 때 서버에 요청하지 않도록 주소만 바꾼다. 데이터 보기의 row, trail은 관계도로 갈 때 버린다.
+    window.history.pushState(null, "", `${pathname}?view=${next}`);
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <nav className="flex gap-1 border-b border-zinc-200 text-sm dark:border-zinc-800" aria-label="테이블 보기">
+        {(
+          [
+            { key: "graph", label: "관계도", icon: Network },
+            { key: "data", label: "데이터", icon: Table2 },
+          ] as const
+        ).map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => choose(key)}
+            aria-current={view === key ? "page" : undefined}
+            className={`-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-1.5 ${
+              view === key ? "border-zinc-900 font-medium dark:border-zinc-100" : "border-transparent text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+            }`}
+          >
+            <Icon className="size-3.5" aria-hidden />
+            {label}
+          </button>
+        ))}
+      </nav>
+      {view === "graph" ? <TableRelationView id={id} table={table} /> : <TablePreview id={id} table={table} />}
+    </div>
+  );
+}

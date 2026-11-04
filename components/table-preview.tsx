@@ -57,6 +57,9 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
   // 그래야 아래의 "처음 열 때 따라가기 패널 띄우기"가 닫은 패널을 다시 열지 않는다.
   function setTrail(next: TrailStep[], replace = false) {
     const params = new URLSearchParams();
+    // 관계도의 "데이터" 단추로 왔으면 view=data를 남겨, 따라가기를 닫아도 데이터 보기에 머문다.
+    const viewParam = searchParams.get("view");
+    if (viewParam) params.set("view", viewParam);
     if (rowParam) params.set("row", rowParam);
     if (next.length || rowParam) params.set("trail", serializeTrail(next));
     const query = params.size ? `?${params}` : "";

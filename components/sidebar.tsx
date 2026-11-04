@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { roleColor } from "@/components/map/map-parts";
+import { useDomainModel } from "@/components/use-domain-model";
+import { ROLE_LABEL, type TableRole } from "@/lib/client/domain-model";
 import {
   BookOpen,
   ChevronDown,
@@ -171,12 +174,22 @@ function TableTree() {
     };
   }, [schemaVersion]);
 
-  // 테이블마다 걸린 관계 수
+  // 테이블마다 걸린 연결 수(설계 4.13 G10). 도메인 모델을 다 계산했으면 저장한 관계와 자동 연결을 합쳐 세고 역할도 보여준다.
+  // 계산 전에는 저장한 관계만 센다.
+  const { model } = useDomainModel();
   const relationCount = new Map<string, number>();
-  for (const { from, to } of relations) {
-    for (const end of [from, to]) {
-      const key = tableKey(end.sourceId, end.table);
-      relationCount.set(key, (relationCount.get(key) ?? 0) + 1);
+  const roles = new Map<string, TableRole>();
+  if (model) {
+    for (const t of model.tables.values()) {
+      relationCount.set(t.key, new Set([...t.in, ...t.out].map((l) => l.key)).size);
+      roles.set(t.key, t.role);
+    }
+  } else {
+    for (const { from, to } of relations) {
+      for (const end of [from, to]) {
+        const key = tableKey(end.sourceId, end.table);
+        relationCount.set(key, (relationCount.get(key) ?? 0) + 1);
+      }
     }
   }
 
@@ -255,6 +268,7 @@ function TableTree() {
                         sourceActive={containsActive && !active?.table}
                         counts={counts}
                         relationCount={relationCount}
+                        roles={roles}
                       />
                     );
                   })}
@@ -277,9 +291,10 @@ interface SourceNodeProps {
   sourceActive: boolean;
   counts: Map<string, number>;
   relationCount: Map<string, number>;
+  roles: Map<string, TableRole>;
 }
 
-function SourceNode({ source, tables, open, onToggle, activeTable, sourceActive, counts, relationCount }: SourceNodeProps) {
+function SourceNode({ source, tables, open, onToggle, activeTable, sourceActive, counts, relationCount, roles }: SourceNodeProps) {
   const { meta, status } = source;
   const Icon = meta.kind === "mysql" ? Database : meta.kind === "excel" ? FileSpreadsheet : FileText;
   const Chevron = open ? ChevronDown : ChevronRight;
@@ -314,6 +329,7 @@ function SourceNode({ source, tables, open, onToggle, activeTable, sourceActive,
             const isActive = table === activeTable;
             const rows = counts.get(key);
             const rels = relationCount.get(key);
+            const role = roles.get(key);
             return (
               <li key={table}>
                 <Link
@@ -323,14 +339,18 @@ function SourceNode({ source, tables, open, onToggle, activeTable, sourceActive,
                       ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
                       : "text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
                   }`}
-                  title={table}
+                  title={role ? `${table} · ${ROLE_LABEL[role]}` : table}
                 >
-                  <Sheet className={`size-3 shrink-0 ${isActive ? "" : "text-zinc-400"}`} aria-hidden />
+                  {role ? (
+                    <span className="mx-0.5 size-2 shrink-0 rounded-sm" style={{ background: roleColor(role) }} aria-label={ROLE_LABEL[role]} />
+                  ) : (
+                    <Sheet className={`size-3 shrink-0 ${isActive ? "" : "text-zinc-400"}`} aria-hidden />
+                  )}
                   <span className="min-w-0 flex-1 truncate">{table}</span>
                   {rels ? (
                     <span
                       className={`inline-flex shrink-0 items-center gap-0.5 text-[11px] ${isActive ? "" : "text-blue-600 dark:text-blue-400"}`}
-                      title={`관계 ${rels}개`}
+                      title={`이어진 테이블 ${rels}개`}
                     >
                       <GitFork className="size-3" aria-hidden />
                       {rels}

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Loader2, Save } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, Loader2, Network, Save } from "lucide-react";
 import { sourceTableLabel } from "@/components/relations/relation-parts";
 import { TableDocNotes } from "@/components/table-doc-notes";
 import { TableGraph } from "@/components/table-graph";
@@ -9,6 +10,7 @@ import { useWorkspace } from "@/components/workspace-provider";
 import { isAutoRelation } from "@/lib/client/auto-links";
 import type { RowFocus } from "@/lib/client/doc-links";
 import { newRelationId, type Relation } from "@/lib/client/relations";
+import { graphHref } from "@/lib/client/table-view";
 
 interface Props {
   focus: RowFocus | null; // 기획서에서 연 행
@@ -29,10 +31,25 @@ export function TableLinks({ focus, sourceId, table, columns, relations, reasons
 
   const outgoing = relations.filter((r) => here(r.from));
   const incoming = relations.filter((r) => here(r.to));
+  // 데이터 보기에서는 작은 연결 그림을 접어 둔다(설계 4.13 G11). 관계는 관계도 보기에서 크게 본다.
+  const [showGraph, setShowGraph] = useState(false);
+  const Chevron = showGraph ? ChevronDown : ChevronRight;
 
   return (
     <div className="flex flex-col gap-1.5 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-900/50">
-      {outgoing.length + incoming.length > 0 && <TableGraph sourceId={sourceId} table={table} />}
+      {outgoing.length + incoming.length > 0 && (
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={() => setShowGraph((v) => !v)} className="inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100" aria-expanded={showGraph}>
+            <Chevron className="size-3.5" aria-hidden />
+            이어진 테이블 그림 {showGraph ? "접기" : "펼치기"}
+          </button>
+          <Link href={graphHref(`${sourceId}/${table}`)} className="inline-flex items-center gap-1 text-blue-700 hover:underline dark:text-blue-400">
+            <Network className="size-3.5" aria-hidden />
+            관계도로 보기
+          </Link>
+        </div>
+      )}
+      {showGraph && outgoing.length + incoming.length > 0 && <TableGraph sourceId={sourceId} table={table} />}
       {/* 그림 바로 아래에 이 테이블이 어떤 테이블인지 기획서에서 찾아 보여준다. */}
       <TableDocNotes sourceId={sourceId} table={table} columns={columns} focus={focus} />
       <div className="flex flex-wrap items-center gap-1.5">

@@ -27,9 +27,10 @@ interface Props {
   table: string;
   columns: string[];
   focus: RowFocus | null; // 기획서에서 연 행
+  narrow?: boolean; // 좁은 칸(관계도의 정보 칸)에 들어가면 한 줄에 하나씩 놓는다
 }
 
-export function TableDocNotes({ sourceId, table, columns, focus }: Props) {
+export function TableDocNotes({ sourceId, table, columns, focus, narrow }: Props) {
   const { docs, mappings, glossary } = useWorkspace();
   const glossaryMap = parseGlossary(glossary);
   // 같은 데이터를 파일과 DB로 둘 다 연 경우가 있어서, 확정한 대상은 소스와 상관없이 테이블 이름으로 맞춘다.
@@ -75,7 +76,7 @@ export function TableDocNotes({ sourceId, table, columns, focus }: Props) {
           {docs.length === 0 ? "열어 둔 기획서가 없습니다." : `기획서에서 ${table} 테이블을 설명하는 내용을 찾지 못했습니다. 기획서에 다른 이름으로 적혀 있으면 기획서 화면에서 용어를 이 테이블로 확정해 주세요.`}
         </p>
       ) : (
-        <ul className="grid grid-cols-1 gap-1.5 xl:grid-cols-2">
+        <ul className={`grid grid-cols-1 gap-1.5 ${narrow ? "" : "xl:grid-cols-2"}`}>
           {notes.map((n) => (
             <li key={`${n.docId}/${n.sectionId}`} className="rounded border border-zinc-200 bg-white px-2.5 py-1.5 dark:border-zinc-700 dark:bg-zinc-900">
               <Link href={`/docs/${n.docId}#${n.sectionId}`} className="flex flex-wrap items-baseline gap-x-1.5 hover:underline">

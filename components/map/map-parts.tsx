@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { ROLE_HELP, ROLE_LABEL, ROLE_ORDER, type TableRole } from "@/lib/client/domain-model";
+import { graphHref } from "@/lib/client/table-view";
 
 export const roleColor = (role: TableRole) => `var(--role-${role})`;
 
@@ -64,7 +65,5 @@ export function ScanProgress({ progress }: { progress: { done: number; total: nu
   );
 }
 
-export const tablePath = (key: string) => {
-  const slash = key.indexOf("/");
-  return `/sources/${key.slice(0, slash)}/tables/${encodeURIComponent(key.slice(slash + 1))}`;
-};
+// 도메인 지도와 테이블별 연결에서 테이블을 누르면 그 테이블의 관계도를 연다(설계 4.13).
+export const tablePath = (key: string) => graphHref(key);
