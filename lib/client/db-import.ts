@@ -27,17 +27,17 @@ export class DbRequestError extends Error {
 export function dbErrorText(code: string) {
   switch (code) {
     case "AUTH_FAILED":
-      return "아이디나 비밀번호가 맞지 않습니다.";
+      return "아이디나 비밀번호가 맞지 않습니다. 개발팀에서 받은 값을 다시 확인해 주세요.";
     case "CONNECT_FAILED":
-      return "서버에 연결할 수 없습니다. 주소와 포트, 서버가 켜져 있는지 확인해 주세요.";
+      return "DB 서버에 연결할 수 없습니다. 서버 주소와 포트 번호를 다시 확인하고, 그래도 안 되면 개발팀에 서버가 켜져 있는지 물어봐 주세요.";
     case "DATABASE_NOT_FOUND":
-      return "데이터베이스를 찾을 수 없습니다.";
+      return "DB 이름이 맞지 않습니다. 개발팀에서 받은 DB 이름을 다시 확인해 주세요.";
     case "NOT_FOUND":
       return "저장된 연결 정보를 찾을 수 없습니다. 다시 연결해 주세요.";
     case "BAD_REQUEST":
-      return "입력한 접속 정보를 확인해 주세요.";
+      return "빈 칸이나 잘못 적은 접속 정보가 있습니다. 다시 확인해 주세요.";
     default:
-      return "데이터베이스에서 데이터를 읽지 못했습니다.";
+      return "DB에서 데이터를 읽지 못했습니다. 잠시 뒤 다시 해 보고, 계속 안 되면 개발팀에 문의해 주세요.";
   }
 }
 

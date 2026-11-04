@@ -32,7 +32,7 @@ export function RoleLegend({ counts }: { counts?: Map<TableRole, number> }) {
 }
 
 const TABS = [
-  { key: "domains", href: "/map", label: "도메인 지도" },
+  { key: "domains", href: "/map", label: "시스템 지도" },
   { key: "tables", href: "/map/tables", label: "테이블별 연결" },
 ] as const;
 
@@ -59,7 +59,7 @@ export function ScanProgress({ progress }: { progress: { done: number; total: nu
     <p className="inline-flex items-center gap-2 text-zinc-500">
       <Loader2 className="size-4 animate-spin" aria-hidden />
       {progress.total
-        ? `테이블 사이 연결을 찾는 중입니다 (${progress.done}/${progress.total}). 처음 한 번만 걸리고, 데이터가 바뀌기 전까지 다시 찾지 않습니다.`
+        ? `테이블끼리 어떻게 이어지는지 찾는 중입니다 (${progress.done}/${progress.total}). 처음 한 번만 걸리고, 파일이 바뀌기 전까지 다시 찾지 않습니다.`
         : "데이터를 읽는 중입니다."}
     </p>
   );

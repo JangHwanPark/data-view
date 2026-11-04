@@ -28,7 +28,7 @@ export function TablePage({ id, table }: { id: string; table: string }) {
       <nav className="flex gap-1 border-b border-zinc-200 text-sm dark:border-zinc-800" aria-label="테이블 보기">
         {(
           [
-            { key: "graph", label: "관계도", icon: Network },
+            { key: "graph", label: "연결 그림", icon: Network },
             { key: "data", label: "데이터", icon: Table2 },
           ] as const
         ).map(({ key, label, icon: Icon }) => (

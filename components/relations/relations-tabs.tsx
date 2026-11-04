@@ -2,7 +2,7 @@ import Link from "next/link";
 
 const TABS = [
   { key: "list", href: "/relations", label: "목록" },
-  { key: "diagram", href: "/relations/diagram", label: "다이어그램" },
+  { key: "diagram", href: "/relations/diagram", label: "연결 그림" },
 ] as const;
 
 export function RelationsTabs({ active }: { active: (typeof TABS)[number]["key"] }) {

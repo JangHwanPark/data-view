@@ -8,7 +8,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/connections/
   if (rejected) return rejected;
   const { id, table } = await ctx.params;
   const input = resolveConnection(id);
-  if (!input) return errorResponse(404, "NOT_FOUND", "연결을 찾을 수 없습니다.");
+  if (!input) return errorResponse(404, "NOT_FOUND", "저장된 DB 접속 정보를 찾을 수 없습니다. 다시 연결해 주세요.");
   try {
     const result = await withConnection(input, async (conn) => {
       // 목록에 있는 테이블만 읽는다. 이름을 그대로 SQL에 넣지 않기 위해서다.

@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   }
 
   const input = await resolveEnvConnection(body.connect, file).catch(() => null);
-  if (!input) return errorResponse(404, "NOT_FOUND", "환경변수에서 이 접속 정보를 다시 찾지 못했습니다.");
+  if (!input) return errorResponse(404, "NOT_FOUND", "이 DB 접속 정보를 다시 찾지 못했습니다. 접속 정보 파일이 바뀌었는지 확인해 주세요.");
   try {
     const tables = await withConnection(input, (conn) => listTables(conn, input.database));
     return Response.json({ connection: saveConnection(input), tableCount: tables.length });

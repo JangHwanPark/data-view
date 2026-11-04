@@ -73,7 +73,7 @@ export function TableDocNotes({ sourceId, table, columns, focus, narrow }: Props
       </p>
       {notes.length === 0 ? (
         <p className="text-zinc-400">
-          {docs.length === 0 ? "열어 둔 기획서가 없습니다." : `기획서에서 ${table} 테이블을 설명하는 내용을 찾지 못했습니다. 기획서에 다른 이름으로 적혀 있으면 기획서 화면에서 용어를 이 테이블로 확정해 주세요.`}
+          {docs.length === 0 ? "열어 둔 기획서가 없습니다." : `기획서에서 ${table} 테이블을 설명하는 내용을 찾지 못했습니다. 기획서에 다른 이름으로 적혀 있으면 기획서 화면에서 그 이름을 이 테이블로 "맞음" 표시해 주세요.`}
         </p>
       ) : (
         <ul className={`grid grid-cols-1 gap-1.5 ${narrow ? "" : "xl:grid-cols-2"}`}>
@@ -243,7 +243,7 @@ function DocIds({ sourceId, table, focus }: { sourceId: string; table: string; f
   if (!keyColumn || found.length === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-1">
-      <span className="inline-flex shrink-0 items-center gap-1 text-zinc-500" title={`기획서에 적힌 숫자 중 ${keyColumn}에 있는 값`}>
+      <span className="inline-flex shrink-0 items-center gap-1 text-zinc-500" title={`기획서에 적힌 숫자 중 이 테이블의 ID 열(${keyColumn})에 있는 ID`}>
         <Hash className="size-3.5" aria-hidden />
         기획서에 나온 ID {found.length}개
       </span>

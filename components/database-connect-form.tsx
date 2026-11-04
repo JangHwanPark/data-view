@@ -58,7 +58,7 @@ function EnvConnections() {
       });
       setFound(connections);
     } catch (err) {
-      setError({ text: err instanceof DbRequestError && err.code === "NOT_FOUND" ? ".env 파일을 찾을 수 없습니다." : "환경변수를 읽지 못했습니다.", detail: err instanceof Error ? err.message : String(err) });
+      setError({ text: err instanceof DbRequestError && err.code === "NOT_FOUND" ? "접속 정보 파일을 찾을 수 없습니다. 경로를 확인하거나, 개발팀에서 받은 접속 정보를 위 칸에 직접 입력해 주세요." : "이 PC에 저장된 DB 접속 정보를 찾지 못했습니다. 개발팀에서 받은 접속 정보를 위 칸에 직접 입력해 주세요.", detail: err instanceof Error ? err.message : String(err) });
     } finally {
       setBusy(null);
     }
@@ -76,23 +76,23 @@ function EnvConnections() {
       const id = await addDatabase({ connectionId: connection.id, name: connection.name, database: connection.database });
       router.push(`/sources/${id}`);
     } catch (err) {
-      setError({ text: err instanceof DbRequestError ? dbErrorText(err.code) : "연결하지 못했습니다.", detail: err instanceof Error ? err.message : String(err) });
+      setError({ text: err instanceof DbRequestError ? dbErrorText(err.code) : "DB에 연결하지 못했습니다. 접속 정보를 다시 확인하거나 개발팀에 문의해 주세요.", detail: err instanceof Error ? err.message : String(err) });
       setBusy(null);
     }
   }
 
   return (
-    <section className="flex flex-col gap-2 rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-      <h2 className="font-semibold">환경변수에서 불러오기</h2>
-      <p className="text-xs text-zinc-500">
-        앱의 환경변수와, 경로를 적은 .env 파일에서 DB_HOST, GAME_DB_HOST 같은 접속 정보 묶음과 DATABASE_URL=mysql://... 꼴을 찾습니다.
+    <details className="flex flex-col gap-2 rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+      <summary className="cursor-pointer font-semibold">고급: 접속 정보 파일에서 불러오기</summary>
+      <p className="mt-2 text-xs text-zinc-500">
+        개발팀이 접속 정보를 파일(.env)로 준 경우에만 씁니다. 파일 경로를 적고 찾기를 누르면 그 안의 DB 접속 정보를 찾아 보여줍니다. 경로를 비우고 찾으면 이 PC의 앱 설정에서 찾습니다.
       </p>
-      <form onSubmit={(e) => void find(e)} className="flex gap-2">
+      <form onSubmit={(e) => void find(e)} className="mt-2 flex gap-2">
         <input
           value={file}
           onChange={(e) => setFile(e.target.value)}
-          placeholder=".env 파일 경로 (비우면 앱 환경변수만)"
-          aria-label=".env 파일 경로"
+          placeholder="접속 정보 파일 경로 (예: D:\\game\\db.env)"
+          aria-label="접속 정보 파일 경로"
           className={`${inputClass} font-mono text-xs`}
         />
         <button type="submit" disabled={busy !== null} className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-zinc-300 px-3 py-1 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800">
@@ -100,7 +100,7 @@ function EnvConnections() {
           찾기
         </button>
       </form>
-      {found && found.length === 0 && <p className="text-xs text-zinc-500">DB 접속 정보로 보이는 환경변수를 찾지 못했습니다.</p>}
+      {found && found.length === 0 && <p className="text-xs text-zinc-500">DB 접속 정보를 찾지 못했습니다. 개발팀에서 받은 접속 정보를 위 칸에 직접 입력해 주세요.</p>}
       {found && found.length > 0 && (
         <ul className="divide-y divide-zinc-100 rounded border border-zinc-200 text-xs dark:divide-zinc-800 dark:border-zinc-800">
           {found.map((c) => (
@@ -134,7 +134,7 @@ function EnvConnections() {
           </details>
         </div>
       )}
-    </section>
+    </details>
   );
 }
 
@@ -188,27 +188,26 @@ export function DatabaseConnectForm() {
 
   return (
     <div className="flex max-w-xl flex-col gap-4">
-      <EnvConnections />
       <div>
-        <h1 className="text-lg font-semibold">데이터베이스 연결</h1>
+        <h1 className="text-lg font-semibold">개발 DB에서 불러오기</h1>
         <p className="text-zinc-500">
-          MySQL, MariaDB에 연결해 테이블을 불러옵니다. 불러온 테이블은 파일과 같은 방식으로 관계를 걸고 따라갈 수 있습니다. 읽기 권한만 있는 계정을 쓰는 것을 권장합니다.
+          엑셀 대신 개발 DB(MySQL, MariaDB)에서 테이블을 바로 불러옵니다. 불러온 테이블은 엑셀 파일과 똑같이 연결을 보고 따라갈 수 있습니다. 아래 칸은 개발팀에서 받은 DB 접속 정보로 채워 주세요. 데이터를 고칠 수 없는 읽기 전용 계정을 받는 것이 안전합니다.
         </p>
       </div>
 
       <form onSubmit={connect} className="grid grid-cols-[6rem_1fr] items-center gap-x-3 gap-y-2 rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <label htmlFor="db-name" className="text-zinc-500">이름</label>
-        <input id="db-name" className={inputClass} value={form.name} onChange={set("name")} placeholder="비워 두면 데이터베이스@호스트" />
-        <label htmlFor="db-host" className="text-zinc-500">호스트</label>
+        <label htmlFor="db-name" className="text-zinc-500">표시 이름</label>
+        <input id="db-name" className={inputClass} value={form.name} onChange={set("name")} placeholder="사이드바에 보일 이름. 비워 두면 자동으로 정합니다" />
+        <label htmlFor="db-host" className="text-zinc-500" title="개발팀에서 받은 서버 주소와 포트 번호">서버 주소</label>
         <div className="flex gap-2">
           <input id="db-host" className={inputClass} value={form.host} onChange={set("host")} required />
-          <input aria-label="포트" className={`${inputClass} w-24`} value={form.port} onChange={set("port")} inputMode="numeric" required />
+          <input aria-label="포트 번호" title="포트 번호" className={`${inputClass} w-24`} value={form.port} onChange={set("port")} inputMode="numeric" required />
         </div>
-        <label htmlFor="db-user" className="text-zinc-500">사용자</label>
+        <label htmlFor="db-user" className="text-zinc-500">아이디</label>
         <input id="db-user" className={inputClass} value={form.user} onChange={set("user")} autoComplete="off" required />
         <label htmlFor="db-password" className="text-zinc-500">비밀번호</label>
         <input id="db-password" type="password" className={inputClass} value={form.password} onChange={set("password")} autoComplete="new-password" />
-        <label htmlFor="db-database" className="text-zinc-500">데이터베이스</label>
+        <label htmlFor="db-database" className="text-zinc-500">DB 이름</label>
         <input id="db-database" className={inputClass} value={form.database} onChange={set("database")} required />
 
         <div className="col-span-2 mt-2 flex flex-wrap items-center gap-2">
@@ -248,8 +247,9 @@ export function DatabaseConnectForm() {
         </div>
       )}
       <p className="text-xs text-zinc-500">
-        비밀번호는 이 PC의 data 폴더에 암호화해서 저장하고, 화면으로는 다시 보내지 않습니다.
+        비밀번호는 이 PC 안에만 잠가서 저장하고, 화면에 다시 보여주지 않습니다.
       </p>
+      <EnvConnections />
     </div>
   );
 }

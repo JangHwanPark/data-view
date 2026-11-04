@@ -94,9 +94,9 @@ async function compute(
         to: { sourceId: t.sourceId, table: t.table, column: t.keyColumn! },
         reason: byKey.length
           ? column === t.keyColumn
-            ? `열 이름이 ${t.table}의 키(${t.keyColumn})와 같음`
-            : `열 이름이 ${t.table}의 키(${t.keyColumn})를 담음`
-          : `열 이름이 테이블 ${t.table}을 가리킴`,
+            ? `열 이름이 ${t.table}의 ID 열(${t.keyColumn})과 같음`
+            : `열 이름에 ${t.table}의 ID 열 이름(${t.keyColumn})이 들어 있음`
+          : `열 이름이 ${t.table} 테이블 이름과 같음`,
       });
     }
   }
@@ -112,7 +112,7 @@ async function compute(
       candidates.push({
         from: { sourceId: t.sourceId, table: t.table, column: c },
         to: { ...target, column: me.keyColumn },
-        reason: namesKey(c, me.keyColumn) ? `${t.table}.${c}가 이 테이블의 키(${me.keyColumn})를 가리킴` : `${t.table}.${c}가 이 테이블 이름을 가리킴`,
+        reason: namesKey(c, me.keyColumn) ? `${t.table}의 ${c} 열 이름에 이 테이블의 ID 열 이름(${me.keyColumn})이 들어 있음` : `${t.table}의 ${c} 열 이름이 이 테이블 이름과 같음`,
       });
     }
   }
@@ -130,7 +130,8 @@ async function compute(
         from: c.from,
         to: c.to,
       },
-      reason: `${c.reason}, 값 ${Math.round(ratio * 1000) / 10}% 일치`,
+      // QA가 읽기 쉽게 비율 대신 개수로 쓴다(설계 1.1). "3,000행 중 2,991행 맞음, 9행은 없는 ID"
+      reason: `${c.reason}. ${matchText(stats)}`,
     });
   }
   return links;
@@ -138,4 +139,12 @@ async function compute(
 
 export function isAutoRelation(r: Relation) {
   return r.id.startsWith("auto:");
+}
+
+// 연결 근거의 개수 문장. 행 기준으로 세고, 맞지 않는 행이 있으면 따로 적는다.
+export function matchText(stats: { fromRows: number; matchedRows: number }) {
+  const total = stats.fromRows.toLocaleString();
+  const ok = stats.matchedRows.toLocaleString();
+  const missing = stats.fromRows - stats.matchedRows;
+  return missing > 0 ? `${total}행 중 ${ok}행 맞음, ${missing.toLocaleString()}행은 상대 테이블에 없는 ID` : `${total}행 모두 맞음`;
 }

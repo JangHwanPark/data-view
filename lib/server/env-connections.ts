@@ -97,7 +97,7 @@ function detect(env: Record<string, string | undefined>, origin: string): Found[
 }
 
 async function findAll(file?: string): Promise<Found[]> {
-  const result = detect(process.env, "앱 환경변수");
+  const result = detect(process.env, "이 PC의 앱 설정");
   if (file) {
     const path = resolve(file);
     result.push(...detect(parseDotenv(await readFile(path, "utf8")), path));

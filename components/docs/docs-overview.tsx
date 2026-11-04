@@ -38,7 +38,7 @@ export function DocsOverview() {
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-baseline gap-x-3">
         <h1 className="text-lg font-semibold">기획서</h1>
-        <p className="text-zinc-500">상단의 소스 추가에서 워드, PPT, PDF, 엑셀 기획서를 파일로 고르거나 경로를 지정해 열 수 있습니다.</p>
+        <p className="text-zinc-500">상단의 파일 불러오기에서 워드, PPT, PDF, 엑셀 기획서를 파일로 고르거나 경로를 지정해 열 수 있습니다.</p>
         <Link
           href="/sources/new/path?kind=doc"
           className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-zinc-300 px-2.5 py-1 text-xs hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
@@ -64,7 +64,7 @@ export function DocsOverview() {
               <button
                 type="button"
                 onClick={() => {
-                  if (confirm(`${d.meta.name}을(를) 목록에서 지울까요? 확정한 용어 매칭은 남습니다.`)) void removeDocument(d.meta.id);
+                  if (confirm(`${d.meta.name}을(를) 목록에서 지울까요? 맞음으로 표시한 내용은 남습니다.`)) void removeDocument(d.meta.id);
                 }}
                 className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-red-600 dark:hover:bg-zinc-800"
                 aria-label={`${d.meta.name} 삭제`}
@@ -89,7 +89,7 @@ export function DocsOverview() {
             <h2 className="font-medium">
               기획서에만 있음 <span className="text-zinc-500">{docOnly.length}</span>
             </h2>
-            <p className="text-xs text-zinc-500">기획서에 나오지만 같은 이름의 테이블이나 열이 없는 이름입니다(확실한 후보 85% 미만). 옛 이름이거나 아직 만들지 않은 테이블일 수 있습니다.</p>
+            <p className="text-xs text-zinc-500">기획서에 나오지만 데이터에 같은 이름의 테이블이나 열이 없고, 비슷한 이름도 확실하지 않은 이름입니다. 옛 이름이거나 아직 만들지 않은 테이블일 수 있습니다.</p>
             <ul className="divide-y divide-zinc-100 rounded-md border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900">
               {docOnly.length === 0 && <li className="px-3 py-2 text-zinc-500">없습니다.</li>}
               {docOnly.map((v) => (
@@ -97,7 +97,7 @@ export function DocsOverview() {
                   <span className="font-medium text-red-600 dark:text-red-400">{v.term.text}</span>
                   {v.candidates[0] && (
                     <span className="text-xs text-zinc-500">
-                      가장 가까운 후보 {v.candidates[0].target.table} {Math.round(v.candidates[0].score * 100)}%
+                      가장 비슷한 테이블 {v.candidates[0].target.table}
                     </span>
                   )}
                   <span className="ml-auto text-xs text-zinc-500">
@@ -114,7 +114,7 @@ export function DocsOverview() {
             <h2 className="font-medium">
               기획서에 없음 <span className="text-zinc-500">{notInDocs.length}</span>
             </h2>
-            <p className="text-xs text-zinc-500">어느 기획서에서도 확정되지 않았고 확실한 후보(85% 이상)도 아닌 테이블입니다. 기획서가 빠뜨렸거나 다른 이름으로 적었을 수 있습니다.</p>
+            <p className="text-xs text-zinc-500">어느 기획서에도 나오지 않는 테이블입니다. 기획서가 빠뜨렸거나 다른 이름으로 적었을 수 있습니다.</p>
             <ul className="grid grid-cols-1 gap-px overflow-hidden rounded-md border border-zinc-200 bg-zinc-200 sm:grid-cols-2 dark:border-zinc-800 dark:bg-zinc-800">
               {notInDocs.map(({ source, table }) => (
                 <li key={`${source.meta.id}/${table}`} className="bg-white px-3 py-1.5 dark:bg-zinc-900">

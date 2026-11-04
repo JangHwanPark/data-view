@@ -75,7 +75,7 @@ export function DomainMap() {
     <>
       <MapTabs active="domains" />
       <p className="text-zinc-500">
-        테이블을 도메인(파일, 이름 접두어)으로 묶고 도메인 사이의 연결을 그립니다. 왼쪽은 콘텐츠가 시작되는 도메인, 오른쪽은 여러 곳에서 가져다 쓰는 공통 도메인입니다. 선의 숫자는 연결 수이고, 상자를 누르면 그 도메인 안을 아래에 펼칩니다.
+        테이블을 퀘스트, 아이템, 보상 같은 시스템으로 묶고(엑셀 파일 하나가 시스템 하나), 시스템끼리 어떻게 이어지는지 그립니다. 왼쪽은 플레이어가 만나는 콘텐츠 쪽, 오른쪽은 여러 시스템이 함께 쓰는 공용 쪽입니다. 선의 숫자는 이어진 곳의 수이고, 상자를 누르면 그 시스템 안을 아래에 펼칩니다.
       </p>
     </>
   );
@@ -85,7 +85,7 @@ export function DomainMap() {
     return (
       <div className="flex flex-col gap-3">
         {intro}
-        <p className="text-zinc-500">열어 둔 데이터가 없습니다. 상단의 소스 추가에서 엑셀이나 데이터베이스를 열어 주세요.</p>
+        <p className="text-zinc-500">불러온 테이블이 없습니다. 오른쪽 위의 파일 불러오기에서 테이블 엑셀을 불러와 주세요.</p>
       </div>
     );
   }
@@ -93,7 +93,7 @@ export function DomainMap() {
     return (
       <div className="flex flex-col gap-3">
         {intro}
-        {error ? <p className="text-red-600">연결을 찾지 못했습니다. {error}</p> : progress && <ScanProgress progress={progress} />}
+        {error ? <p className="text-red-600">테이블끼리 이어진 곳을 찾지 못했습니다. {error}</p> : progress && <ScanProgress progress={progress} />}
       </div>
     );
   }
@@ -111,7 +111,7 @@ export function DomainMap() {
       {intro}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         <p>
-          도메인 <strong>{model.domains.length}</strong>개, 테이블 <strong>{model.tables.size}</strong>개, 연결 <strong>{linkCount}</strong>개(도메인 사이 {crossCount}개)
+          시스템 <strong>{model.domains.length}</strong>개, 테이블 <strong>{model.tables.size}</strong>개, 이어진 곳 <strong>{linkCount}</strong>개(시스템끼리 {crossCount}개)
         </p>
         <div className="ml-auto">
           <RoleLegend counts={counts} />
@@ -143,7 +143,7 @@ export function DomainMap() {
       {selected ? (
         <DomainDetail key={selected.name} domain={selected} model={model} rowCounts={rowCounts} onSelect={select} />
       ) : (
-        <p className="text-zinc-500">도메인 상자를 누르면 그 도메인의 테이블 연결과 바깥 도메인과의 연결을 볼 수 있습니다.</p>
+        <p className="text-zinc-500">시스템 상자를 누르면 그 시스템 안의 테이블과 다른 시스템과 이어진 곳을 볼 수 있습니다.</p>
       )}
     </div>
   );
@@ -211,7 +211,7 @@ function DomainDetail({ domain, model, rowCounts, onSelect }: DetailProps) {
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h2 className="text-base font-semibold">{domain.name}</h2>
         <span className="text-xs text-zinc-500">
-          테이블 {domain.tables.length}개, 가리키는 도메인 {domain.out.size}개, 가리켜지는 도메인 {domain.in.size}개
+          테이블 {domain.tables.length}개, 이 시스템이 쓰는 시스템 {domain.out.size}개, 이 시스템을 쓰는 시스템 {domain.in.size}개
         </span>
         <span className="flex gap-2">
           {roles.map((r) => (
@@ -243,7 +243,7 @@ function DomainDetail({ domain, model, rowCounts, onSelect }: DetailProps) {
           <Background gap={16} size={1} />
         </ReactFlow>
       </div>
-      <p className="text-xs text-zinc-500">가운데 테이블을 누르면 그 테이블을, 양쪽의 점선 상자를 누르면 그 도메인을 엽니다.</p>
+      <p className="text-xs text-zinc-500">가운데 테이블을 누르면 그 테이블의 연결 그림을, 양쪽의 점선 상자를 누르면 그 시스템을 엽니다.</p>
       <div className="grid grid-cols-1 gap-2 2xl:grid-cols-2">
         {domain.tables.map((k) => (
           <TableCard key={k} info={model.tables.get(k)!} model={model} rows={rowCounts.get(k)} domains={model.domains.map((d) => d.name)} />
@@ -288,7 +288,7 @@ function detailGraph(domain: DomainInfo, model: DomainModel) {
       nodes.push({
         id,
         position: { x: col * DETAIL_GAP, y: (row - (ids.length - 1) / 2) * DETAIL_ROW },
-        data: { label: external ? `${id.slice(7)} 도메인` : info!.table },
+        data: { label: external ? `${id.slice(7)} 시스템` : info!.table },
         sourcePosition: Position.Right,
         targetPosition: Position.Left,
         className: "cursor-pointer",
@@ -346,7 +346,7 @@ function DomainDocs({ name, tables }: { name: string; tables: string[] }) {
         <BookOpen className="size-3.5" aria-hidden />
         기획서
       </span>
-      {found.length === 0 && <span className="text-zinc-400">이 도메인을 다루는 절을 찾지 못했습니다.</span>}
+      {found.length === 0 && <span className="text-zinc-400">이 시스템을 다루는 기획서 내용을 찾지 못했습니다.</span>}
       {found.map((f) => (
         <Link
           key={`${f.docId}/${f.sectionId}`}

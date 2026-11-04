@@ -9,19 +9,19 @@ export type TableRole = "start" | "base" | "child" | "shared" | "isolated";
 export const ROLE_ORDER: TableRole[] = ["start", "base", "child", "shared", "isolated"];
 
 export const ROLE_LABEL: Record<TableRole, string> = {
-  start: "시작점",
-  base: "기준",
-  child: "하위",
-  shared: "공통",
-  isolated: "독립",
+  start: "콘텐츠",
+  base: "정의",
+  child: "세부",
+  shared: "공용",
+  isolated: "연결 없음",
 };
 
 export const ROLE_HELP: Record<TableRole, string> = {
-  start: "아무도 가리키지 않고 다른 테이블을 가리키는 최상위 테이블입니다. 퀘스트, 상점 상품처럼 기획 콘텐츠가 시작되는 곳입니다.",
-  base: "다른 테이블이 가리키는 정의 테이블입니다.",
-  child: "키가 다른 테이블의 키를 그대로 쓰는 세부 테이블입니다. 부모 테이블과 같이 봐야 합니다.",
-  shared: "자기 도메인 밖의 여러 도메인에서 가져다 쓰는 공용 테이블입니다. 바꾸면 영향이 넓습니다.",
-  isolated: "찾은 연결이 없습니다. 연결이 이름으로 드러나지 않으면 관계 화면에서 직접 이어 주세요.",
+  start: "플레이어가 직접 만나는 콘텐츠 테이블입니다(퀘스트, 상점 상품, 스테이지). 다른 테이블을 쓰기만 하고 이 테이블을 쓰는 곳은 없어서, 테스트를 시작하기 좋은 곳입니다.",
+  base: "다른 테이블이 가져다 쓰는 정의 테이블입니다(퀘스트 조건, NPC). 여기를 바꾸면 이 테이블을 쓰는 곳도 같이 확인해야 합니다.",
+  child: "다른 테이블의 한 줄을 자세히 적은 테이블입니다(장비는 아이템의 세부, 보상은 보상 그룹의 세부). 같은 ID로 위 테이블과 짝을 이루므로 같이 봐야 합니다.",
+  shared: "여러 시스템이 함께 쓰는 공용 테이블입니다(아이템, 재화, 등급, 보상 그룹). 바꾸면 영향이 넓습니다.",
+  isolated: "다른 테이블과 이어진 곳을 찾지 못했습니다. 이어져 있는데 안 보이면 연결 목록에서 직접 이어 주세요.",
 };
 
 // 공통으로 보는 기준: 자기 도메인 밖에서 이 수 이상의 도메인이 가리킨다.

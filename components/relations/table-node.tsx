@@ -58,7 +58,7 @@ export function TableNodeView({ data }: NodeProps<TableNodeType>) {
           </li>
         ))}
         {data.hiddenCount > 0 && (
-          <li className="px-3 py-1 text-zinc-400">관계 없는 열 {data.hiddenCount}개</li>
+          <li className="px-3 py-1 text-zinc-400">연결 없는 열 {data.hiddenCount}개</li>
         )}
       </ul>
     </div>

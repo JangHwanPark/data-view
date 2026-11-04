@@ -33,7 +33,7 @@ export function SourceDetail({ id }: { id: string }) {
   if (!source) {
     return (
       <div className="flex flex-col gap-2">
-        <p className="text-zinc-500">이 데이터 소스를 찾을 수 없습니다.</p>
+        <p className="text-zinc-500">이 파일을 찾을 수 없습니다. 목록에서 지워졌을 수 있습니다.</p>
         <BackLink />
       </div>
     );
@@ -57,12 +57,12 @@ export function SourceDetail({ id }: { id: string }) {
             </>
           ) : (
             <>
-              MySQL 데이터베이스 {meta.database}
+              개발 DB {meta.database}
               {meta.loadedAt && `, ${new Date(meta.loadedAt).toLocaleString()}에 불러옴`}
             </>
           )}
           {status === "ready" && `, 테이블 ${tables.length}개`}
-          {relationCount > 0 && `, 관계 ${relationCount}개`}
+          {relationCount > 0 && `, 확인한 연결 ${relationCount}개`}
         </p>
       </div>
 
@@ -71,7 +71,7 @@ export function SourceDetail({ id }: { id: string }) {
       {status === "loading" && (
         <p className="inline-flex items-center gap-2 text-zinc-500">
           <Loader2 className="size-4 animate-spin" aria-hidden />
-          {isDb ? "데이터베이스에서 테이블을 불러오는 중입니다." : "파일을 읽는 중입니다."}
+          {isDb ? "개발 DB에서 테이블을 불러오는 중입니다." : "파일을 읽는 중입니다."}
         </p>
       )}
 
@@ -174,9 +174,9 @@ function FileActions({ source }: { source: WorkspaceSource }) {
           disabled={status === "loading"}
           onChange={(e) => void setHeader(meta.id, e.target.checked)}
         />
-        첫 행을 열 이름으로 사용
+        첫 행을 열 제목으로 쓰기
       </label>
-      <span className="text-xs text-zinc-500">시트와 열 이름이 같으면 설정해 둔 관계가 그대로 적용됩니다.</span>
+      <span className="text-xs text-zinc-500">시트와 열 이름이 같으면 확인해 둔 연결이 그대로 이어집니다.</span>
       {replaceError && <p className="w-full text-red-600">{replaceError}</p>}
     </div>
   );
@@ -191,7 +191,7 @@ function DbActions({ source }: { source: WorkspaceSource }) {
         다시 불러오기
       </button>
       <span className="text-xs text-zinc-500">
-        데이터베이스의 현재 내용을 다시 읽어 옵니다. 테이블과 열 이름이 같으면 설정해 둔 관계가 그대로 적용됩니다.
+        개발 DB의 지금 내용을 다시 읽어 옵니다. 테이블과 열 이름이 같으면 확인해 둔 연결이 그대로 이어집니다.
       </span>
     </div>
   );
@@ -199,9 +199,9 @@ function DbActions({ source }: { source: WorkspaceSource }) {
 
 function BackLink() {
   return (
-    <Link href="/" className="inline-flex w-fit items-center gap-1 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
+    <Link href="/files" className="inline-flex w-fit items-center gap-1 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
       <ChevronLeft className="size-4" aria-hidden />
-      데이터 소스
+      불러온 파일
     </Link>
   );
 }

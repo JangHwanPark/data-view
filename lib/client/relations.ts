@@ -204,7 +204,7 @@ export function buildExport(relations: Relation[], sources: { id: string; name: 
 export function parseExport(text: string): RelationsExport {
   const data = JSON.parse(text) as Partial<RelationsExport>;
   if (data.app !== "data-view" || data.version !== 1 || !Array.isArray(data.relations) || !Array.isArray(data.sources)) {
-    throw new Error("data-view에서 내보낸 관계 파일이 아닙니다.");
+    throw new Error("data-view에서 내보낸 연결 파일이 아닙니다.");
   }
   return data as RelationsExport;
 }

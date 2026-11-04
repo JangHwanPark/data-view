@@ -61,13 +61,13 @@ export function ValueSearch() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold">값 검색</h1>
+      <h1 className="text-xl font-semibold">ID·값 찾기</h1>
 
       <form onSubmit={submit} className="flex flex-wrap items-center gap-3">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="찾을 값 (예: 고객ID C-001)"
+          placeholder="찾을 ID나 값 (예: 아이템 ID 100041)"
           aria-label="찾을 값"
           className="w-80 max-w-full rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
         />
@@ -84,7 +84,7 @@ export function ValueSearch() {
         </button>
       </form>
       <p className="-mt-3 text-xs text-zinc-500">
-        열려 있는 모든 파일의 모든 열에서 찾습니다. 기본은 값 전체가 같은 경우만 찾고, 포함 검색을 켜면 일부만 맞아도 찾습니다.
+        불러온 모든 파일의 모든 열에서 찾습니다. 아이템 ID를 넣으면 아이템 테이블뿐 아니라 그 ID를 쓰는 보상, 상점, 제작 테이블의 행도 함께 나옵니다. 기본은 값 전체가 같은 경우만 찾고, 포함 검색을 켜면 일부만 맞아도 찾습니다.
       </p>
 
       {query && (loading || !hits) && (

@@ -38,7 +38,7 @@ export function SourceList() {
           className="inline-flex items-center gap-2 rounded-md border border-zinc-300 px-3 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
         >
           <FolderInput className="size-4" aria-hidden />
-          경로 지정
+          폴더 위치로 불러오기
         </Link>
         <input
           ref={inputRef}
@@ -61,7 +61,7 @@ export function SourceList() {
         <p className="text-sm text-zinc-500">불러오는 중...</p>
       ) : sources.length === 0 ? (
         <p className="text-sm text-zinc-500">
-          아직 연 파일이 없습니다. CSV나 엑셀 파일을 열어 보세요.
+          아직 불러온 파일이 없습니다. 테이블 엑셀이나 CSV를 불러와 보세요.
         </p>
       ) : (
         <ul className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900">
@@ -86,7 +86,7 @@ export function SourceList() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (confirm(`${meta.name}을(를) 목록에서 지울까요? 이 파일에 걸린 관계도 함께 지워집니다.`))
+                    if (confirm(`${meta.name}을(를) 목록에서 지울까요? 이 파일에 확인해 둔 연결도 함께 지워집니다.`))
                       void removeSource(meta.id);
                   }}
                   className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-red-600 dark:hover:bg-zinc-800"

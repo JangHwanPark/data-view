@@ -30,13 +30,13 @@ export async function fetchLocalFile(path: string): Promise<File> {
 export function localFileErrorText(code: string) {
   switch (code) {
     case "NOT_FOUND":
-      return "경로를 찾을 수 없습니다.";
+      return "경로를 찾을 수 없습니다. 탐색기 주소창에서 폴더 경로를 복사해 붙여 넣어 주세요.";
     case "NO_PERMISSION":
-      return "이 경로를 읽을 권한이 없습니다.";
+      return "이 폴더나 파일을 열 수 없습니다. 다른 프로그램(엑셀 등)에서 열려 있지 않은지, 열람 권한이 있는지 확인해 주세요.";
     case "TOO_LARGE":
       return "파일이 너무 큽니다(200MB 초과).";
     case "NOT_ALLOWED":
-      return "불러올 수 없는 형식입니다.";
+      return "불러올 수 없는 파일입니다. 엑셀(xlsx, xls), CSV, 워드, PPT, PDF만 불러올 수 있습니다.";
     default:
       return "경로를 읽지 못했습니다.";
   }

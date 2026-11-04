@@ -45,7 +45,7 @@ export function TableLinks({ focus, sourceId, table, columns, relations, reasons
           </button>
           <Link href={graphHref(`${sourceId}/${table}`)} className="inline-flex items-center gap-1 text-blue-700 hover:underline dark:text-blue-400">
             <Network className="size-3.5" aria-hidden />
-            관계도로 보기
+            연결 그림으로 보기
           </Link>
         </div>
       )}
@@ -55,7 +55,7 @@ export function TableLinks({ focus, sourceId, table, columns, relations, reasons
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="inline-flex w-20 shrink-0 items-center gap-1 text-zinc-500">
           <ArrowRight className="size-3.5" aria-hidden />
-          가리키는
+          쓰는 테이블
         </span>
         {outgoing.length === 0 && <span className="text-zinc-400">{ready ? "없음" : "찾는 중"}</span>}
         {outgoing.map((r) => (
@@ -76,7 +76,7 @@ export function TableLinks({ focus, sourceId, table, columns, relations, reasons
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="inline-flex w-20 shrink-0 items-center gap-1 text-zinc-500">
           <ArrowLeft className="size-3.5" aria-hidden />
-          가리켜지는
+          쓰이는 곳
         </span>
         {incoming.length === 0 && <span className="text-zinc-400">{ready ? "없음" : "찾는 중"}</span>}
         {incoming.map((r) => (
@@ -118,18 +118,18 @@ function RelationChip({ r, other, text, reason }: ChipProps) {
       <Link
         href={`/sources/${other.sourceId}/tables/${encodeURIComponent(other.table)}`}
         className={`${chip} ${auto ? "border-dashed" : ""}`}
-        title={auto ? reason : "저장한 관계"}
+        title={auto ? reason : "확인한 연결"}
       >
         {text}
-        {auto && <span className="text-[10px] text-zinc-400">자동</span>}
+        {auto && <span className="text-[10px] text-zinc-400">앱이 찾음</span>}
       </Link>
       {auto && (
         <button
           type="button"
           onClick={() => void addRelations([{ id: newRelationId(), from: r.from, to: r.to }])}
           className="ml-0.5 rounded p-0.5 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
-          title="관계로 저장"
-          aria-label="관계로 저장"
+          title="맞는 연결로 확인"
+          aria-label="맞는 연결로 확인"
         >
           <Save className="size-3" aria-hidden />
         </button>

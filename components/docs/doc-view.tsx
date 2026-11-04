@@ -61,7 +61,7 @@ export function DocView({ id }: { id: string }) {
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h1 className="text-lg font-semibold break-all">{doc.meta.name}</h1>
         <p className="text-zinc-500">
-          {KIND_NAME[doc.meta.kind]} 기획서, 절 {sections.length}개, 용어 {views.length}개 (확정 {counts.confirmed}, 확인 필요 {counts.candidate}, 매칭 안 됨 {counts.unmatched})
+          {KIND_NAME[doc.meta.kind]} 기획서, 절 {sections.length}개, 용어 {views.length}개 (맞음 {counts.confirmed}, 확인 필요 {counts.candidate}, 데이터에 없음 {counts.unmatched})
         </p>
         {!candidates && (
           <span className="inline-flex items-center gap-1 text-xs text-zinc-500">
@@ -72,9 +72,9 @@ export function DocView({ id }: { id: string }) {
         {candidates === "error" && <span className="text-xs text-red-600">데이터와 맞춰 보지 못했습니다.</span>}
         <DocReplace id={doc.meta.id} originPath={doc.meta.originPath} />
         <p className="ml-auto text-xs text-zinc-500">
-          <span className="text-blue-700 underline dark:text-blue-400">확정</span>{" "}
+          <span className="text-blue-700 underline dark:text-blue-400">맞음</span>{" "}
           <mark className="rounded-sm bg-amber-100 px-0.5 text-inherit dark:bg-amber-900/40">확인 필요</mark>{" "}
-          <span className="text-red-600 underline decoration-wavy dark:text-red-400">매칭 안 됨</span>
+          <span className="text-red-600 underline decoration-wavy dark:text-red-400">데이터에 없음</span>
         </p>
       </div>
 
@@ -197,12 +197,12 @@ function TermList({ views, selectedKey, onSelect }: ListProps) {
               <div className="flex flex-col gap-1.5 px-2.5 pb-2">
                 {v.state === "confirmed" && v.target && (
                   <p className="flex items-center gap-1 text-zinc-600 dark:text-zinc-400">
-                    확정: <TargetLabel target={v.target} sources={sources} value={v.term.kind === "quoted" ? targetRowValue(v.term, v.target) : null} />
+                    맞음으로 표시함: <TargetLabel target={v.target} sources={sources} value={v.term.kind === "quoted" ? targetRowValue(v.term, v.target) : null} />
                     <OpenLink term={v.term} target={v.target} />
                   </p>
                 )}
                 {v.candidates.length === 0 ? (
-                  <p className="text-zinc-500">{v.term.kind === "id" ? "어느 테이블의 키에도 없는 값입니다. 데이터에서 빠졌거나 아직 없는 ID일 수 있습니다." : "맞는 테이블이나 열이 없습니다. 옛 이름이거나 아직 없는 테이블일 수 있습니다."}</p>
+                  <p className="text-zinc-500">{v.term.kind === "id" ? "어느 테이블의 ID 열에도 없는 ID입니다. 데이터에서 빠졌거나 아직 만들지 않은 ID일 수 있습니다." : "맞는 테이블이나 열이 없습니다. 옛 이름이거나 아직 없는 테이블일 수 있습니다."}</p>
                 ) : (
                   <ul className="flex flex-col gap-1">
                     {v.candidates.map((c, i) => (
@@ -213,7 +213,7 @@ function TermList({ views, selectedKey, onSelect }: ListProps) {
                             disabled={isSelected(v, c)}
                             onClick={() => void setMapping({ key: v.term.key, text: v.term.text, target: c.target })}
                             className="inline-flex min-w-0 items-center gap-0.5 rounded border border-zinc-300 px-1.5 py-0.5 hover:bg-zinc-100 disabled:border-blue-300 disabled:text-blue-700 dark:border-zinc-700 dark:hover:bg-zinc-800 dark:disabled:text-blue-400"
-                            title="이 대상으로 확정"
+                            title="이게 맞음"
                           >
                             <Check className="size-3 shrink-0" aria-hidden />
                             <span className="truncate">
@@ -308,10 +308,10 @@ function GlossaryEditor() {
   const [draft, setDraft] = useState<string | null>(null);
   return (
     <details className="mt-3 rounded-md border border-zinc-200 bg-white p-2.5 text-xs dark:border-zinc-800 dark:bg-zinc-900">
-      <summary className="cursor-pointer">용어집</summary>
-      <p className="mt-1.5 text-zinc-500">한글 용어를 테이블 이름의 영어 단어로 바꿀 때 씁니다. 한 줄에 하나씩 &lsquo;한글=English&rsquo;로 적고, 저장하면 후보를 다시 계산합니다.</p>
+      <summary className="cursor-pointer">기획서 이름 짝</summary>
+      <p className="mt-1.5 text-zinc-500">기획서의 한글 이름이 어느 테이블 이름에 해당하는지 적습니다. 한 줄에 하나씩 &lsquo;아이템=Item&rsquo;처럼 적고, 저장하면 기획서에서 다시 찾습니다.</p>
       <textarea
-        aria-label="용어집"
+        aria-label="기획서 이름 짝"
         value={draft ?? glossary}
         onChange={(e) => setDraft(e.target.value)}
         rows={8}

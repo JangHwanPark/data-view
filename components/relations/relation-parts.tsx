@@ -1,5 +1,5 @@
 import type { WorkspaceSource } from "@/components/workspace-provider";
-import { coverage, type ColumnRef, type RelationStats } from "@/lib/client/relations";
+import { coverage, rowCoverage, type ColumnRef, type RelationStats } from "@/lib/client/relations";
 import { tableKey } from "@/lib/client/schema";
 import type { QueryColumn } from "@/lib/query-result";
 
@@ -20,23 +20,25 @@ export function ColumnLabel({ refValue, sources }: { refValue: ColumnRef; source
 }
 
 // 일치율이 낮거나 대상 값이 중복이면 키를 잘못 골랐을 가능성이 크다.
+// 비율 대신 개수로 보여준다(설계 1.1). 행 기준 개수를 쓰고, 맞지 않는 개수를 따로 적는다.
 export function StatsText({ stats }: { stats: RelationStats }) {
-  const ratio = coverage(stats);
-  const percent = Math.round(ratio * 1000) / 10;
+  const ratio = Math.max(coverage(stats), rowCoverage(stats));
   const low = ratio < 0.5;
+  const total = stats.fromRows || stats.fromDistinct;
+  const matched = stats.fromRows ? stats.matchedRows : stats.matched;
+  const missing = total - matched;
   return (
     <p className="text-xs text-zinc-500">
       <span className={low ? "font-medium text-red-600" : ""}>
-        값 {stats.fromDistinct.toLocaleString()}개 중 {stats.matched.toLocaleString()}개({percent}%)가 대상에 있습니다.
+        {total.toLocaleString()}개 중 {matched.toLocaleString()}개 맞음
+        {missing > 0 ? `, ${missing.toLocaleString()}개는 상대 테이블에 없는 ID` : ""}.
       </span>{" "}
       {stats.toUnique ? (
-        "대상 값은 모두 유일합니다."
+        "상대 테이블의 ID는 겹치지 않습니다."
       ) : (
-        <span className="text-amber-700 dark:text-amber-400">
-          대상 열에 중복 값이 있어 한 값이 여러 행으로 이어집니다.
-        </span>
+        <span className="text-amber-700 dark:text-amber-400">상대 테이블에 같은 ID가 여러 줄 있어, 한 값이 여러 행으로 이어집니다.</span>
       )}
-      {low && " 키 열을 다시 확인해 주세요."}
+      {low && " 맞는 값이 적습니다. ID 열을 잘못 고르지 않았는지 확인해 주세요."}
     </p>
   );
 }

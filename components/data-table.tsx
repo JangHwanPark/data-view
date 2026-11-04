@@ -14,7 +14,7 @@ const helper = createColumnHelper<typeof features, Row>();
 const ROW_HEIGHT = 28;
 const COLUMN_WIDTH = 180;
 const TYPE_LABEL: Record<QueryColumn["type"], string> = {
-  string: "문자",
+  string: "글자",
   number: "숫자",
   boolean: "참/거짓",
   date: "날짜",

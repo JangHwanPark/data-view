@@ -67,13 +67,13 @@ export function RelationForm({ sources, columns }: Props) {
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="font-medium">관계 추가</h2>
+      <h2 className="font-medium">직접 잇기</h2>
       <p className="text-sm text-zinc-500">
-        다른 파일을 가리키는 열(예: 주문의 고객ID)을 왼쪽에, 가리켜지는 열(예: 고객의 ID)을 오른쪽에 고릅니다.
+        다른 테이블의 ID를 쓰는 열(예: 퀘스트의 reward_group_id)을 왼쪽에, 그 ID가 있는 열(예: 보상 그룹의 reward_group_id)을 오른쪽에 고릅니다.
       </p>
       <div className="grid grid-cols-1 items-end gap-3 rounded-lg border border-zinc-200 bg-white p-4 md:grid-cols-[1fr_auto_1fr] dark:border-zinc-800 dark:bg-zinc-900">
         <EndpointPicker
-          title="가리키는 쪽"
+          title="ID를 쓰는 쪽"
           options={options}
           columns={columns}
           table={fromTable}
@@ -86,7 +86,7 @@ export function RelationForm({ sources, columns }: Props) {
         />
         <ArrowRight className="mx-auto mb-2 hidden size-5 text-zinc-400 md:block" aria-hidden />
         <EndpointPicker
-          title="가리켜지는 쪽"
+          title="ID가 있는 쪽"
           options={options}
           columns={columns}
           table={toTable}
@@ -107,17 +107,17 @@ export function RelationForm({ sources, columns }: Props) {
           className="inline-flex items-center gap-2 rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
         >
           <Plus className="size-4" aria-hidden />
-          관계 저장
+          연결 저장
         </button>
         {sameColumn && <p className="text-sm text-red-600">같은 열끼리는 이을 수 없습니다.</p>}
-        {duplicate && <p className="text-sm text-zinc-500">이미 있는 관계입니다.</p>}
+        {duplicate && <p className="text-sm text-zinc-500">이미 있는 연결입니다.</p>}
         {stats === "loading" && (
           <p className="inline-flex items-center gap-1 text-sm text-zinc-500">
             <Loader2 className="size-3.5 animate-spin" aria-hidden />
-            값이 얼마나 일치하는지 확인하는 중
+            값이 얼마나 맞는지 세는 중
           </p>
         )}
-        {stats === "error" && <p className="text-sm text-red-600">일치율을 계산하지 못했습니다.</p>}
+        {stats === "error" && <p className="text-sm text-red-600">값이 얼마나 맞는지 세지 못했습니다.</p>}
         {stats && typeof stats === "object" && <StatsText stats={stats} />}
       </div>
     </section>

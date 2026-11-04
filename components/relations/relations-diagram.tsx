@@ -190,7 +190,7 @@ export function RelationsDiagram() {
           자동 배치로 되돌리기
         </button>
         <p className="text-xs text-zinc-500">
-          새 관계는 모든 열 보기를 켜고, 가리키는 열의 오른쪽 점에서 가리켜지는 열의 왼쪽 점으로 끌어 잇습니다.
+          새로 이으려면 모든 열 보기를 켜고, ID를 쓰는 열의 오른쪽 점에서 그 ID가 있는 열의 왼쪽 점으로 끌어다 놓습니다.
         </p>
       </div>
 
@@ -200,7 +200,7 @@ export function RelationsDiagram() {
       }} />}
 
       {tables.length === 0 ? (
-        <p className="text-sm text-zinc-500">데이터 소스에서 파일을 먼저 열어 주세요.</p>
+        <p className="text-sm text-zinc-500">먼저 상단의 파일 불러오기로 파일을 열어 주세요.</p>
       ) : (
         <div className="h-[72vh] rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
           <ReactFlow
@@ -227,7 +227,7 @@ export function RelationsDiagram() {
 function Header() {
   return (
     <div className="flex flex-col gap-3">
-      <h1 className="text-xl font-semibold">관계</h1>
+      <h1 className="text-xl font-semibold">연결 목록</h1>
       <RelationsTabs active="diagram" />
     </div>
   );
@@ -279,15 +279,15 @@ function PendingRelation({ pending, onCancel, onSave }: PendingProps) {
           <ColumnLabel refValue={pending.to} sources={sources} />
         </div>
         {duplicate ? (
-          <p className="text-xs text-zinc-500">이미 있는 관계입니다.</p>
+          <p className="text-xs text-zinc-500">이미 있는 연결입니다.</p>
         ) : stats === "error" ? (
-          <p className="text-xs text-red-600">일치율을 계산하지 못했습니다.</p>
+          <p className="text-xs text-red-600">값이 얼마나 맞는지 세지 못했습니다.</p>
         ) : stats ? (
           <StatsText stats={stats} />
         ) : (
           <p className="inline-flex items-center gap-1 text-xs text-zinc-500">
             <Loader2 className="size-3 animate-spin" aria-hidden />
-            값이 얼마나 일치하는지 확인하는 중
+            값이 얼마나 맞는지 세는 중
           </p>
         )}
       </div>
@@ -305,7 +305,7 @@ function PendingRelation({ pending, onCancel, onSave }: PendingProps) {
         className="inline-flex items-center gap-1 rounded-md bg-zinc-900 px-3 py-1.5 font-medium text-white hover:bg-zinc-700 disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900"
       >
         <Plus className="size-4" aria-hidden />
-        관계 저장
+        연결 저장
       </button>
     </div>
   );

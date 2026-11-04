@@ -9,9 +9,9 @@ import type { DocTarget } from "@/lib/client/doc-infer";
 import { targetRowValue, termHref } from "@/lib/client/doc-links";
 
 export const STATE_LABEL: Record<TermState, string> = {
-  confirmed: "확정",
+  confirmed: "맞음",
   candidate: "확인 필요",
-  unmatched: "매칭 안 됨",
+  unmatched: "데이터에 없음",
   ignored: "무시함",
 };
 
@@ -72,7 +72,7 @@ function TermMark({ view, selected, onSelect }: { view: TermView; selected: bool
       <Link
         href={termHref(term, target)}
         className={`rounded-sm text-blue-700 underline decoration-blue-300 underline-offset-2 hover:decoration-blue-700 dark:text-blue-400 ${ring}`}
-        title={row ? `확정한 매칭. 누르면 ${target.table}의 이 행을 엽니다.` : "확정한 매칭. 누르면 데이터로 이동합니다."}
+        title={row ? `맞음으로 표시한 곳. 누르면 ${target.table}의 이 행을 엽니다.` : "맞음으로 표시한 곳. 누르면 데이터로 이동합니다."}
       >
         {term.text}
       </Link>
@@ -85,7 +85,7 @@ function TermMark({ view, selected, onSelect }: { view: TermView; selected: bool
       : "text-red-600 underline decoration-wavy decoration-red-300 underline-offset-2 dark:text-red-400";
   const title =
     state === "candidate" && top
-      ? `후보: ${top.target.table}${top.target.column ? "." + top.target.column : ""} (${Math.round(top.score * 100)}%, ${top.reason}). 누르면 후보를 고를 수 있습니다.`
+      ? `추정: ${top.target.table}${top.target.column ? "의 " + top.target.column : ""} (${top.reason}). 누르면 맞는 곳을 고를 수 있습니다.`
       : "맞는 테이블이나 값을 찾지 못했습니다. 옛 이름이거나 아직 없는 데이터일 수 있습니다.";
   return (
     <button type="button" onClick={() => onSelect?.(term.key)} className={`${cls} ${ring} cursor-pointer`} title={title}>

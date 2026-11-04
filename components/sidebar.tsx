@@ -14,6 +14,7 @@ import {
   FileSpreadsheet,
   FileText,
   FolderOpen,
+  House,
   GitFork,
   Loader2,
   Network,
@@ -27,12 +28,13 @@ import { sourceVersion, useWorkspace, type WorkspaceSource } from "@/components/
 import { loadRowCounts, tableKey } from "@/lib/client/schema";
 
 const NAV = [
-  { href: "/", label: "데이터 소스", icon: FolderOpen },
-  { href: "/map", label: "도메인 지도", icon: Network },
+  { href: "/", label: "처음", icon: House },
+  { href: "/files", label: "불러온 파일", icon: FolderOpen },
+  { href: "/map", label: "시스템 지도", icon: Network },
   { href: "/docs", label: "기획서", icon: BookOpen },
-  { href: "/relations", label: "관계", icon: GitFork },
-  { href: "/search", label: "값 검색", icon: Search },
-  { href: "/join", label: "합친 표", icon: TableProperties },
+  { href: "/search", label: "ID·값 찾기", icon: Search },
+  { href: "/relations", label: "연결 목록", icon: GitFork },
+  { href: "/join", label: "여러 테이블 붙여 보기", icon: TableProperties },
 ];
 
 // 접힘 상태는 브라우저에 기억한다. 서버 렌더링 때는 펼친 상태로 그린다.
@@ -139,7 +141,7 @@ function SidebarNav() {
 
 const GROUPS = [
   { label: "파일", match: (kind: string) => kind === "excel" || kind === "csv" },
-  { label: "데이터베이스", match: (kind: string) => kind === "mysql" },
+  { label: "개발 DB", match: (kind: string) => kind === "mysql" },
 ];
 
 // 지금 보고 있는 테이블. 경로가 /sources/[id]/tables/[table] 일 때만 있다.
@@ -210,7 +212,7 @@ function TableTree() {
         <input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="시트, 파일 이름으로 찾기"
+          placeholder="시트나 파일 이름으로 찾기"
           aria-label="테이블 거르기"
           className="w-full rounded border border-zinc-300 bg-white px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-950"
         />
@@ -350,7 +352,7 @@ function SourceNode({ source, tables, open, onToggle, activeTable, sourceActive,
                   {rels ? (
                     <span
                       className={`inline-flex shrink-0 items-center gap-0.5 text-[11px] ${isActive ? "" : "text-blue-600 dark:text-blue-400"}`}
-                      title={`이어진 테이블 ${rels}개`}
+                      title={`이어진 테이블 ${rels}개 (쓰는 테이블과 이 테이블을 쓰는 테이블)`}
                     >
                       <GitFork className="size-3" aria-hidden />
                       {rels}

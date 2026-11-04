@@ -51,7 +51,7 @@ function RelNodeView({ data }: NodeProps<RelNodeType>) {
         {header}
         <div className="flex flex-col justify-center px-2.5" style={{ height: HEAD }}>
           <span className="truncate text-[13px] font-semibold">
-            {domain} 도메인 {tables.length}개
+            {domain} 시스템 {tables.length}개
           </span>
           <span className="text-[11px] text-blue-700 dark:text-blue-400">눌러서 펼치기</span>
         </div>
@@ -84,7 +84,7 @@ function RelNodeView({ data }: NodeProps<RelNodeType>) {
             {info?.table}
           </p>
           <p className="truncate text-[10px] text-zinc-500">
-            {info && info.domain !== centerDomain ? `${info.domain} 도메인 · ` : center && info ? `${info.domain} 도메인 · ` : ""}
+            {info && info.domain !== centerDomain ? `${info.domain} 시스템 · ` : center && info ? `${info.domain} 시스템 · ` : ""}
             {info && !partial ? ROLE_LABEL[info.role] : ""}
           </p>
         </div>
@@ -104,7 +104,7 @@ function RelNodeView({ data }: NodeProps<RelNodeType>) {
           <li key={c} className="relative flex items-center px-2.5 font-mono text-[11px]" style={{ height: ROW }}>
             <Handle type="target" id={`in:${c}`} position={Position.Left} className="!size-1.5 !min-h-0 !min-w-0 !border-0 !bg-zinc-400" />
             <span className={`truncate ${center && i === 0 ? "font-semibold text-zinc-900 dark:text-zinc-100" : "text-zinc-600 dark:text-zinc-400"}`}>{c}</span>
-            {center && i === 0 && <span className="ml-1 shrink-0 font-sans text-[10px] text-zinc-400">키</span>}
+            {center && i === 0 && <span className="ml-1 shrink-0 font-sans text-[10px] text-zinc-400">ID 열</span>}
             <Handle type="source" id={`out:${c}`} position={Position.Right} className="!size-1.5 !min-h-0 !min-w-0 !border-0 !bg-zinc-400" />
           </li>
         ))}
@@ -228,7 +228,7 @@ export function TableRelationView({ id, table }: { id: string; table: string }) 
             {domain.progress ? <ScanProgressInline progress={domain.progress} /> : null}
           </span>
         )}
-        <span className="ml-auto">깊이</span>
+        <span className="ml-auto">보기 범위</span>
         <div className="flex gap-0.5">
           {([1, 2] as const).map((d) => (
             <button
@@ -238,9 +238,9 @@ export function TableRelationView({ id, table }: { id: string; table: string }) 
               onClick={() => setDepth(d)}
               aria-pressed={depth === d}
               className={`rounded px-2 py-0.5 disabled:opacity-40 ${depth === d ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900" : "hover:bg-zinc-100 dark:hover:bg-zinc-800"}`}
-              title={partial && d === 2 ? "모든 연결을 찾은 뒤에 2단계를 볼 수 있습니다" : undefined}
+              title={partial && d === 2 ? "모든 테이블의 연결을 찾은 뒤에 볼 수 있습니다" : undefined}
             >
-              {d}단계
+              {d === 1 ? "바로 이어진 것" : "한 단계 더"}
             </button>
           ))}
         </div>
@@ -255,7 +255,7 @@ export function TableRelationView({ id, table }: { id: string; table: string }) 
               <>
                 <ColumnHeads empty={layout.empty} />
                 {depth === 2 && !partial && layout.far === 0 && (
-                  <p className="pointer-events-none absolute inset-x-0 bottom-2 z-10 text-center text-[11px] text-zinc-500">2단계에서 더 이어지는 테이블이 없습니다.</p>
+                  <p className="pointer-events-none absolute inset-x-0 bottom-2 z-10 text-center text-[11px] text-zinc-500">한 단계 더 이어지는 테이블이 없습니다.</p>
                 )}
                 <ReactFlow
                   key={`${center}/${depth}/${layout.nodes.length}/${partial}`}
@@ -292,7 +292,7 @@ export function TableRelationView({ id, table }: { id: string; table: string }) 
             <EdgeDetail edge={picked} reason={reasons.get(picked.relationId)} onDone={() => setSelected(null)} />
           ) : (
             <p className="text-xs text-zinc-500">
-              상자를 누르면 그 테이블이 가운데로 옵니다. 선에 마우스를 올리면 연결 근거가 나오고, 선을 누르면 자동 연결을 관계로 저장할 수 있습니다. 점선은 자동으로 찾은 연결입니다.
+              상자를 누르면 그 테이블이 가운데로 옵니다. 선에 마우스를 올리면 왜 이어졌다고 보는지 나오고, 선을 누르면 앱이 찾은 연결(점선)을 맞는 연결로 확인할 수 있습니다.
             </p>
           )}
         </div>
@@ -308,7 +308,7 @@ export function TableRelationView({ id, table }: { id: string; table: string }) 
           <p className="font-medium">
             {hover.edge.from.table}.{hover.edge.from.column} → {hover.edge.to.table}.{hover.edge.to.column}
           </p>
-          <p className="opacity-80">{isAuto(hover.edge.relationId) ? reasons.get(hover.edge.relationId) ?? "자동으로 찾은 연결" : "저장한 관계"}</p>
+          <p className="opacity-80">{isAuto(hover.edge.relationId) ? reasons.get(hover.edge.relationId) ?? "앱이 찾은 연결" : "확인한 연결"}</p>
         </div>
       )}
     </div>
@@ -318,8 +318,8 @@ export function TableRelationView({ id, table }: { id: string; table: string }) 
 function ColumnHeads({ empty }: { empty: { left: boolean; right: boolean } }) {
   return (
     <div className="pointer-events-none absolute inset-x-3 top-2 z-10 flex justify-between text-[11px] text-zinc-400">
-      <span>← 이 테이블을 가리키는 쪽{empty.left ? " (없음)" : ""}</span>
-      <span>이 테이블이 가리키는 쪽{empty.right ? " (없음)" : ""} →</span>
+      <span>← 이 테이블을 쓰는 테이블{empty.left ? " (없음)" : ""}</span>
+      <span>이 테이블이 쓰는 테이블{empty.right ? " (없음)" : ""} →</span>
     </div>
   );
 }
@@ -328,7 +328,7 @@ function ScanProgressInline({ progress }: { progress: { done: number; total: num
   return (
     <>
       <Loader2 className="size-3 animate-spin" aria-hidden />
-      모든 연결을 찾는 중{progress.total ? ` (${progress.done}/${progress.total})` : ""}. 다 찾으면 역할과 2단계를 보여줍니다.
+      모든 연결을 찾는 중{progress.total ? ` (${progress.done}/${progress.total})` : ""}. 다 찾으면 역할과 &lsquo;한 단계 더&rsquo;를 볼 수 있습니다.
     </>
   );
 }
@@ -343,7 +343,7 @@ function EdgeDetail({ edge, reason, onDone }: { edge: LayoutEdge; reason?: strin
       <span className="font-mono">
         {edge.from.table}.{edge.from.column} → {edge.to.table}.{edge.to.column}
       </span>
-      <span className="text-zinc-500">{auto ? reason ?? "자동으로 찾은 연결" : "저장한 관계"}</span>
+      <span className="text-zinc-500">{auto ? reason ?? "앱이 찾은 연결" : "확인한 연결"}</span>
       {auto && (
         <button
           type="button"
@@ -355,7 +355,7 @@ function EdgeDetail({ edge, reason, onDone }: { edge: LayoutEdge; reason?: strin
           className="ml-auto inline-flex items-center gap-1 rounded bg-zinc-900 px-2 py-0.5 text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
         >
           <Save className="size-3" aria-hidden />
-          관계로 저장
+          맞는 연결로 확인
         </button>
       )}
     </div>
@@ -372,7 +372,7 @@ function InfoPanel({ id, table, model, partial, columns }: { id: string; table: 
     <aside className="flex flex-col gap-3 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs dark:border-zinc-800 dark:bg-zinc-900/50 xl:self-start">
       {info && (
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-          <dt className="text-zinc-500">도메인</dt>
+          <dt className="text-zinc-500">시스템</dt>
           <dd>
             <Link href={`/map?domain=${encodeURIComponent(info.domain)}`} className="inline-flex items-center gap-1 text-blue-700 hover:underline dark:text-blue-400">
               <Network className="size-3" aria-hidden />
@@ -383,7 +383,7 @@ function InfoPanel({ id, table, model, partial, columns }: { id: string; table: 
           <dd>{partial ? <span className="text-zinc-400">찾는 중</span> : <RoleBadge role={info.role} />}</dd>
           {parent && (
             <>
-              <dt className="text-zinc-500">부모</dt>
+              <dt className="text-zinc-500">위 테이블</dt>
               <dd>
                 <Link href={graphHref(parent.key)} className="text-blue-700 hover:underline dark:text-blue-400">
                   {parent.table}
@@ -393,13 +393,13 @@ function InfoPanel({ id, table, model, partial, columns }: { id: string; table: 
           )}
           <dt className="text-zinc-500">열</dt>
           <dd className="tabular-nums">{columns.length}개</dd>
-          <dt className="text-zinc-500">가리키는</dt>
+          <dt className="text-zinc-500">쓰는 테이블</dt>
           <dd className="tabular-nums">
-            테이블 {count(info.out)}개{outside(info.out) ? ` (다른 도메인 ${outside(info.out)})` : ""}
+            테이블 {count(info.out)}개{outside(info.out) ? ` (다른 시스템 ${outside(info.out)})` : ""}
           </dd>
-          <dt className="text-zinc-500">가리켜지는</dt>
+          <dt className="text-zinc-500">쓰이는 곳</dt>
           <dd className="tabular-nums">
-            테이블 {count(info.in)}개{outside(info.in) ? ` (다른 도메인 ${outside(info.in)})` : ""}
+            테이블 {count(info.in)}개{outside(info.in) ? ` (다른 시스템 ${outside(info.in)})` : ""}
           </dd>
         </dl>
       )}

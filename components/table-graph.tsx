@@ -90,7 +90,7 @@ export function TableGraph({ sourceId, table }: { sourceId: string; table: strin
           <div className="flex flex-col items-center leading-tight">
             <span>{p.table}</span>
             <span className="text-[10px] text-zinc-500">
-              {info.domain !== here?.domain ? `${info.domain} 도메인 · ` : ""}
+              {info.domain !== here?.domain ? `${info.domain} 시스템 · ` : ""}
               {ROLE_LABEL[info.role]}
             </span>
           </div>
@@ -113,7 +113,7 @@ export function TableGraph({ sourceId, table }: { sourceId: string; table: strin
     source: `${r.from.sourceId}/${r.from.table}`,
     target: `${r.to.sourceId}/${r.to.table}`,
     // 열 이름이 같으면 한 번만 적어 이름표를 짧게 한다.
-    label: `${r.from.column === r.to.column ? r.from.column : `${r.from.column} → ${r.to.column}`}${isAutoRelation(r) ? " (자동)" : ""}`,
+    label: `${r.from.column === r.to.column ? r.from.column : `${r.from.column} → ${r.to.column}`}${isAutoRelation(r) ? " (앱이 찾음)" : ""}`,
     // 꺾인 선으로 그려 같은 상자에서 나가는 선들이 한 줄로 겹치지 않고 높이별로 갈라지게 한다.
     type: "smoothstep",
     labelStyle: { fontSize: 10 },
@@ -128,9 +128,9 @@ export function TableGraph({ sourceId, table }: { sourceId: string; table: strin
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-2 text-xs text-zinc-500">
         <span>이어진 테이블</span>
-        <span className="text-zinc-400">왼쪽은 이 테이블을 가리키는 쪽, 오른쪽은 이 테이블이 가리키는 쪽, 점선은 자동으로 찾은 연결</span>
+        <span className="text-zinc-400">왼쪽은 이 테이블을 쓰는 테이블, 오른쪽은 이 테이블이 쓰는 테이블, 점선은 앱이 찾은 연결</span>
         {depth === 2 && !wide.ready && <span className="text-zinc-400">이웃 테이블의 연결을 찾는 중</span>}
-        <span className="ml-auto">깊이</span>
+        <span className="ml-auto">보기 범위</span>
         {[1, 2].map((d) => (
           <button
             key={d}
@@ -138,7 +138,7 @@ export function TableGraph({ sourceId, table }: { sourceId: string; table: strin
             onClick={() => setDepth(d)}
             className={`rounded px-1.5 py-0.5 ${depth === d ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900" : "hover:bg-zinc-100 dark:hover:bg-zinc-800"}`}
           >
-            {d}단계
+            {d === 1 ? "바로 이어진 것" : "한 단계 더"}
           </button>
         ))}
       </div>

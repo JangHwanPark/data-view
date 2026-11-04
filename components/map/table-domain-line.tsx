@@ -13,7 +13,7 @@ export function TableDomainLine({ sourceId, table }: { sourceId: string; table: 
     return progress ? (
       <p className="-mt-2 inline-flex items-center gap-1 text-xs text-zinc-400">
         <Loader2 className="size-3 animate-spin" aria-hidden />
-        도메인과 역할을 찾는 중{progress.total ? ` (${progress.done}/${progress.total})` : ""}
+        시스템과 역할을 찾는 중{progress.total ? ` (${progress.done}/${progress.total})` : ""}
       </p>
     ) : null;
   }
@@ -24,7 +24,7 @@ export function TableDomainLine({ sourceId, table }: { sourceId: string; table: 
     <p className="-mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-zinc-500">
       <Link href={`/map?domain=${encodeURIComponent(info.domain)}`} className="inline-flex items-center gap-1 text-zinc-700 hover:underline dark:text-zinc-300">
         <Network className="size-3.5" aria-hidden />
-        {info.domain} 도메인
+        {info.domain} 시스템
       </Link>
       <RoleBadge role={info.role} />
       <span>
@@ -32,7 +32,7 @@ export function TableDomainLine({ sourceId, table }: { sourceId: string; table: 
         {parent && (
           <>
             {" "}
-            부모:{" "}
+            위 테이블:{" "}
             <Link href={tablePath(parent.key)} className="text-blue-700 hover:underline dark:text-blue-400">
               {parent.table}
             </Link>
@@ -40,7 +40,7 @@ export function TableDomainLine({ sourceId, table }: { sourceId: string; table: 
         )}
       </span>
       <span className="text-zinc-400">
-        가리키는 테이블 {info.out.length}, 가리켜지는 테이블 {info.in.length}
+        이 테이블이 쓰는 테이블 {new Set(info.out.map((l) => l.key)).size}개, 이 테이블을 쓰는 테이블 {new Set(info.in.map((l) => l.key)).size}개
       </span>
     </p>
   );

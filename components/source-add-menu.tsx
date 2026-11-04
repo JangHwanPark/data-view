@@ -17,7 +17,7 @@ function MenuGroup({ label, hint, children }: { label: string; hint?: string; ch
   );
 }
 
-// 상단 바의 소스 추가 메뉴. 데이터 테이블과 기획서는 파일을 고르거나 경로를 지정해 불러오고, 데이터베이스에 연결한다.
+// 상단 바의 파일 불러오기 메뉴(코드 이름은 소스 추가). 데이터 테이블과 기획서는 파일을 고르거나 경로를 지정해 불러오고, 데이터베이스에 연결한다.
 export function SourceAddMenu() {
   const { addFile, addDocument } = useWorkspace();
   const router = useRouter();
@@ -85,7 +85,7 @@ export function SourceAddMenu() {
         className="inline-flex items-center gap-1 rounded bg-zinc-900 px-2 py-1 text-xs font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
       >
         <Plus className="size-3.5" aria-hidden />
-        소스 추가
+        파일 불러오기
         <ChevronDown className="size-3" aria-hidden />
       </button>
       <input ref={inputRef} type="file" accept=".csv,.xlsx,.xls" multiple hidden onChange={(e) => void handleFiles(e.target.files)} />
@@ -94,7 +94,7 @@ export function SourceAddMenu() {
       {open && (
         <div role="menu" className="absolute top-full right-0 z-30 mt-1 w-72 rounded-md border border-zinc-200 bg-white p-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
           {/* 데이터 테이블과 기획서는 파일을 하나씩 고르거나, 경로를 적어 폴더째 불러올 수 있다. */}
-          <MenuGroup label="데이터 테이블" hint="엑셀(xlsx, xls), CSV">
+          <MenuGroup label="게임 데이터 테이블" hint="엑셀(xlsx, xls), CSV">
             <button
               type="button"
               role="menuitem"
@@ -122,7 +122,7 @@ export function SourceAddMenu() {
               <FolderInput className="mt-0.5 size-4 shrink-0 text-zinc-500" aria-hidden />
               <span>
                 <span className="block">경로 지정</span>
-                <span className="block text-xs text-zinc-500">폴더 경로를 적어 한꺼번에 불러오고, 나중에 같은 경로에서 다시 읽습니다.</span>
+                <span className="block text-xs text-zinc-500">테이블 폴더 위치를 적어 한꺼번에 불러옵니다. 새 패치 파일을 같은 자리에 덮어쓰면 다시 읽기 한 번으로 바뀝니다.</span>
               </span>
             </button>
           </MenuGroup>
@@ -154,11 +154,11 @@ export function SourceAddMenu() {
               <FolderInput className="mt-0.5 size-4 shrink-0 text-zinc-500" aria-hidden />
               <span>
                 <span className="block">경로 지정</span>
-                <span className="block text-xs text-zinc-500">기획서 폴더 경로를 적어 한꺼번에 불러오고, 새 판은 같은 경로에서 다시 읽습니다.</span>
+                <span className="block text-xs text-zinc-500">기획서 폴더 위치를 적어 한꺼번에 불러옵니다. 새 판도 같은 자리에서 다시 읽습니다.</span>
               </span>
             </button>
           </MenuGroup>
-          <MenuGroup label="연결">
+          <MenuGroup label="고급" hint="개발팀에서 접속 정보를 받은 경우">
             <button
               type="button"
               role="menuitem"
@@ -170,15 +170,15 @@ export function SourceAddMenu() {
             >
               <Database className="mt-0.5 size-4 shrink-0 text-zinc-500" aria-hidden />
               <span>
-                <span className="block">데이터베이스 연결</span>
-                <span className="block text-xs text-zinc-500">MySQL, MariaDB</span>
+                <span className="block">개발 DB에서 불러오기</span>
+                <span className="block text-xs text-zinc-500">엑셀 대신 개발 서버의 DB(MySQL, MariaDB)에서 테이블을 읽습니다.</span>
               </span>
             </button>
             <button type="button" role="menuitem" className={itemClass} disabled>
               <Waypoints className="mt-0.5 size-4 shrink-0 text-zinc-500" aria-hidden />
               <span>
-                <span className="block">벡터 DB 연결</span>
-                <span className="block text-xs text-zinc-500">Qdrant, 준비 중</span>
+                <span className="block">벡터 DB(Qdrant)</span>
+                <span className="block text-xs text-zinc-500">준비 중</span>
               </span>
             </button>
           </MenuGroup>

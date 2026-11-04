@@ -18,7 +18,7 @@ export function TablesView() {
     <>
       <MapTabs active="tables" />
       <p className="text-zinc-500">
-        테이블마다 왼쪽은 이 테이블을 가리키는 테이블, 오른쪽은 이 테이블이 가리키는 테이블입니다. 다른 도메인의 테이블은 도메인 이름을 앞에 붙입니다. 저장한 관계와 열 이름과 값으로 자동으로 찾은 연결을 같이 씁니다.
+        테이블마다 왼쪽은 이 테이블을 쓰는 테이블, 오른쪽은 이 테이블이 쓰는 테이블입니다(퀘스트 → 보상 그룹이면 퀘스트가 보상 그룹을 씀). 다른 시스템의 테이블은 시스템 이름을 앞에 붙입니다. 앱이 열 이름과 값으로 찾은 연결과 사람이 확인한 연결을 같이 보여줍니다.
       </p>
     </>
   );
@@ -28,7 +28,7 @@ export function TablesView() {
     return (
       <div className="flex flex-col gap-3">
         {header}
-        <p className="text-zinc-500">열어 둔 데이터가 없습니다. 상단의 소스 추가에서 엑셀이나 데이터베이스를 열어 주세요.</p>
+        <p className="text-zinc-500">불러온 테이블이 없습니다. 오른쪽 위의 파일 불러오기에서 테이블 엑셀을 불러와 주세요.</p>
       </div>
     );
   }
@@ -36,7 +36,7 @@ export function TablesView() {
     return (
       <div className="flex flex-col gap-3">
         {header}
-        {error ? <p className="text-red-600">연결을 찾지 못했습니다. {error}</p> : progress && <ScanProgress progress={progress} />}
+        {error ? <p className="text-red-600">테이블끼리 이어진 곳을 찾지 못했습니다. {error}</p> : progress && <ScanProgress progress={progress} />}
       </div>
     );
   }
@@ -62,7 +62,7 @@ export function TablesView() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="테이블, 도메인, 열 이름으로 거르기"
+          placeholder="테이블, 시스템, 열 이름으로 거르기"
           aria-label="테이블 거르기"
           className="w-64 rounded border border-zinc-300 bg-white px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-950"
         />

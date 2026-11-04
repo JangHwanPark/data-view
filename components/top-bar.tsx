@@ -61,7 +61,7 @@ export function TopBar() {
           테이블 <span className="tabular-nums text-zinc-900 dark:text-zinc-100">{tableTotal}</span>
         </span>
         <Link href="/relations" className="hover:text-zinc-900 dark:hover:text-zinc-100">
-          관계 <span className="tabular-nums text-zinc-900 dark:text-zinc-100">{relations.length}</span>
+          확인한 연결 <span className="tabular-nums text-zinc-900 dark:text-zinc-100">{relations.length}</span>
         </Link>
       </div>
 
@@ -70,8 +70,8 @@ export function TopBar() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="모든 테이블에서 값 찾기"
-          aria-label="모든 테이블에서 값 찾기"
+          placeholder="ID나 값으로 모든 테이블 찾기"
+          aria-label="ID나 값으로 모든 테이블 찾기"
           className="w-full rounded border border-zinc-300 bg-white py-1 pr-2 pl-7 text-xs dark:border-zinc-700 dark:bg-zinc-950"
         />
       </form>
@@ -88,11 +88,11 @@ function breadcrumb(
 ): Crumb[] {
   const parts = pathname.split("/").filter(Boolean).map(decodeURIComponent);
   if (parts[0] === "sources" && parts[1] === "new") {
-    return [{ label: "데이터 소스", href: "/" }, { label: parts[2] === "path" ? "경로에서 불러오기" : "데이터베이스 연결" }];
+    return [{ label: "처음", href: "/" }, { label: parts[2] === "path" ? "경로에서 불러오기" : "개발 DB에서 불러오기" }];
   }
   if (parts[0] === "sources" && parts[1]) {
     const crumbs: Crumb[] = [
-      { label: "데이터 소스", href: "/" },
+      { label: "불러온 파일", href: "/files" },
       { label: sourceName(parts[1]) ?? "알 수 없는 파일", href: `/sources/${parts[1]}` },
     ];
     if (parts[2] === "tables" && parts[3]) crumbs.push({ label: parts[3] });
@@ -100,15 +100,17 @@ function breadcrumb(
   }
   if (parts[0] === "relations") {
     return parts[1] === "diagram"
-      ? [{ label: "관계", href: "/relations" }, { label: "다이어그램" }]
-      : [{ label: "관계" }];
+      ? [{ label: "연결 목록", href: "/relations" }, { label: "연결 그림" }]
+      : [{ label: "연결 목록" }];
   }
   if (parts[0] === "docs") {
     return parts[1]
       ? [{ label: "기획서", href: "/docs" }, { label: docName(parts[1]) ?? "알 수 없는 기획서" }]
       : [{ label: "기획서" }];
   }
-  if (parts[0] === "search") return [{ label: "값 검색" }];
-  if (parts[0] === "join") return [{ label: "합친 표" }];
-  return [{ label: "데이터 소스" }];
+  if (parts[0] === "search") return [{ label: "ID·값 찾기" }];
+  if (parts[0] === "join") return [{ label: "여러 테이블 붙여 보기" }];
+  if (parts[0] === "map") return parts[1] === "tables" ? [{ label: "시스템 지도", href: "/map" }, { label: "테이블별 연결" }] : [{ label: "시스템 지도" }];
+  if (parts[0] === "files") return [{ label: "불러온 파일" }];
+  return [{ label: "처음" }];
 }

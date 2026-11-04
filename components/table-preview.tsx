@@ -127,7 +127,7 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
     return (
       <div className="flex flex-col gap-2">
         <p className="text-sm text-zinc-500">이 테이블을 찾을 수 없습니다.</p>
-        <BackLink href={backHref} label={source?.meta.name ?? "데이터 소스"} />
+        <BackLink href={backHref} label={source?.meta.name ?? "불러온 파일"} />
       </div>
     );
   }
@@ -271,7 +271,7 @@ function FocusBanner({ focus, rows, missingColumn, noLinks, allHref }: FocusProp
         <span>이 값이 테이블에 없습니다. 기획서가 옛 값이거나 데이터가 빠졌을 수 있습니다.</span>
       ) : rows !== null ? (
         <span className="opacity-80">
-          {rows.toLocaleString()}행{noLinks ? `. ${focus.column}을 가리키는 테이블은 없습니다. 행의 파란 밑줄 값을 누르면 이어진 테이블을 따라갑니다.` : ""}
+          {rows.toLocaleString()}행{noLinks ? `. ${focus.column}을 쓰는 테이블은 없습니다. 행의 파란 밑줄 값을 누르면 이어진 테이블을 따라갑니다.` : ""}
         </span>
       ) : null}
       <Link href={allHref} className="ml-auto underline underline-offset-2">

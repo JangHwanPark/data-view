@@ -42,7 +42,7 @@ export function TableCard({ info, model, rows, domains }: Props) {
         <RoleBadge role={info.role} />
         {parent && (
           <span className="text-zinc-500">
-            부모{" "}
+            위 테이블{" "}
             <Link href={tablePath(parent.key)} className="text-blue-700 hover:underline dark:text-blue-400">
               {parent.table}
             </Link>
@@ -53,7 +53,7 @@ export function TableCard({ info, model, rows, domains }: Props) {
       </header>
 
       {info.role === "isolated" ? (
-        <p className="text-zinc-400">찾은 연결이 없습니다.</p>
+        <p className="text-zinc-400">이어진 테이블을 찾지 못했습니다.</p>
       ) : (
         <div className="grid items-center" style={{ gridTemplateColumns: `minmax(0,1fr) ${GAP}px auto ${GAP}px minmax(0,1fr)` }}>
           <ul className="flex flex-col items-end justify-center" style={{ height }}>
@@ -132,10 +132,10 @@ function DomainEditor({ info, domains }: { info: TableInfo; domains: string[] })
         type="button"
         onClick={() => setDraft(info.domain)}
         className="ml-auto inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-        title={changed ? `직접 고른 도메인입니다. 자동으로 정한 도메인은 ${info.autoDomain}입니다.` : "도메인 바꾸기"}
+        title={changed ? `직접 고른 시스템입니다. 앱이 정한 시스템은 ${info.autoDomain}입니다.` : "이 테이블을 다른 시스템으로 옮기기"}
       >
         <Pencil className="size-3" aria-hidden />
-        {changed ? "도메인 직접 지정함" : "도메인 바꾸기"}
+        {changed ? "시스템 직접 지정함" : "시스템 바꾸기"}
       </button>
     );
   }
@@ -154,7 +154,7 @@ function DomainEditor({ info, domains }: { info: TableInfo; domains: string[] })
         list={listId}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
-        aria-label={`${info.table}의 도메인`}
+        aria-label={`${info.table}의 시스템`}
         placeholder={info.autoDomain}
         className="w-28 rounded border border-zinc-300 bg-white px-1.5 py-0.5 dark:border-zinc-700 dark:bg-zinc-950"
       />

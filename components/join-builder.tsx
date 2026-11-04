@@ -21,7 +21,7 @@ import { loadColumns, tableKey } from "@/lib/client/schema";
 import type { QueryColumn, QueryResult } from "@/lib/query-result";
 
 const PREVIEW_LIMIT = 1000;
-const MISSING_LABEL = "연결 누락";
+const MISSING_LABEL = "못 찾은 ID";
 
 const selectClass =
   "rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900";
@@ -104,7 +104,7 @@ export function JoinBuilder() {
     setExportError(null);
     try {
       const result = withMissingColumn(await runQuery(query.sql, XLSX_MAX_ROWS));
-      downloadXlsx(result, `합친표_${spec.start.table}.xlsx`, "합친표");
+      downloadXlsx(result, `붙여보기_${spec.start.table}.xlsx`, "붙여보기");
     } catch (e) {
       setExportError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -115,7 +115,7 @@ export function JoinBuilder() {
   if (loading || !columns) {
     return (
       <div className="flex flex-col gap-6">
-        <h1 className="text-xl font-semibold">합친 표</h1>
+        <h1 className="text-xl font-semibold">여러 테이블 붙여 보기</h1>
         <p className="inline-flex items-center gap-2 text-sm text-zinc-500">
           <Loader2 className="size-4 animate-spin" aria-hidden />
           불러오는 중...
@@ -134,9 +134,9 @@ export function JoinBuilder() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold">합친 표</h1>
+        <h1 className="text-xl font-semibold">여러 테이블 붙여 보기</h1>
         <p className="text-sm text-zinc-500">
-          시작할 시트를 고르고 관계를 따라 다른 시트를 차례로 붙이면, 여러 파일을 하나의 표로 볼 수 있습니다.
+          시작할 시트를 고르고, 그 시트가 쓰는 ID를 따라 다른 시트를 차례로 붙이면 여러 파일을 하나의 표로 볼 수 있습니다. 예: 퀘스트 → 보상 그룹 → 보상 → 아이템
         </p>
       </div>
 
@@ -163,7 +163,7 @@ export function JoinBuilder() {
 
         {spec && !tables && (
           <p className="text-sm text-amber-700 dark:text-amber-400">
-            붙여 둔 관계 중 지워진 것이 있습니다. 시작 시트를 다시 골라 주세요.
+            붙일 때 쓴 연결 중 지워진 것이 있습니다. 시작 시트를 다시 골라 주세요.
           </p>
         )}
 
@@ -208,7 +208,7 @@ export function JoinBuilder() {
                 if (c) setSpec({ ...spec, steps: [...spec.steps, { relationId: c.relationId, direction: c.direction, attachTo: c.attachTo }] });
               }}
             >
-              <option value="">{candidates.length ? "관계를 따라 붙일 시트 선택" : "더 붙일 수 있는 관계가 없습니다"}</option>
+              <option value="">{candidates.length ? "이어진 시트 중 붙일 시트 선택" : "더 붙일 수 있는 시트가 없습니다"}</option>
               {candidates.map((c, i) => {
                 const [here, there] = c.direction === "out" ? [c.relation.from.column, c.relation.to.column] : [c.relation.to.column, c.relation.from.column];
                 return (
@@ -258,7 +258,7 @@ export function JoinBuilder() {
             {spec && spec.steps.length > 0 && (
               <label className="flex items-center gap-1.5">
                 <input type="checkbox" checked={onlyMissing} onChange={(e) => setOnlyMissing(e.target.checked)} />
-                연결 안 된 행만 보기
+                ID를 못 찾은 행만 보기
               </label>
             )}
             <button

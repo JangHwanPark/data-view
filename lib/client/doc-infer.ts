@@ -168,11 +168,11 @@ function scoreTable(term: string, table: string, glossary: Map<string, string>):
   const t = normalizeName(term);
   const n = normalizeName(table);
   if (!t || !n) return null;
-  if (t === n) return { score: 0.95, reason: "정규화한 이름이 같음", exact: true };
+  if (t === n) return { score: 0.95, reason: "이름이 같음", exact: true };
 
   const translated = translate(term, glossary);
   if (translated && normalizeName(translated.english) === n) {
-    return { score: 0.85, reason: `용어집: ${translated.used.join(", ")}` };
+    return { score: 0.85, reason: `기획서 이름 짝: ${translated.used.join(", ")}` };
   }
 
   const source = translated ? tokens(translated.english.replace(/([a-z])([A-Z])/g, "$1 $2")) : tokens(term);
@@ -185,11 +185,11 @@ function scoreTable(term: string, table: string, glossary: Map<string, string>):
     // 옛 이름 QuestReward가 실제 Reward를 품는 경우처럼 실제 이름의 단어가 모두 들어 있으면 더 높게 본다.
     const contained = overlap.length === target.length;
     const score = contained ? 0.6 + 0.2 * jaccard : 0.45 + 0.3 * jaccard;
-    best = { score, reason: `단어 겹침: ${overlap.join(", ")}` };
+    best = { score, reason: `이름 일부가 같음: ${overlap.join(", ")}` };
   }
   const ratio = editRatio(t, n);
   if (ratio >= 0.75 && (!best || ratio * 0.8 > best.score)) {
-    best = { score: ratio * 0.8, reason: `철자가 비슷함(${Math.round(ratio * 100)}%)` };
+    best = { score: ratio * 0.8, reason: "이름이 비슷함(오타나 옛 이름)" };
   }
   return best;
 }
@@ -211,7 +211,7 @@ function nameCandidates(term: DocTerm, catalog: Catalog, glossary: Map<string, s
       out.push({
         target: { sourceId: t.sourceId, table: t.table, column: term.text },
         score: home ? 0.9 : names === 1 ? 0.9 : 0.6,
-        reason: home ? "이 열이 키인 테이블" : names === 1 ? "같은 이름의 열" : `같은 이름의 열이 ${names}개 테이블에 있음`,
+        reason: home ? "이 열이 ID 열인 테이블" : names === 1 ? "같은 이름의 열" : `같은 이름의 열이 ${names}개 테이블에 있음`,
         exact: true,
       });
     }
@@ -263,13 +263,13 @@ async function idCandidates(terms: DocTerm[], catalog: Catalog): Promise<Map<str
       const fromHeader = columns.includes(c.target.column ?? "");
       if (names === 1) {
         c.score = 0.9;
-        c.reason = `${c.target.table}.${c.target.column}에만 있는 값`;
+        c.reason = `${c.target.table}의 ${c.target.column}에만 있는 ID`;
       } else if (fromHeader) {
         c.score = 0.9;
         c.reason = `기획서 표의 ${c.target.column} 칸에 나온 값`;
       } else {
         c.score = 0.6;
-        c.reason = `키에 이 값이 있는 테이블이 ${names}개`;
+        c.reason = `이 ID가 있는 테이블이 ${names}개`;
       }
     }
     result.set(key, list.sort((a, b) => b.score - a.score));
@@ -291,7 +291,7 @@ async function quotedCandidates(term: DocTerm, catalog: Catalog): Promise<Candid
       for (const col of t.columns.filter((c) => /key$/i.test(c))) {
         const hit = await runQuery(`SELECT 1 FROM ${qualifiedTable(t.sourceId, t.table)} WHERE ${quoteIdent(col)} = ${quoteString(key)}`, 1);
         if (hit.rowCount) {
-          out.push({ target: { sourceId: t.sourceId, table: t.table, column: col, value: key }, score: 0.9, reason: `다국어 문자열: "${term.text}" → ${key} → ${t.table}.${col}` });
+          out.push({ target: { sourceId: t.sourceId, table: t.table, column: col, value: key }, score: 0.9, reason: `글자 테이블에서 "${term.text}"의 이름표(${key})를 찾아, 그 이름표를 쓰는 ${t.table}의 ${col}` });
         }
       }
     }
