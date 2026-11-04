@@ -227,6 +227,7 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
               tableColumns={preview.tableColumns}
               rows={preview.result.rows}
               linked={linked}
+              sourceKey={`${id}/${table}`}
               onLinkClick={(column, value) => {
                 const key = toKeyValue(value);
                 if (key) setTrail([{ sourceId: id, table, column, ...key }]);

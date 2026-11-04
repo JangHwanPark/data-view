@@ -126,6 +126,7 @@ export function FollowPanel({ step, onFollow, onClose }: Props) {
                 <div className="rounded border border-zinc-200 dark:border-zinc-800">
                   <RecordTable
                     result={result}
+                    sourceKey={`${link.target.sourceId}/${link.target.table}`}
                     linked={linked}
                     highlighted={(column) => column === link.target.column}
                     onLinkClick={(column, value) => {

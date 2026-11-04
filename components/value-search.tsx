@@ -121,6 +121,7 @@ export function ValueSearch() {
                 <div className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
                   <RecordTable
                     result={hit.result}
+                    sourceKey={`${hit.sourceId}/${hit.table}`}
                     linked={linkedColumns(hit.sourceId, hit.table, relations)}
                     highlighted={(column, r) => hit.matched[r]?.includes(column) ?? false}
                     onLinkClick={(column, value) => {

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
+import { ExplainLayer } from "@/components/explain/value-explain";
 import { Sidebar } from "@/components/sidebar";
 import { TopBar } from "@/components/top-bar";
 import { WorkspaceProvider } from "@/components/workspace-provider";
@@ -47,6 +48,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <main className="flex min-w-0 flex-1 flex-col px-5 py-4">{children}</main>
             </div>
           </div>
+          {/* 표의 값에 마우스를 올렸을 때 그 값이 어떤 데이터인지 보여주는 말풍선. 화면에 하나만 둔다. */}
+          <ExplainLayer />
         </WorkspaceProvider>
       </body>
     </html>

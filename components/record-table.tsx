@@ -1,6 +1,7 @@
 "use client";
 
 import { formatValue, LinkValue } from "@/components/cell-value";
+import { ExplainCell, useExplainable } from "@/components/explain/value-explain";
 import type { QueryResult } from "@/lib/query-result";
 
 interface Props {
@@ -8,10 +9,13 @@ interface Props {
   linked?: Set<string>;
   highlighted?: (column: string, rowIndex: number) => boolean;
   onLinkClick?: (column: string, value: unknown) => void;
+  sourceKey?: string; // 이 표의 테이블 키. 주면 값에 마우스를 올렸을 때 어떤 데이터인지 보여준다
 }
 
 // 패널과 검색 결과에 쓰는 작은 표. 행이 적어서 가상 스크롤 없이 그린다.
-export function RecordTable({ result, linked, highlighted, onLinkClick }: Props) {
+export function RecordTable({ result, linked, highlighted, onLinkClick, sourceKey }: Props) {
+  const firstColumn = result.columns[0]?.name ?? null;
+  const explainable = useExplainable(sourceKey, firstColumn);
   return (
     <div className="max-h-[60vh] overflow-auto">
       <table className="w-max min-w-full border-collapse text-xs">
@@ -31,15 +35,23 @@ export function RecordTable({ result, linked, highlighted, onLinkClick }: Props)
                 const value = row[i];
                 const text = formatValue(value, c.type);
                 const isLink = linked?.has(c.name) && value !== null && onLinkClick;
+                const explain = sourceKey && explainable(c.name);
+                const content = isLink ? <LinkValue text={text} onClick={() => onLinkClick(c.name, value)} /> : text;
                 return (
                   <td
                     key={c.name}
                     className={`max-w-56 truncate px-2 py-1 ${
                       highlighted?.(c.name, r) ? "bg-amber-100 dark:bg-amber-900/40" : ""
                     } ${typeof value === "number" ? "text-right tabular-nums" : ""} ${value === null ? "text-zinc-400" : ""}`}
-                    title={value === null ? undefined : text}
+                    title={value === null || explain ? undefined : text}
                   >
-                    {isLink ? <LinkValue text={text} onClick={() => onLinkClick(c.name, value)} /> : text}
+                    {explain ? (
+                      <ExplainCell here={sourceKey} column={c.name} firstColumn={firstColumn} value={value}>
+                        {content}
+                      </ExplainCell>
+                    ) : (
+                      content
+                    )}
                   </td>
                 );
               })}

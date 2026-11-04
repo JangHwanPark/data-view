@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { formatValue, LinkValue } from "@/components/cell-value";
+import { ExplainCell, useExplainable } from "@/components/explain/value-explain";
 import type { QueryColumn } from "@/lib/query-result";
 
 type Row = unknown[];
@@ -40,9 +41,12 @@ interface DataTableProps {
   rows: Row[];
   linked?: Set<string>; // 관계가 걸린 열. 값을 눌러 따라갈 수 있다.
   onLinkClick?: (column: string, value: unknown) => void;
+  sourceKey?: string; // 이 표의 테이블 키. 주면 값에 마우스를 올렸을 때 어떤 데이터인지 보여준다
 }
 
-export function DataTable({ columns, tableColumns, rows, linked, onLinkClick }: DataTableProps) {
+export function DataTable({ columns, tableColumns, rows, linked, onLinkClick, sourceKey }: DataTableProps) {
+  const firstColumn = columns[0]?.name ?? null;
+  const explainable = useExplainable(sourceKey, firstColumn);
   const table = useTable({ features, columns: tableColumns, data: rows });
   const scrollRef = useRef<HTMLDivElement>(null);
   const modelRows = table.getRowModel().rows;
@@ -103,22 +107,27 @@ export function DataTable({ columns, tableColumns, rows, linked, onLinkClick }: 
                   const value = cell.getValue();
                   const column = columns[Number(cell.column.id)];
                   const isLink = column && linked?.has(column.name) && value !== null && onLinkClick;
+                  const explain = sourceKey && column && explainable(column.name);
+                  const content = isLink ? (
+                    <LinkValue text={formatValue(value, column.type)} onClick={() => onLinkClick(column.name, value)} />
+                  ) : (
+                    <table.FlexRender cell={cell} />
+                  );
                   return (
                     <div
                       key={cell.id}
                       role="cell"
-                      title={value === null ? undefined : String(value)}
+                      title={value === null || explain ? undefined : String(value)}
                       className={`truncate border-l border-zinc-100 px-2 py-1 dark:border-zinc-800 ${
                         typeof value === "number" ? "text-right tabular-nums" : ""
                       } ${value === null ? "text-zinc-400" : ""}`}
                     >
-                      {isLink ? (
-                        <LinkValue
-                          text={formatValue(value, column.type)}
-                          onClick={() => onLinkClick(column.name, value)}
-                        />
+                      {explain ? (
+                        <ExplainCell here={sourceKey} column={column.name} firstColumn={firstColumn} value={value}>
+                          {content}
+                        </ExplainCell>
                       ) : (
-                        <table.FlexRender cell={cell} />
+                        content
                       )}
                     </div>
                   );
