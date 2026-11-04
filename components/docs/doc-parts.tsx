@@ -6,6 +6,7 @@ import { sourceTableLabel } from "@/components/relations/relation-parts";
 import type { WorkspaceSource } from "@/components/workspace-provider";
 import type { TermState, TermView } from "@/lib/client/doc-analysis";
 import type { DocTarget } from "@/lib/client/doc-infer";
+import { targetRowValue, termHref } from "@/lib/client/doc-links";
 
 export const STATE_LABEL: Record<TermState, string> = {
   confirmed: "확정",
@@ -16,16 +17,13 @@ export const STATE_LABEL: Record<TermState, string> = {
 
 export const KIND_LABEL = { name: "이름", id: "ID", quoted: "문자열" } as const;
 
-export function targetHref(target: DocTarget) {
-  return `/sources/${target.sourceId}/tables/${encodeURIComponent(target.table)}`;
-}
-
-export function TargetLabel({ target, sources }: { target: DocTarget; sources: WorkspaceSource[] }) {
+export function TargetLabel({ target, sources, value }: { target: DocTarget; sources: WorkspaceSource[]; value?: string | null }) {
   const source = sources.find((s) => s.meta.id === target.sourceId);
   return (
     <span>
       {sourceTableLabel(source, target.table)}
       {target.column && <span className="text-zinc-500">.{target.column}</span>}
+      {value && <span className="text-zinc-500"> = {value}</span>}
     </span>
   );
 }
@@ -68,8 +66,14 @@ function TermMark({ view, selected, onSelect }: { view: TermView; selected: bool
   const top = candidates[0];
   const ring = selected ? "ring-2 ring-blue-400" : "";
   if (state === "confirmed" && target) {
+    // ID와 따옴표 이름은 그 행을 열고 따라가기 패널까지 띄운다. 테이블 이름은 테이블을 연다.
+    const row = targetRowValue(term, target) !== null;
     return (
-      <Link href={targetHref(target)} className={`rounded-sm text-blue-700 underline decoration-blue-300 underline-offset-2 hover:decoration-blue-700 dark:text-blue-400 ${ring}`} title="확정한 매칭. 누르면 데이터로 이동합니다.">
+      <Link
+        href={termHref(term, target)}
+        className={`rounded-sm text-blue-700 underline decoration-blue-300 underline-offset-2 hover:decoration-blue-700 dark:text-blue-400 ${ring}`}
+        title={row ? `확정한 매칭. 누르면 ${target.table}의 이 행을 엽니다.` : "확정한 매칭. 누르면 데이터로 이동합니다."}
+      >
         {term.text}
       </Link>
     );

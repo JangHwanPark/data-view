@@ -7,9 +7,11 @@ import { TableDocNotes } from "@/components/table-doc-notes";
 import { TableGraph } from "@/components/table-graph";
 import { useWorkspace } from "@/components/workspace-provider";
 import { isAutoRelation } from "@/lib/client/auto-links";
+import type { RowFocus } from "@/lib/client/doc-links";
 import { newRelationId, type Relation } from "@/lib/client/relations";
 
 interface Props {
+  focus: RowFocus | null; // 기획서에서 연 행
   sourceId: string;
   table: string;
   columns: string[];
@@ -20,7 +22,7 @@ interface Props {
 
 // 테이블 화면 위의 연결 영역. 이어진 테이블 그림과 목록, 이 테이블을 다루는 기획서를 보여준다.
 // 실무 테이블은 이미 이어져 있으므로, 관계를 저장하지 않아도 자동으로 찾은 연결을 바로 보여준다.
-export function TableLinks({ sourceId, table, columns, relations, reasons, ready }: Props) {
+export function TableLinks({ focus, sourceId, table, columns, relations, reasons, ready }: Props) {
   const { sources } = useWorkspace();
   const label = (id: string, t: string) => sourceTableLabel(sources.find((s) => s.meta.id === id), t);
   const here = (r: { sourceId: string; table: string }) => r.sourceId === sourceId && r.table === table;
@@ -32,7 +34,7 @@ export function TableLinks({ sourceId, table, columns, relations, reasons, ready
     <div className="flex flex-col gap-1.5 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-900/50">
       {outgoing.length + incoming.length > 0 && <TableGraph sourceId={sourceId} table={table} />}
       {/* 그림 바로 아래에 이 테이블이 어떤 테이블인지 기획서에서 찾아 보여준다. */}
-      <TableDocNotes table={table} columns={columns} />
+      <TableDocNotes sourceId={sourceId} table={table} columns={columns} focus={focus} />
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="inline-flex w-20 shrink-0 items-center gap-1 text-zinc-500">
           <ArrowRight className="size-3.5" aria-hidden />

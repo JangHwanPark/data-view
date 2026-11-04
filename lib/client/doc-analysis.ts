@@ -44,7 +44,11 @@ export function viewTerms(terms: DocTerm[], candidates: Map<string, Candidate[]>
   return terms.map((term) => {
     const mapping = mappings.find((m) => m.key === term.key);
     const list = candidates.get(term.key) ?? [];
-    if (mapping) return { term, state: mapping.target ? "confirmed" : "ignored", target: mapping.target, candidates: list };
+    if (mapping) {
+      // 행 값이 없는 예전 매칭은 같은 대상의 후보에서 값을 채워 행으로 갈 수 있게 한다.
+      const target = mapping.target && (list.find((c) => sameTarget(c.target, mapping.target!))?.target ?? mapping.target);
+      return { term, state: mapping.target ? "confirmed" : "ignored", target, candidates: list };
+    }
     return { term, state: list.length ? "candidate" : "unmatched", target: null, candidates: list };
   });
 }

@@ -8,6 +8,7 @@ export interface DocTarget {
   sourceId: string;
   table: string;
   column?: string;
+  value?: string; // 따옴표 이름이 가리키는 행의 key 값. 다국어 문자열 key라서 기획서 글과 다르다.
 }
 
 export interface Candidate {
@@ -290,7 +291,7 @@ async function quotedCandidates(term: DocTerm, catalog: Catalog): Promise<Candid
       for (const col of t.columns.filter((c) => /key$/i.test(c))) {
         const hit = await runQuery(`SELECT 1 FROM ${qualifiedTable(t.sourceId, t.table)} WHERE ${quoteIdent(col)} = ${quoteString(key)}`, 1);
         if (hit.rowCount) {
-          out.push({ target: { sourceId: t.sourceId, table: t.table, column: col }, score: 0.9, reason: `다국어 문자열: "${term.text}" → ${key} → ${t.table}.${col}` });
+          out.push({ target: { sourceId: t.sourceId, table: t.table, column: col, value: key }, score: 0.9, reason: `다국어 문자열: "${term.text}" → ${key} → ${t.table}.${col}` });
         }
       }
     }
@@ -320,6 +321,25 @@ export function nameRefersToTable(text: string, table: string, glossary: Map<str
   return translated !== null && normalizeName(translated.english) === n;
 }
 
+// 값은 둘 다 있을 때만 비교한다. 행 값을 넣기 전에 확정한 매칭도 같은 대상으로 보기 위해서다.
 export function sameTarget(a: DocTarget, b: DocTarget) {
-  return a.sourceId === b.sourceId && a.table === b.table && (a.column ?? "") === (b.column ?? "");
+  const sameValue = a.value === undefined || b.value === undefined || a.value === b.value;
+  return a.sourceId === b.sourceId && a.table === b.table && (a.column ?? "") === (b.column ?? "") && sameValue;
+}
+
+// 기획서에 나온 ID 중 이 테이블의 키 열에 실제로 있는 값. 테이블 화면의 "기획서에 나온 ID"가 쓴다.
+// 키 열은 후보 계산과 같은 기준(첫 열이 98% 이상 유일)으로 정한다.
+export async function idsInTable(sourceId: string, table: string, ids: string[]) {
+  const catalog = await loadCatalog([{ sourceId, table }]);
+  const keyColumn = catalog.tables[0]?.keyColumn ?? null;
+  const numbers = [...new Set(ids)].map(Number).filter(Number.isFinite);
+  if (!keyColumn || numbers.length === 0) return { keyColumn, found: [] as string[] };
+  const values = numbers.map((n) => `(${n})`).join(",");
+  const r = await runQuery(
+    `SELECT DISTINCT v FROM (VALUES ${values}) AS n(v)
+     WHERE v IN (SELECT TRY_CAST(${quoteIdent(keyColumn)} AS BIGINT) FROM ${qualifiedTable(sourceId, table)})
+     ORDER BY v`,
+    numbers.length,
+  );
+  return { keyColumn, found: r.rows.map(([v]) => String(v)) };
 }

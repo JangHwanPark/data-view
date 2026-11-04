@@ -1,13 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState } from "react";
-import { Check, Loader2, RefreshCw, Undo2, X } from "lucide-react";
+import { ArrowUpRight, Check, Loader2, RefreshCw, Undo2, X } from "lucide-react";
 import { Highlighted, KIND_LABEL, STATE_LABEL, TargetLabel } from "@/components/docs/doc-parts";
 import { useCandidates } from "@/components/docs/use-candidates";
 import { useWorkspace } from "@/components/workspace-provider";
 import { isSelected, viewTerms, type TermState, type TermView } from "@/lib/client/doc-analysis";
 import type { DocSection } from "@/lib/client/doc-import";
-import { extractTerms } from "@/lib/client/doc-terms";
+import { targetRowValue, termHref } from "@/lib/client/doc-links";
+import { extractTerms, type DocTerm } from "@/lib/client/doc-terms";
+import type { DocTarget } from "@/lib/client/doc-infer";
 
 const KIND_NAME = { docx: "워드", pptx: "PPT", pdf: "PDF", xlsx: "엑셀" } as const;
 const FILTERS: (TermState | "all")[] = ["candidate", "unmatched", "confirmed", "ignored", "all"];
@@ -193,8 +196,9 @@ function TermList({ views, selectedKey, onSelect }: ListProps) {
             {open && (
               <div className="flex flex-col gap-1.5 px-2.5 pb-2">
                 {v.state === "confirmed" && v.target && (
-                  <p className="text-zinc-600 dark:text-zinc-400">
-                    확정: <TargetLabel target={v.target} sources={sources} />
+                  <p className="flex items-center gap-1 text-zinc-600 dark:text-zinc-400">
+                    확정: <TargetLabel target={v.target} sources={sources} value={v.term.kind === "quoted" ? targetRowValue(v.term, v.target) : null} />
+                    <OpenLink term={v.term} target={v.target} />
                   </p>
                 )}
                 {v.candidates.length === 0 ? (
@@ -217,6 +221,7 @@ function TermList({ views, selectedKey, onSelect }: ListProps) {
                             </span>
                           </button>
                           <span className="tabular-nums text-zinc-500">{Math.round(c.score * 100)}%</span>
+                          <OpenLink term={v.term} target={c.target} />
                         </div>
                         <span className="pl-1 text-zinc-400">{c.reason}</span>
                       </li>
@@ -242,6 +247,21 @@ function TermList({ views, selectedKey, onSelect }: ListProps) {
         );
       })}
     </ul>
+  );
+}
+
+// 후보나 확정 대상을 데이터에서 바로 열어 본다. ID는 그 행과 따라가기 패널을 연다.
+function OpenLink({ term, target }: { term: DocTerm; target: DocTarget }) {
+  const row = targetRowValue(term, target) !== null;
+  return (
+    <Link
+      href={termHref(term, target)}
+      className="inline-flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950"
+      title={row ? "이 행을 열고 이어진 행을 따라가기 패널로 봅니다." : "이 테이블을 엽니다."}
+    >
+      <ArrowUpRight className="size-3" aria-hidden />
+      {row ? "행 열기" : "열기"}
+    </Link>
   );
 }
 

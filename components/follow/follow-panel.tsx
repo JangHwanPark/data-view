@@ -113,11 +113,15 @@ export function FollowPanel({ step, onFollow, onClose }: Props) {
                 </span>
               </div>
               {error && <p className="text-xs text-red-600">행을 읽지 못했습니다.</p>}
-              {result && result.rowCount === 0 && (
-                <p className="text-xs text-amber-700 dark:text-amber-400">
-                  {link.target.column}에 이 값이 없습니다. 데이터가 빠졌을 수 있습니다.
-                </p>
-              )}
+              {/* 가리키는 대상이 없으면 깨진 참조라 경고하고, 이 값을 가리키는 행이 없는 것은 흔한 일이라 그냥 알린다. */}
+              {result && result.rowCount === 0 &&
+                (link.direction === "out" ? (
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    {link.target.column}에 이 값이 없습니다. 데이터가 빠졌을 수 있습니다.
+                  </p>
+                ) : (
+                  <p className="text-xs text-zinc-500">이 값을 가리키는 행이 없습니다.</p>
+                ))}
               {result && result.rowCount > 0 && (
                 <div className="rounded border border-zinc-200 dark:border-zinc-800">
                   <RecordTable

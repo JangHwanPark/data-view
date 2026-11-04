@@ -9,6 +9,7 @@ import { FollowTrail } from "@/components/follow/follow-trail";
 import { useWorkspace } from "@/components/workspace-provider";
 import { runQuery } from "@/lib/client/duckdb";
 import { qualifiedTable } from "@/lib/client/file-import";
+import { focusKey, focusWhere, parseRowFocus, tableHref } from "@/lib/client/doc-links";
 import { linkedColumns, parseTrail, serializeTrail, toKeyValue, type TrailStep } from "@/lib/client/follow";
 import { quoteIdent, quoteString, type QueryResult } from "@/lib/query-result";
 import { TableLinks } from "@/components/table-links";
@@ -33,22 +34,32 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
   const [draft, setDraft] = useState({ text: "", column: "" });
   const [search, setSearch] = useState({ text: "", column: "", table: "" });
   const activeSearch = search.table === `${id}/${table}` ? search : { text: "", column: "", table: "" };
+
+  // 따라가기 경로는 URL에 둔다. 새로고침하거나 주소를 나눠도 같은 위치가 열리고, 뒤로 가기로 이전 단계로 돌아간다.
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const trailParam = searchParams.get("trail");
+  const trail = parseTrail(trailParam);
+  // 기획서에서 ID를 눌러 왔으면 그 행만 보여준다(row 쿼리).
+  const rowParam = searchParams.get("row");
+  const focus = parseRowFocus(rowParam);
+
   // 다른 테이블로 옮겨 갔거나 검색이 바뀌었을 때 이전 결과를 잠깐이라도 보여주지 않도록 키로 거른다.
-  const previewKey = JSON.stringify([id, table, activeSearch.text, activeSearch.column]);
+  const previewKey = JSON.stringify([id, table, activeSearch.text, activeSearch.column, focus]);
   const preview = loaded?.key === previewKey ? loaded : null;
   // 열 목록은 검색 전 결과에서 기억해 둔다. 검색 결과가 0행이어도 열은 그대로다.
   const [columns, setColumns] = useState<{ key: string; names: string[] } | null>(null);
   const columnNames = columns?.key === `${id}/${table}` ? columns.names : [];
 
-  // 따라가기 경로는 URL에 둔다. 새로고침하거나 주소를 나눠도 같은 위치가 열리고, 뒤로 가기로 이전 단계로 돌아간다.
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const trail = parseTrail(searchParams.get("trail"));
-
   // router.push는 단계마다 서버에 요청하므로 브라우저 history만 바꾼다. Next 라우터가 searchParams를 맞춰 준다.
-  function setTrail(next: TrailStep[]) {
-    const query = next.length ? `?trail=${encodeURIComponent(serializeTrail(next))}` : "";
-    window.history.pushState(null, "", `${pathname}${query}`);
+  // 기획서에서 연 행은 따라가기 중에도 유지하고, 그때는 패널을 닫은 상태(trail=[])도 주소에 남긴다.
+  // 그래야 아래의 "처음 열 때 따라가기 패널 띄우기"가 닫은 패널을 다시 열지 않는다.
+  function setTrail(next: TrailStep[], replace = false) {
+    const params = new URLSearchParams();
+    if (rowParam) params.set("row", rowParam);
+    if (next.length || rowParam) params.set("trail", serializeTrail(next));
+    const query = params.size ? `?${params}` : "";
+    window.history[replace ? "replaceState" : "pushState"](null, "", `${pathname}${query}`);
   }
 
   useEffect(() => {
@@ -57,17 +68,21 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
     const target = qualifiedTable(id, table);
     const { text, column } = activeSearch;
     (async () => {
-      let where = "";
+      const conditions: string[] = [];
       if (text) {
         // 일부만 맞아도 찾는다. 열을 고르면 그 열에서만 찾는다.
         const cols = column ? [column] : columnNames;
         const pattern = quoteString(`%${text.replace(/[\\%_]/g, (m) => `\\${m}`)}%`);
-        where = `WHERE ${cols.map((c) => `CAST(${quoteIdent(c)} AS VARCHAR) ILIKE ${pattern} ESCAPE '\\'`).join(" OR ") || "false"}`;
+        conditions.push(`(${cols.map((c) => `CAST(${quoteIdent(c)} AS VARCHAR) ILIKE ${pattern} ESCAPE '\\'`).join(" OR ") || "false"})`);
       }
+      // 기획서에서 연 행. 이 테이블에 그 열이 없으면(이름이 바뀐 열) 걸러지지 않은 표와 안내를 보여준다.
+      const names = columnNames.length ? columnNames : await tableColumnNames(target);
+      if (focus && names.includes(focus.column)) conditions.push(focusWhere(focus));
+      const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
       const result = await runQuery(`SELECT * FROM ${target} ${where}`, PREVIEW_LIMIT);
       const count = await runQuery(`SELECT count(*) FROM ${target} ${where}`, 1);
       if (!active) return;
-      if (!text) setColumns({ key: `${id}/${table}`, names: result.columns.map((c) => c.name) });
+      setColumns({ key: `${id}/${table}`, names: result.columns.map((c) => c.name) });
       setLoaded({
         key: previewKey,
         result,
@@ -89,6 +104,17 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
   // 저장한 관계에 자동으로 찾은 연결을 더한다. 값 따라가기도 이 목록으로 동작한다.
   const links = useLinkedRelations([{ sourceId: id, table }]);
   const linked = linkedColumns(id, table, links.relations);
+  const focusColumnMissing = focus !== null && columnNames.length > 0 && !columnNames.includes(focus.column);
+
+  // 기획서에서 행을 열고 들어오면, 그 키 열에 이어진 테이블이 있을 때 따라가기 패널을 바로 띄운다.
+  // 퀘스트 ID라면 그 퀘스트를 가리키는 보상, 조건 행이 오른쪽에 열린다. 주소를 바꾸는 것이라 뒤로 가기 기록은 남기지 않는다.
+  const autoTrail = focus !== null && trailParam === null && links.ready && linked.has(focus.column);
+  useEffect(() => {
+    if (!autoTrail || !focus) return;
+    setTrail([{ sourceId: id, table, column: focus.column, ...focusKey(focus) }], true);
+    // focus와 테이블은 autoTrail 계산에 들어 있고, 한 번 띄운 뒤에는 trail 쿼리가 생겨 다시 돌지 않는다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoTrail]);
 
   if (!initialized || source?.status === "loading") {
     return <Loading />;
@@ -108,7 +134,7 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
         <h1 className="text-lg font-semibold break-all">{table}</h1>
         {preview && (
           <p className="text-zinc-500">
-            {activeSearch.text ? `찾은 행 ${preview.total.toLocaleString()}개` : `전체 ${preview.total.toLocaleString()}행`}, 열{" "}
+            {activeSearch.text || (focus && !focusColumnMissing) ? `찾은 행 ${preview.total.toLocaleString()}개` : `전체 ${preview.total.toLocaleString()}행`}, 열{" "}
             {preview.result.columns.length}개
             {preview.result.truncated &&
               ` (앞의 ${PREVIEW_LIMIT.toLocaleString()}행만 표시)`}
@@ -157,6 +183,7 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
       </div>
 
       <TableLinks
+        focus={focus}
         sourceId={id}
         table={table}
         columns={columnNames}
@@ -164,7 +191,16 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
         reasons={links.reasons}
         ready={links.ready}
       />
-      {linked.size > 0 && trail.length === 0 && (
+      {focus && (
+        <FocusBanner
+          focus={focus}
+          rows={preview?.total ?? null}
+          missingColumn={focusColumnMissing}
+          noLinks={links.ready && !linked.has(focus.column)}
+          allHref={tableHref(id, table)}
+        />
+      )}
+      {linked.size > 0 && trail.length === 0 && !focus && (
         <p className="-mt-1 text-xs text-zinc-500">표에서 파란 밑줄 값을 누르면 이어진 테이블의 행을 오른쪽에 열어 따라갈 수 있습니다.</p>
       )}
 
@@ -197,6 +233,45 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
         </div>
         {trail.length > 0 && <FollowTrail trail={trail} onChange={setTrail} />}
       </div>
+    </div>
+  );
+}
+
+async function tableColumnNames(target: string) {
+  const r = await runQuery(`SELECT * FROM ${target} LIMIT 0`, 1);
+  return r.columns.map((c) => c.name);
+}
+
+interface FocusProps {
+  focus: { column: string; value: string };
+  rows: number | null;
+  missingColumn: boolean;
+  noLinks: boolean;
+  allHref: string;
+}
+
+// 기획서에서 연 행의 안내 줄. 행이 없으면 기획서가 옛 값이거나 데이터가 빠졌다는 신호라 주황으로 보여준다.
+function FocusBanner({ focus, rows, missingColumn, noLinks, allHref }: FocusProps) {
+  const warn = missingColumn || rows === 0;
+  return (
+    <div
+      className={`-mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border px-3 py-1.5 text-xs ${warn ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300" : "border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200"}`}
+    >
+      <span>
+        기획서에서 연 행: <span className="font-medium">{focus.column} = {focus.value}</span>
+      </span>
+      {missingColumn ? (
+        <span>이 테이블에 {focus.column} 열이 없습니다. 열 이름이 바뀌었을 수 있어 표 전체를 보여줍니다.</span>
+      ) : rows === 0 ? (
+        <span>이 값이 테이블에 없습니다. 기획서가 옛 값이거나 데이터가 빠졌을 수 있습니다.</span>
+      ) : rows !== null ? (
+        <span className="opacity-80">
+          {rows.toLocaleString()}행{noLinks ? `. ${focus.column}을 가리키는 테이블은 없습니다. 행의 파란 밑줄 값을 누르면 이어진 테이블을 따라갑니다.` : ""}
+        </span>
+      ) : null}
+      <Link href={allHref} className="ml-auto underline underline-offset-2">
+        전체 행 보기
+      </Link>
     </div>
   );
 }
