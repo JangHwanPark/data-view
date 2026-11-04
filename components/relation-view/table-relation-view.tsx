@@ -344,6 +344,12 @@ function EdgeDetail({ edge, reason, onDone }: { edge: LayoutEdge; reason?: strin
         {edge.from.table}.{edge.from.column} → {edge.to.table}.{edge.to.column}
       </span>
       <span className="text-zinc-500">{auto ? reason ?? "앱이 찾은 연결" : "확인한 연결"}</span>
+      {/* 근거에 "없는 ID"가 있으면 그 목록으로 바로 간다. 확인한 연결은 근거 글이 없으므로 늘 링크를 둔다. */}
+      {(!auto || reason?.includes("없는 ID")) && (
+        <Link href={`/check/missing?link=${encodeURIComponent(edge.relationId)}`} className="text-blue-700 hover:underline dark:text-blue-400">
+          없는 ID 보기
+        </Link>
+      )}
       {auto && (
         <button
           type="button"

@@ -21,6 +21,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Search,
+  SearchX,
+  GitCompareArrows,
   Sheet,
   TableProperties,
 } from "lucide-react";
@@ -33,6 +35,8 @@ const NAV = [
   { href: "/map", label: "시스템 지도", icon: Network },
   { href: "/docs", label: "기획서", icon: BookOpen },
   { href: "/search", label: "ID·값 찾기", icon: Search },
+  { href: "/check/missing", label: "없는 ID 찾기", icon: SearchX },
+  { href: "/compare", label: "패치 전후 비교", icon: GitCompareArrows },
   { href: "/relations", label: "연결 목록", icon: GitFork },
   { href: "/join", label: "여러 테이블 붙여 보기", icon: TableProperties },
 ];

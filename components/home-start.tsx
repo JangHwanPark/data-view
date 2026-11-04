@@ -39,10 +39,10 @@ export function HomeStart() {
           text="테이블이 퀘스트, 아이템, 보상 같은 시스템으로 어떻게 묶이고 서로 어떻게 이어지는지 한눈에 봅니다. 처음 보는 데이터라면 여기서 시작하세요."
         />
         <Card
+          href="/check/missing"
           icon={<SearchX className="size-5" aria-hidden />}
           title="없는 ID 찾기"
-          text="다른 테이블에 없는 ID를 쓰는 곳(예: 지워진 아이템을 주는 보상)을 모아 보여줍니다."
-          note="준비 중입니다. 지금은 테이블의 연결 그림에서 선을 누르면 맞지 않는 ID 개수를 볼 수 있습니다."
+          text="다른 테이블에 없는 ID를 쓰는 곳(예: 지워진 아이템을 주는 보상)과, 같은 ID가 두 번 들어간 곳을 모아 보여줍니다."
         />
         <Card
           icon={<GitCompareArrows className="size-5" aria-hidden />}

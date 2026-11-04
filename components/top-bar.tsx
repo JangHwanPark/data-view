@@ -112,5 +112,7 @@ function breadcrumb(
   if (parts[0] === "join") return [{ label: "여러 테이블 붙여 보기" }];
   if (parts[0] === "map") return parts[1] === "tables" ? [{ label: "시스템 지도", href: "/map" }, { label: "테이블별 연결" }] : [{ label: "시스템 지도" }];
   if (parts[0] === "files") return [{ label: "불러온 파일" }];
+  if (parts[0] === "check") return [{ label: "없는 ID 찾기" }];
+  if (parts[0] === "compare") return [{ label: "패치 전후 비교" }];
   return [{ label: "처음" }];
 }

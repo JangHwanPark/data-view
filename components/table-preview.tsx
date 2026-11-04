@@ -263,12 +263,12 @@ function FocusBanner({ focus, rows, missingColumn, noLinks, allHref }: FocusProp
       className={`-mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border px-3 py-1.5 text-xs ${warn ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300" : "border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200"}`}
     >
       <span>
-        기획서에서 연 행: <span className="font-medium">{focus.column} = {focus.value}</span>
+        고른 행: <span className="font-medium">{focus.column} = {focus.value}</span>
       </span>
       {missingColumn ? (
         <span>이 테이블에 {focus.column} 열이 없습니다. 열 이름이 바뀌었을 수 있어 표 전체를 보여줍니다.</span>
       ) : rows === 0 ? (
-        <span>이 값이 테이블에 없습니다. 기획서가 옛 값이거나 데이터가 빠졌을 수 있습니다.</span>
+        <span>이 값의 행이 테이블에 없습니다. 기획서나 다른 테이블이 지워진 ID를 쓰고 있거나 데이터가 빠졌을 수 있습니다.</span>
       ) : rows !== null ? (
         <span className="opacity-80">
           {rows.toLocaleString()}행{noLinks ? `. ${focus.column}을 쓰는 테이블은 없습니다. 행의 파란 밑줄 값을 누르면 이어진 테이블을 따라갑니다.` : ""}
