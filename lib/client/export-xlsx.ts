@@ -25,5 +25,14 @@ export function downloadXlsx(result: QueryResult, fileName: string, sheetName = 
 
   const book = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(book, sheet, sheetName.slice(0, 31));
-  XLSX.writeFile(book, fileName);
+  // XLSX.writeFile은 브라우저에 따라 파일 이름을 잃고 "download"로 받아지므로, 파일을 직접 만들어 이름을 붙여 내려받는다.
+  const bytes = XLSX.write(book, { bookType: "xlsx", type: "array" }) as ArrayBuffer;
+  const url = URL.createObjectURL(new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }

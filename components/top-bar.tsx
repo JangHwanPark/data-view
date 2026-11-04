@@ -105,7 +105,9 @@ function breadcrumb(
   }
   if (parts[0] === "docs") {
     return parts[1]
-      ? [{ label: "기획서", href: "/docs" }, { label: docName(parts[1]) ?? "알 수 없는 기획서" }]
+      ? parts[2] === "checklist"
+        ? [{ label: "기획서", href: "/docs" }, { label: docName(parts[1]) ?? "알 수 없는 기획서", href: `/docs/${parts[1]}` }, { label: "테스트 항목" }]
+        : [{ label: "기획서", href: "/docs" }, { label: docName(parts[1]) ?? "알 수 없는 기획서" }]
       : [{ label: "기획서" }];
   }
   if (parts[0] === "search") return [{ label: "ID·값 찾기" }];

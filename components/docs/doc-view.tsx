@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { ArrowUpRight, Check, Loader2, RefreshCw, Undo2, X } from "lucide-react";
+import { ArrowUpRight, Check, Loader2, RefreshCw, Undo2, X, ListChecks } from "lucide-react";
 import { Highlighted, KIND_LABEL, STATE_LABEL, TargetLabel } from "@/components/docs/doc-parts";
 import { useCandidates } from "@/components/docs/use-candidates";
 import { useWorkspace } from "@/components/workspace-provider";
@@ -78,6 +78,13 @@ export function DocView({ id }: { id: string }) {
         )}
         {candidates === "error" && <span className="text-xs text-red-600">데이터와 맞춰 보지 못했습니다.</span>}
         <DocReplace id={doc.meta.id} originPath={doc.meta.originPath} />
+        <Link
+          href={`/docs/${doc.meta.id}/checklist`}
+          className="inline-flex items-center gap-1 rounded bg-zinc-900 px-2 py-0.5 text-xs font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900"
+        >
+          <ListChecks className="size-3" aria-hidden />
+          테스트 항목 만들기
+        </Link>
         <p className="ml-auto text-xs text-zinc-500">
           <span className="text-blue-700 underline dark:text-blue-400">맞음</span>{" "}
           <mark className="rounded-sm bg-amber-100 px-0.5 text-inherit dark:bg-amber-900/40">확인 필요</mark>{" "}
@@ -99,7 +106,7 @@ export function DocView({ id }: { id: string }) {
             ))}
           </ul>
         </nav>
-        <DocBody sections={sections} views={views} selectedKey={selectedKey} onSelect={select} issues={check && check !== "error" ? check.issues : []} />
+        <DocBody docId={doc.meta.id} sections={sections} views={views} selectedKey={selectedKey} onSelect={select} issues={check && check !== "error" ? check.issues : []} />
         <aside aria-label="용어 패널" className="lg:sticky lg:top-14 lg:max-h-[calc(100vh-5rem)] lg:self-start lg:overflow-y-auto">
           <div className="mb-2 flex flex-wrap gap-1">
             {FILTERS.map((f) => (
@@ -126,6 +133,7 @@ export function DocView({ id }: { id: string }) {
 }
 
 interface BodyProps {
+  docId: string;
   issues: DocCheckIssue[];
   sections: DocSection[];
   views: TermView[];
@@ -133,7 +141,7 @@ interface BodyProps {
   onSelect: (key: string) => void;
 }
 
-function DocBody({ sections, views, selectedKey, onSelect, issues }: BodyProps) {
+function DocBody({ docId, sections, views, selectedKey, onSelect, issues }: BodyProps) {
   const hl = (text: string) => <Highlighted text={text} views={views} selectedKey={selectedKey} onSelect={onSelect} />;
   // 데이터와 다른 칸은 빨갛게, 데이터에 없는 ID 칸은 주황으로 칠하고 마우스를 올리면 데이터 값을 보여준다.
   const cellIssue = new Map(issues.map((i) => [`${i.sectionId}/${i.tableIndex}/${i.rowIndex}/${i.columnIndex}`, i]));
@@ -141,7 +149,12 @@ function DocBody({ sections, views, selectedKey, onSelect, issues }: BodyProps) 
     <div className="flex min-w-0 flex-col gap-4">
       {sections.map((s) => (
         <section key={s.id} id={s.id} className="scroll-mt-14 rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <h2 className="mb-2 font-semibold">{hl(s.title)}</h2>
+          <h2 className="mb-2 flex flex-wrap items-baseline gap-2 font-semibold">
+            <span>{hl(s.title)}</span>
+            <Link href={`/docs/${docId}/checklist?section=${s.id}`} className="text-xs font-normal text-blue-700 hover:underline dark:text-blue-400">
+              이 절로 테스트 항목
+            </Link>
+          </h2>
           {s.lines.map((line, i) => (
             <p key={i} className="leading-6">
               {hl(line)}

@@ -192,3 +192,10 @@ export async function deleteFile(id: string) {
 const DOMAINS = "domains.json";
 export const readDomainOverrides = () => readJson<Record<string, string>>(DOMAINS, {});
 export const writeDomainOverrides = (value: Record<string, string>) => writeJson(DOMAINS, value);
+
+// 기획서 기준 테스트 항목의 진행 상태(설계 4.11). 기획서 id → 항목 키(테이블 키|ID) → 상태와 메모.
+export type CheckStatus = "todo" | "ok" | "problem" | "hold";
+export type ChecklistState = Record<string, Record<string, { status: CheckStatus; memo: string; updatedAt: string }>>;
+const CHECKLISTS = "checklists.json";
+export const readChecklists = () => readJson<ChecklistState>(CHECKLISTS, {});
+export const writeChecklists = (value: ChecklistState) => writeJson(CHECKLISTS, value);

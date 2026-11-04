@@ -86,6 +86,8 @@ export async function usesGroups(model: DomainModel, node: RowNode): Promise<Row
   for (const l of info.out) byColumn.set(l.column, [...(byColumn.get(l.column) ?? []), l]);
 
   for (const [column, links] of byColumn) {
+    // 세부 행(보상)에서 위 행(보상 그룹)으로 가는 연결은 방금 내려온 길이라 다시 보여주지 않는다.
+    if (!node.unique && info.parent && links.some((l) => l.key === info.parent)) continue;
     const raw = node.values[column];
     if (raw === null || raw === undefined || String(raw).trim() === "") continue;
     // 종류+ID 열은 이 행의 종류 값에 맞는 연결만 쓴다.
