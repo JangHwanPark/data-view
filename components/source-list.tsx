@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { FileSpreadsheet, FileText, Loader2, Plus, Trash2 } from "lucide-react";
+import { FileSpreadsheet, FileText, FolderInput, Loader2, Plus, Trash2 } from "lucide-react";
 import { useWorkspace } from "@/components/workspace-provider";
 
 export function SourceList() {
@@ -24,7 +24,7 @@ export function SourceList() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
@@ -33,6 +33,13 @@ export function SourceList() {
           <Plus className="size-4" aria-hidden />
           파일 열기
         </button>
+        <Link
+          href="/sources/new/path?kind=data"
+          className="inline-flex items-center gap-2 rounded-md border border-zinc-300 px-3 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+        >
+          <FolderInput className="size-4" aria-hidden />
+          경로 지정
+        </Link>
         <input
           ref={inputRef}
           type="file"
@@ -41,7 +48,7 @@ export function SourceList() {
           hidden
           onChange={(e) => handleFiles(e.target.files)}
         />
-        {addError && <p className="mt-2 text-sm text-red-600">{addError}</p>}
+        {addError && <p className="w-full text-sm text-red-600">{addError}</p>}
       </div>
 
       {initError && (

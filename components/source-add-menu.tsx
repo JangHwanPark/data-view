@@ -5,7 +5,19 @@ import { useEffect, useRef, useState } from "react";
 import { BookOpen, ChevronDown, Database, FolderInput, FolderOpen, Plus, Waypoints } from "lucide-react";
 import { useWorkspace } from "@/components/workspace-provider";
 
-// 상단 바의 소스 추가 메뉴. 로컬 파일을 열거나 데이터베이스에 연결한다.
+function MenuGroup({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div role="group" aria-label={label} className="border-b border-zinc-100 pb-1 last:border-0 last:pb-0 dark:border-zinc-800">
+      <p className="flex items-baseline gap-1.5 px-2 pt-1.5 pb-0.5 text-[11px] font-medium text-zinc-500">
+        {label}
+        {hint && <span className="font-normal text-zinc-400">{hint}</span>}
+      </p>
+      {children}
+    </div>
+  );
+}
+
+// 상단 바의 소스 추가 메뉴. 데이터 테이블과 기획서는 파일을 고르거나 경로를 지정해 불러오고, 데이터베이스에 연결한다.
 export function SourceAddMenu() {
   const { addFile, addDocument } = useWorkspace();
   const router = useRouter();
@@ -80,74 +92,96 @@ export function SourceAddMenu() {
       <input ref={docInputRef} type="file" accept=".docx,.pptx,.pdf,.xlsx" multiple hidden onChange={(e) => void handleDocs(e.target.files)} />
 
       {open && (
-        <div role="menu" className="absolute top-full right-0 z-30 mt-1 w-64 rounded-md border border-zinc-200 bg-white p-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
-          <button
-            type="button"
-            role="menuitem"
-            className={itemClass}
-            onClick={() => {
-              setOpen(false);
-              inputRef.current?.click();
-            }}
-          >
-            <FolderOpen className="mt-0.5 size-4 shrink-0 text-zinc-500" aria-hidden />
-            <span>
-              <span className="block">로컬 파일 열기</span>
-              <span className="block text-xs text-zinc-500">엑셀(xlsx, xls), CSV. 여러 개를 한 번에 열 수 있습니다.</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className={itemClass}
-            onClick={() => {
-              setOpen(false);
-              router.push("/sources/new/path");
-            }}
-          >
-            <FolderInput className="mt-0.5 size-4 shrink-0 text-zinc-500" aria-hidden />
-            <span>
-              <span className="block">경로에서 불러오기</span>
-              <span className="block text-xs text-zinc-500">폴더 경로를 적어 한꺼번에 불러오고, 나중에 같은 경로에서 다시 읽습니다.</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className={itemClass}
-            onClick={() => {
-              setOpen(false);
-              docInputRef.current?.click();
-            }}
-          >
-            <BookOpen className="mt-0.5 size-4 shrink-0 text-zinc-500" aria-hidden />
-            <span>
-              <span className="block">기획서 열기</span>
-              <span className="block text-xs text-zinc-500">워드(docx), PPT(pptx), PDF, 엑셀(xlsx)</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className={itemClass}
-            onClick={() => {
-              setOpen(false);
-              router.push("/sources/new/database");
-            }}
-          >
-            <Database className="mt-0.5 size-4 shrink-0 text-zinc-500" aria-hidden />
-            <span>
-              <span className="block">데이터베이스 연결</span>
-              <span className="block text-xs text-zinc-500">MySQL, MariaDB</span>
-            </span>
-          </button>
-          <button type="button" role="menuitem" className={itemClass} disabled>
-            <Waypoints className="mt-0.5 size-4 shrink-0 text-zinc-500" aria-hidden />
-            <span>
-              <span className="block">벡터 DB 연결</span>
-              <span className="block text-xs text-zinc-500">Qdrant, 준비 중</span>
-            </span>
-          </button>
+        <div role="menu" className="absolute top-full right-0 z-30 mt-1 w-72 rounded-md border border-zinc-200 bg-white p-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+          {/* 데이터 테이블과 기획서는 파일을 하나씩 고르거나, 경로를 적어 폴더째 불러올 수 있다. */}
+          <MenuGroup label="데이터 테이블" hint="엑셀(xlsx, xls), CSV">
+            <button
+              type="button"
+              role="menuitem"
+              className={itemClass}
+              onClick={() => {
+                setOpen(false);
+                inputRef.current?.click();
+              }}
+            >
+              <FolderOpen className="mt-0.5 size-4 shrink-0 text-zinc-500" aria-hidden />
+              <span>
+                <span className="block">파일 선택</span>
+                <span className="block text-xs text-zinc-500">파일을 골라 엽니다. 여러 개를 한 번에 고를 수 있습니다.</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className={itemClass}
+              onClick={() => {
+                setOpen(false);
+                router.push("/sources/new/path?kind=data");
+              }}
+            >
+              <FolderInput className="mt-0.5 size-4 shrink-0 text-zinc-500" aria-hidden />
+              <span>
+                <span className="block">경로 지정</span>
+                <span className="block text-xs text-zinc-500">폴더 경로를 적어 한꺼번에 불러오고, 나중에 같은 경로에서 다시 읽습니다.</span>
+              </span>
+            </button>
+          </MenuGroup>
+          <MenuGroup label="기획서" hint="워드(docx), PPT(pptx), PDF, 엑셀(xlsx)">
+            <button
+              type="button"
+              role="menuitem"
+              className={itemClass}
+              onClick={() => {
+                setOpen(false);
+                docInputRef.current?.click();
+              }}
+            >
+              <BookOpen className="mt-0.5 size-4 shrink-0 text-zinc-500" aria-hidden />
+              <span>
+                <span className="block">파일 선택</span>
+                <span className="block text-xs text-zinc-500">기획서 파일을 골라 엽니다.</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className={itemClass}
+              onClick={() => {
+                setOpen(false);
+                router.push("/sources/new/path?kind=doc");
+              }}
+            >
+              <FolderInput className="mt-0.5 size-4 shrink-0 text-zinc-500" aria-hidden />
+              <span>
+                <span className="block">경로 지정</span>
+                <span className="block text-xs text-zinc-500">기획서 폴더 경로를 적어 한꺼번에 불러오고, 새 판은 같은 경로에서 다시 읽습니다.</span>
+              </span>
+            </button>
+          </MenuGroup>
+          <MenuGroup label="연결">
+            <button
+              type="button"
+              role="menuitem"
+              className={itemClass}
+              onClick={() => {
+                setOpen(false);
+                router.push("/sources/new/database");
+              }}
+            >
+              <Database className="mt-0.5 size-4 shrink-0 text-zinc-500" aria-hidden />
+              <span>
+                <span className="block">데이터베이스 연결</span>
+                <span className="block text-xs text-zinc-500">MySQL, MariaDB</span>
+              </span>
+            </button>
+            <button type="button" role="menuitem" className={itemClass} disabled>
+              <Waypoints className="mt-0.5 size-4 shrink-0 text-zinc-500" aria-hidden />
+              <span>
+                <span className="block">벡터 DB 연결</span>
+                <span className="block text-xs text-zinc-500">Qdrant, 준비 중</span>
+              </span>
+            </button>
+          </MenuGroup>
         </div>
       )}
       {error && (

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FileText, Loader2, Trash2 } from "lucide-react";
+import { FileText, FolderInput, Loader2, Trash2 } from "lucide-react";
 import { useCandidates } from "@/components/docs/use-candidates";
 import { sourceTableLabel } from "@/components/relations/relation-parts";
 import { useWorkspace } from "@/components/workspace-provider";
@@ -38,7 +38,14 @@ export function DocsOverview() {
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-baseline gap-x-3">
         <h1 className="text-lg font-semibold">기획서</h1>
-        <p className="text-zinc-500">상단의 소스 추가에서 워드, PPT, PDF, 엑셀 기획서를 열 수 있습니다.</p>
+        <p className="text-zinc-500">상단의 소스 추가에서 워드, PPT, PDF, 엑셀 기획서를 파일로 고르거나 경로를 지정해 열 수 있습니다.</p>
+        <Link
+          href="/sources/new/path?kind=doc"
+          className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-zinc-300 px-2.5 py-1 text-xs hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+        >
+          <FolderInput className="size-3.5" aria-hidden />
+          기획서 경로 지정
+        </Link>
       </div>
 
       {docs.length === 0 ? (
