@@ -1,0 +1,130 @@
+import type { Catalog } from "@/lib/client/doc-infer";
+import type { ParsedDoc } from "@/lib/client/doc-import";
+import { runQuery } from "@/lib/client/duckdb";
+import { qualifiedTable } from "@/lib/client/file-import";
+import { quoteIdent, quoteString } from "@/lib/query-result";
+
+// 기획서와 데이터의 불일치 검출(설계 4.11). 기획서의 표 가운데 머리글에 어떤 테이블의 ID 열이 있는 표를 골라,
+// 그 ID로 실제 행을 찾고 칸마다 값을 비교한다. 예: 기획서 표의 quest_id 71005 행 reward_group_id가 51205인데
+// 데이터는 51207이면 "데이터와 다른 값", 기획서에 있는 79999가 데이터에 없으면 "데이터에 없는 ID"다.
+
+export interface DocCheckIssue {
+  kind: "value" | "missing-row";
+  sectionId: string;
+  sectionTitle: string;
+  tableIndex: number; // 절 안의 몇 번째 표인지
+  rowIndex: number; // 표 안의 몇 번째 행인지(머리글 제외)
+  columnIndex: number; // 다른 칸의 위치. 없는 ID면 ID 칸 위치
+  sourceId: string;
+  table: string;
+  keyColumn: string;
+  key: string;
+  column: string | null; // 다른 값이면 그 열
+  docValue: string;
+  dataValue: string | null;
+}
+
+export interface DocCheckTable {
+  sectionId: string;
+  tableIndex: number;
+  sourceId: string;
+  table: string;
+  keyColumn: string;
+  columns: string[]; // 비교한 열(ID 열 제외)
+  rows: number;
+}
+
+export interface DocCheckResult {
+  issues: DocCheckIssue[];
+  compared: DocCheckTable[]; // 비교한 표
+  skipped: number; // 데이터 테이블과 이어지지 않아 비교하지 못한 표 수
+}
+
+// 숫자는 쉼표와 공백을 떼고, %는 100으로 나눈 값도 같은 값으로 본다(10%와 0.1).
+function numbers(raw: string): number[] {
+  const text = raw.replace(/[,\s]/g, "");
+  if (/^-?\d+(\.\d+)?%$/.test(text)) {
+    const n = Number(text.slice(0, -1));
+    return [n, n / 100];
+  }
+  return /^-?\d+(\.\d+)?$/.test(text) ? [Number(text)] : [];
+}
+
+export function sameValue(docValue: string, dataValue: unknown) {
+  if (dataValue === null || dataValue === undefined) return docValue.trim() === "";
+  const data = String(dataValue).trim();
+  const doc = docValue.trim();
+  if (doc === data) return true;
+  const a = numbers(doc);
+  const b = numbers(data);
+  if (a.length && b.length) return a.some((x) => b.some((y) => Math.abs(x - y) < 1e-9));
+  return doc.toLowerCase() === data.toLowerCase();
+}
+
+// 같은 ID라도 숫자 열은 800.0처럼 읽힐 수 있어 숫자는 숫자로 맞춘다.
+const normKey = (v: unknown) => {
+  const s = String(v).trim().replace(/,/g, "");
+  return /^-?\d+(\.0+)?$/.test(s) ? String(Number(s)) : s;
+};
+
+// 기획서 표가 어느 테이블의 표인지 고른다. 머리글에 그 테이블의 ID 열이 있어야 하고,
+// 머리글과 이름이 같은 열이 가장 많은 테이블을 고른다. 같으면 ID 열이 앞쪽 머리글인 테이블을 쓴다.
+function pickTable(header: string[], catalog: Catalog) {
+  let best: { t: Catalog["tables"][number]; keyIndex: number; columns: number[] } | null = null;
+  for (const t of catalog.tables) {
+    if (!t.keyColumn) continue;
+    const keyIndex = header.indexOf(t.keyColumn);
+    if (keyIndex < 0) continue;
+    const columns = header.map((h, i) => (i !== keyIndex && t.columns.includes(h) ? i : -1)).filter((i) => i >= 0);
+    if (!columns.length) continue;
+    if (!best || columns.length > best.columns.length || (columns.length === best.columns.length && keyIndex < best.keyIndex)) {
+      best = { t, keyIndex, columns };
+    }
+  }
+  return best;
+}
+
+export async function checkDoc(doc: ParsedDoc, catalog: Catalog): Promise<DocCheckResult> {
+  const issues: DocCheckIssue[] = [];
+  const compared: DocCheckTable[] = [];
+  let skipped = 0;
+  for (const section of doc.sections) {
+    for (const [tableIndex, docTable] of section.tables.entries()) {
+      const header = docTable.header.map((h) => h.trim());
+      const picked = pickTable(header, catalog);
+      if (!picked) {
+        if (docTable.rows.length) skipped++;
+        continue;
+      }
+      const { t, keyIndex, columns } = picked;
+      const keys = [...new Set(docTable.rows.map((r) => (r[keyIndex] ?? "").trim()).filter(Boolean))];
+      if (!keys.length) continue;
+      const wanted = [t.keyColumn!, ...columns.map((i) => header[i])];
+      const key = quoteIdent(t.keyColumn!);
+      const numeric = keys.filter((k) => /^-?\d+(\.\d+)?$/.test(k.replace(/,/g, ""))).map((k) => Number(k.replace(/,/g, "")));
+      const where = [`CAST(${key} AS VARCHAR) IN (${keys.map(quoteString).join(",")})`, ...(numeric.length ? [`TRY_CAST(${key} AS DOUBLE) IN (${numeric.join(",")})`] : [])].join(" OR ");
+      const result = await runQuery(`SELECT ${wanted.map(quoteIdent).join(", ")} FROM ${qualifiedTable(t.sourceId, t.table)} WHERE ${where}`, keys.length * 4 + 10);
+      // 중복 ID가 있으면 첫 행을 쓴다. 중복 자체는 "없는 ID 찾기"의 중복 ID에서 본다.
+      const byKey = new Map<string, unknown[]>();
+      for (const row of result.rows) if (!byKey.has(normKey(row[0]))) byKey.set(normKey(row[0]), row);
+      compared.push({ sectionId: section.id, tableIndex, sourceId: t.sourceId, table: t.table, keyColumn: t.keyColumn!, columns: columns.map((i) => header[i]), rows: docTable.rows.length });
+
+      for (const [rowIndex, row] of docTable.rows.entries()) {
+        const id = (row[keyIndex] ?? "").trim();
+        if (!id) continue;
+        const base = { sectionId: section.id, sectionTitle: section.title, tableIndex, rowIndex, sourceId: t.sourceId, table: t.table, keyColumn: t.keyColumn!, key: id };
+        const data = byKey.get(normKey(id));
+        if (!data) {
+          issues.push({ ...base, kind: "missing-row", columnIndex: keyIndex, column: null, docValue: id, dataValue: null });
+          continue;
+        }
+        columns.forEach((ci, j) => {
+          const docValue = row[ci] ?? "";
+          if (!docValue.trim() || sameValue(docValue, data[j + 1])) return;
+          issues.push({ ...base, kind: "value", columnIndex: ci, column: header[ci], docValue, dataValue: data[j + 1] === null ? null : String(data[j + 1]) });
+        });
+      }
+    }
+  }
+  return { issues, compared, skipped };
+}

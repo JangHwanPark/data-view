@@ -9,6 +9,9 @@ import { useWorkspace } from "@/components/workspace-provider";
 import { isSelected, viewTerms, type TermState, type TermView } from "@/lib/client/doc-analysis";
 import type { DocSection } from "@/lib/client/doc-import";
 import { targetRowValue, termHref } from "@/lib/client/doc-links";
+import { DocCheckPanel } from "@/components/docs/doc-check-panel";
+import { useDocCheck } from "@/components/docs/use-doc-check";
+import type { DocCheckIssue } from "@/lib/client/doc-check";
 import { extractTerms, type DocTerm } from "@/lib/client/doc-terms";
 import type { DocTarget } from "@/lib/client/doc-infer";
 
@@ -25,6 +28,8 @@ export function DocView({ id }: { id: string }) {
   // 한 문서의 용어는 렌더마다 다시 뽑아도 가볍다. 후보 계산은 키가 같으면 다시 하지 않는다.
   const terms = doc?.parsed ? extractTerms(doc.parsed) : null;
   const candidates = useCandidates(terms);
+  // 기획서 표의 값을 데이터와 맞춰 본다(설계 4.11 불일치 검출).
+  const check = useDocCheck(doc);
 
   if (!initialized) return <p className="text-zinc-500">불러오는 중...</p>;
   if (!doc) return <p className="text-zinc-500">이 기획서를 찾을 수 없습니다.</p>;
@@ -45,7 +50,9 @@ export function DocView({ id }: { id: string }) {
     );
   }
 
-  const views = viewTerms(terms, candidates && candidates !== "error" ? candidates : new Map(), mappings);
+  // 데이터와 맞춰 보는 동안에는 모든 말이 "데이터에 없음"으로 보이지 않도록, 결과가 나올 때까지 확정한 말만 표시한다.
+  const allViews = viewTerms(terms, candidates && candidates !== "error" ? candidates : new Map(), mappings);
+  const views = candidates === null ? allViews.filter((v) => v.state === "confirmed" || v.state === "ignored") : allViews;
   const counts = Object.fromEntries(FILTERS.map((f) => [f, f === "all" ? views.length : views.filter((v) => v.state === f).length]));
   const sections = doc.parsed.sections;
 
@@ -78,6 +85,8 @@ export function DocView({ id }: { id: string }) {
         </p>
       </div>
 
+      <DocCheckPanel check={check} />
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[11rem_minmax(0,1fr)_22rem]">
         <nav aria-label="절 목록" className="hidden lg:block">
           <ul className="sticky top-14 flex max-h-[calc(100vh-8rem)] flex-col gap-0.5 overflow-y-auto text-xs">
@@ -90,7 +99,7 @@ export function DocView({ id }: { id: string }) {
             ))}
           </ul>
         </nav>
-        <DocBody sections={sections} views={views} selectedKey={selectedKey} onSelect={select} />
+        <DocBody sections={sections} views={views} selectedKey={selectedKey} onSelect={select} issues={check && check !== "error" ? check.issues : []} />
         <aside aria-label="용어 패널" className="lg:sticky lg:top-14 lg:max-h-[calc(100vh-5rem)] lg:self-start lg:overflow-y-auto">
           <div className="mb-2 flex flex-wrap gap-1">
             {FILTERS.map((f) => (
@@ -117,14 +126,17 @@ export function DocView({ id }: { id: string }) {
 }
 
 interface BodyProps {
+  issues: DocCheckIssue[];
   sections: DocSection[];
   views: TermView[];
   selectedKey: string | null;
   onSelect: (key: string) => void;
 }
 
-function DocBody({ sections, views, selectedKey, onSelect }: BodyProps) {
+function DocBody({ sections, views, selectedKey, onSelect, issues }: BodyProps) {
   const hl = (text: string) => <Highlighted text={text} views={views} selectedKey={selectedKey} onSelect={onSelect} />;
+  // 데이터와 다른 칸은 빨갛게, 데이터에 없는 ID 칸은 주황으로 칠하고 마우스를 올리면 데이터 값을 보여준다.
+  const cellIssue = new Map(issues.map((i) => [`${i.sectionId}/${i.tableIndex}/${i.rowIndex}/${i.columnIndex}`, i]));
   return (
     <div className="flex min-w-0 flex-col gap-4">
       {sections.map((s) => (
@@ -150,11 +162,25 @@ function DocBody({ sections, views, selectedKey, onSelect }: BodyProps) {
                 <tbody>
                   {table.rows.map((row, ri) => (
                     <tr key={ri}>
-                      {row.map((cell, ci) => (
-                        <td key={ci} className="border border-zinc-200 px-2 py-1 dark:border-zinc-700">
-                          {hl(cell)}
-                        </td>
-                      ))}
+                      {row.map((cell, ci) => {
+                        const issue = cellIssue.get(`${s.id}/${ti}/${ri}/${ci}`);
+                        const tone = !issue
+                          ? ""
+                          : issue.kind === "value"
+                            ? "bg-red-50 text-red-800 dark:bg-red-950/50 dark:text-red-300"
+                            : "bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300";
+                        const title = !issue
+                          ? undefined
+                          : issue.kind === "value"
+                            ? `데이터와 다름: 데이터(${issue.table})에는 ${issue.dataValue ?? "(비어 있음)"}`
+                            : `데이터(${issue.table})에 없는 ID입니다`;
+                        return (
+                          <td key={ci} className={`border border-zinc-200 px-2 py-1 dark:border-zinc-700 ${tone}`} title={title}>
+                            {hl(cell)}
+                            {issue?.kind === "value" && <span className="ml-1 text-[10px] whitespace-nowrap">(데이터 {issue.dataValue ?? "비어 있음"})</span>}
+                          </td>
+                        );
+                      })}
                     </tr>
                   ))}
                 </tbody>

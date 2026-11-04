@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useDocCheck } from "@/components/docs/use-doc-check";
 import { FileText, FolderInput, Loader2, Trash2 } from "lucide-react";
 import { useCandidates } from "@/components/docs/use-candidates";
 import { sourceTableLabel } from "@/components/relations/relation-parts";
-import { useWorkspace } from "@/components/workspace-provider";
+import { useWorkspace, type WorkspaceDoc } from "@/components/workspace-provider";
 import { mentionedTables, mergeTerms, STRONG_SCORE, viewTerms } from "@/lib/client/doc-analysis";
 
 // 기획서 목록과, 기획서가 최신이 아니라는 신호 두 가지를 모아 보여준다.
@@ -58,6 +59,7 @@ export function DocsOverview() {
               <Link href={`/docs/${d.meta.id}`} className="min-w-0 flex-1 truncate hover:underline">
                 {d.meta.name}
               </Link>
+              <DocCheckBadge doc={d} />
               <span className="text-xs text-zinc-500">
                 {d.status === "ready" ? `절 ${d.parsed?.sections.length ?? 0}개` : d.status === "loading" ? "읽는 중" : "읽기 실패"}
               </span>
@@ -128,5 +130,17 @@ export function DocsOverview() {
         </div>
       )}
     </div>
+  );
+}
+
+// 기획서마다 데이터와 다른 값과 없는 ID 수. 목록에서 먼저 볼 기획서를 고르게 한다.
+function DocCheckBadge({ doc }: { doc: WorkspaceDoc }) {
+  const check = useDocCheck(doc);
+  if (!check || check === "error" || check.compared.length === 0) return null;
+  const n = check.issues.length;
+  return n === 0 ? (
+    <span className="shrink-0 rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">데이터와 같음</span>
+  ) : (
+    <span className="shrink-0 rounded bg-red-50 px-1.5 py-0.5 text-[11px] text-red-800 dark:bg-red-950 dark:text-red-300">데이터와 다른 곳 {n}개</span>
   );
 }
