@@ -1,6 +1,5 @@
-import { DuckDBDataProtocol } from "@duckdb/duckdb-wasm";
 import * as XLSX from "xlsx";
-import { execute, getDuckDB } from "@/lib/client/duckdb";
+import { execute, getDuckDB, loadDuckDBModule } from "@/lib/client/duckdb";
 import type { FileKind, FileSourceMeta } from "@/lib/client/opfs";
 import { quoteIdent, quoteString } from "@/lib/query-result";
 
@@ -35,6 +34,7 @@ export async function dropSource(sourceId: string) {
 
 async function loadCsv(meta: FileSourceMeta, file: File) {
   const db = await getDuckDB();
+  const { DuckDBDataProtocol } = await loadDuckDBModule();
   const path = `${meta.id}/${meta.fileName}`;
   await db.registerFileHandle(path, file, DuckDBDataProtocol.BROWSER_FILEREADER, true);
   try {
