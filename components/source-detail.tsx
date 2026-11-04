@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, Loader2, RefreshCw, Table2 } from "lucide-react";
+import { ChevronLeft, GitCompareArrows, Loader2, RefreshCw, Table2 } from "lucide-react";
 import { sourceVersion, useWorkspace, type WorkspaceSource } from "@/components/workspace-provider";
 import { isFileSource } from "@/lib/client/opfs";
 import { loadRowCounts, tableKey } from "@/lib/client/schema";
@@ -158,8 +158,14 @@ function FileActions({ source }: { source: WorkspaceSource }) {
       )}
       <button type="button" disabled={status === "loading"} onClick={() => replaceRef.current?.click()} className={buttonClass}>
         <RefreshCw className="size-3.5" aria-hidden />
-        갱신본으로 교체
+        새 패치 파일로 교체
       </button>
+      {meta.previous && (
+        <Link href={`/compare?source=${encodeURIComponent(meta.id)}`} className="inline-flex items-center gap-1 text-blue-700 hover:underline dark:text-blue-400" title={`이전 파일: ${meta.previous.fileName}`}>
+          <GitCompareArrows className="size-3.5" aria-hidden />
+          이전 파일과 비교
+        </Link>
+      )}
       <input
         ref={replaceRef}
         type="file"
@@ -176,7 +182,7 @@ function FileActions({ source }: { source: WorkspaceSource }) {
         />
         첫 행을 열 제목으로 쓰기
       </label>
-      <span className="text-xs text-zinc-500">시트와 열 이름이 같으면 확인해 둔 연결이 그대로 이어집니다.</span>
+      <span className="text-xs text-zinc-500">시트와 열 이름이 같으면 확인해 둔 연결이 그대로 이어집니다. 교체하면 바로 전 파일을 한 벌 남겨 패치 전후 비교에 씁니다.</span>
       {replaceError && <p className="w-full text-red-600">{replaceError}</p>}
     </div>
   );

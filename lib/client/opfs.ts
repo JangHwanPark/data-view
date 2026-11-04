@@ -12,6 +12,12 @@ export interface FileSourceMeta {
   createdAt: string;
   replacedAt?: string;
   originPath?: string; // 경로를 지정해서 연 파일이면 그 경로. "원본 경로에서 다시 읽기"에 쓴다.
+  previous?: PreviousFile; // 교체하기 바로 전 파일. 패치 전후 비교에 쓴다(설계 4.9).
+}
+
+export interface PreviousFile {
+  fileName: string;
+  savedAt: string; // 이전 파일로 남긴 시각(= 새 파일로 교체한 시각)
 }
 
 // 데이터베이스 소스. 접속 정보는 서버에 있고 여기에는 연결 id만 둔다.
@@ -146,6 +152,26 @@ export async function replaceFile(meta: FileSourceMeta, file: File) {
     const dir = await (await filesDir()).getDirectoryHandle(meta.id);
     await dir.removeEntry(meta.fileName).catch(() => {});
   }
+}
+
+// 교체하기 바로 전 파일을 files/<소스 id>/prev/에 한 벌만 남긴다. 그 전 것은 지운다.
+const PREV_DIR = "prev";
+
+export async function savePreviousFile(meta: FileSourceMeta): Promise<PreviousFile> {
+  const current = await readFile(meta);
+  const dir = await (await filesDir()).getDirectoryHandle(meta.id, { create: true });
+  await dir.removeEntry(PREV_DIR, { recursive: true }).catch(() => {});
+  const prev = await dir.getDirectoryHandle(PREV_DIR, { create: true });
+  const writable = await (await prev.getFileHandle(meta.fileName, { create: true })).createWritable();
+  await writable.write(current);
+  await writable.close();
+  return { fileName: meta.fileName, savedAt: new Date().toISOString() };
+}
+
+export async function readPreviousFile(meta: FileSourceMeta): Promise<File> {
+  if (!meta.previous) throw new Error("이전 파일이 없습니다.");
+  const dir = await (await (await filesDir()).getDirectoryHandle(meta.id)).getDirectoryHandle(PREV_DIR);
+  return (await dir.getFileHandle(meta.previous.fileName)).getFile();
 }
 
 export async function readFile(meta: FileSourceMeta): Promise<File> {

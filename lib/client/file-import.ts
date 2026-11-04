@@ -20,28 +20,40 @@ export function qualifiedTable(sourceId: string, table: string) {
   return `${quoteIdent(schemaName(sourceId))}.${quoteIdent(table)}`;
 }
 
-// 파일을 DuckDB 테이블로 적재하고 만든 테이블 이름 목록을 돌려준다.
-export async function loadIntoDuckDB(meta: FileSourceMeta, file: File): Promise<string[]> {
-  const schema = quoteIdent(schemaName(meta.id));
-  await execute(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
-  await execute(`CREATE SCHEMA ${schema}`);
+// 패치 전후 비교용 이전 파일은 p_<id> 스키마에 따로 올린다. 소스 목록에는 넣지 않는다.
+export function previousSchemaName(sourceId: string) {
+  return `p_${sourceId}`;
+}
 
-  return meta.kind === "csv" ? loadCsv(meta, file) : loadExcel(meta, file);
+export function previousTable(sourceId: string, table: string) {
+  return `${quoteIdent(previousSchemaName(sourceId))}.${quoteIdent(table)}`;
+}
+
+// 파일을 DuckDB 테이블로 적재하고 만든 테이블 이름 목록을 돌려준다.
+// schema를 주면 그 스키마에 올린다(이전 파일 비교용). 테이블 이름 규칙은 같다.
+export async function loadIntoDuckDB(meta: FileSourceMeta, file: File, schema = schemaName(meta.id)): Promise<string[]> {
+  const quoted = quoteIdent(schema);
+  await execute(`DROP SCHEMA IF EXISTS ${quoted} CASCADE`);
+  await execute(`CREATE SCHEMA ${quoted}`);
+  const target = (table: string) => `${quoted}.${quoteIdent(table)}`;
+  return meta.kind === "csv" ? loadCsv(meta, file, schema, target) : loadExcel(meta, file, schema, target);
 }
 
 export async function dropSource(sourceId: string) {
   await execute(`DROP SCHEMA IF EXISTS ${quoteIdent(schemaName(sourceId))} CASCADE`);
 }
 
-async function loadCsv(meta: FileSourceMeta, file: File) {
+type Target = (table: string) => string;
+
+async function loadCsv(meta: FileSourceMeta, file: File, schema: string, target: Target) {
   const db = await getDuckDB();
-  const path = `${meta.id}/${meta.fileName}`;
+  const path = `${schema}/${meta.fileName}`;
   await db.registerFileHandle(path, file, DuckDBDataProtocol.BROWSER_FILEREADER, true);
   try {
     // 테이블 이름은 실제 파일명이 아니라 소스 이름에서 만든다. 갱신본으로 교체해도 관계가 유지된다.
     const table = tableName(meta.name);
     await execute(
-      `CREATE TABLE ${qualifiedTable(meta.id, table)} AS
+      `CREATE TABLE ${target(table)} AS
        SELECT * FROM read_csv_auto(${quoteString(path)}, header = ${meta.header})`,
     );
     return [table];
@@ -50,7 +62,7 @@ async function loadCsv(meta: FileSourceMeta, file: File) {
   }
 }
 
-async function loadExcel(meta: FileSourceMeta, file: File) {
+async function loadExcel(meta: FileSourceMeta, file: File, schema: string, targetOf: Target) {
   const db = await getDuckDB();
   const workbook = XLSX.read(await file.arrayBuffer(), { cellDates: true, dense: true });
   const tables: string[] = [];
@@ -71,8 +83,8 @@ async function loadExcel(meta: FileSourceMeta, file: File) {
 
     // 갱신본으로 교체해도 관계가 유지되도록 파일명은 빼고 시트 이름만 쓴다.
     const table = uniqueName(tableName(sheetName), tables);
-    const target = qualifiedTable(meta.id, table);
-    const path = `${meta.id}/${tables.length}.json`;
+    const target = targetOf(table);
+    const path = `${schema}/${tables.length}.json`;
     await db.registerFileText(path, JSON.stringify(records));
     try {
       await execute(

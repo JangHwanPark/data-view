@@ -23,6 +23,7 @@ import {
   readManifest,
   readRelationsFile,
   replaceFile as replaceStoredFile,
+  savePreviousFile,
   saveFile,
   writeManifest,
   writeRelationsFile,
@@ -233,8 +234,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (detectKind(file.name) !== target.meta.kind) {
       throw new Error(target.meta.kind === "excel" ? "엑셀 파일로만 교체할 수 있습니다." : "CSV 파일로만 교체할 수 있습니다.");
     }
+    // 패치 전후 비교(설계 4.9)를 위해 지금 파일을 이전 파일로 한 벌 남긴다. 남기지 못해도 교체는 한다.
+    const current = target.meta;
+    const previous = await savePreviousFile(current).catch(() => current.previous);
     await replaceStoredFile(target.meta, file);
-    const meta: FileSourceMeta = { ...target.meta, fileName: file.name, replacedAt: new Date().toISOString() };
+    const meta: FileSourceMeta = { ...target.meta, fileName: file.name, replacedAt: new Date().toISOString(), ...(previous ? { previous } : {}) };
     await editManifest((list) => list.map((m) => (m.id === id ? meta : m)));
     update(id, { meta });
     await load(meta, file);
