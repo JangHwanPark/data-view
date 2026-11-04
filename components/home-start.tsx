@@ -4,14 +4,18 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { BookOpen, FolderInput, GitCompareArrows, Network, Search, SearchX } from "lucide-react";
+import { SampleLoader } from "@/components/sample-loader";
 import { useWorkspace } from "@/components/workspace-provider";
 
 // 첫 화면(설계 1.1). 기능 이름이 아니라 QA가 실제로 하는 질문으로 시작한다.
 // 파일을 하나도 안 불러왔으면 불러오는 방법부터 보여준다.
 export function HomeStart() {
   const { sources, docs, initialized } = useWorkspace();
+  // 테스트 데이터를 불러오는 동안에는 첫 파일이 들어와도 진행 상황이 보이도록 안내 화면에 머문다.
+  const [sampleBusy, setSampleBusy] = useState(false);
+  const [sampleNote, setSampleNote] = useState<string | null>(null);
   if (!initialized) return <p className="text-zinc-500">불러오는 중...</p>;
-  if (sources.length === 0 && docs.length === 0) return <Welcome />;
+  if ((sources.length === 0 && docs.length === 0) || sampleBusy) return <Welcome onBusy={setSampleBusy} onNote={setSampleNote} />;
   const tables = sources.reduce((n, s) => n + s.tables.length, 0);
 
   return (
@@ -22,6 +26,8 @@ export function HomeStart() {
           불러온 파일 {sources.length}개, 테이블 {tables}개, 기획서 {docs.length}개
         </Link>
       </div>
+
+      {sampleNote && <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">{sampleNote}</p>}
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <IdSearchCard />
@@ -116,7 +122,7 @@ function Card({ href, icon, title, text, note }: { href?: string; icon: ReactNod
 }
 
 // 아무것도 안 불러왔을 때. 위치를 적어 폴더째 불러오는 쪽을 먼저 권한다.
-function Welcome() {
+function Welcome({ onBusy, onNote }: { onBusy: (busy: boolean) => void; onNote: (message: string) => void }) {
   return (
     <div className="flex max-w-3xl flex-col gap-4">
       <h1 className="text-xl font-semibold">게임 데이터와 기획서를 불러와 주세요</h1>
@@ -138,6 +144,9 @@ function Welcome() {
         />
       </div>
       <p className="text-xs text-zinc-500">파일을 하나씩 고르려면 오른쪽 위의 &lsquo;파일 불러오기&rsquo;를 누르세요.</p>
+      <div className="mt-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+        <SampleLoader onBusy={onBusy} onNote={onNote} />
+      </div>
     </div>
   );
 }
