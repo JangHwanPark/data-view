@@ -12,6 +12,21 @@ export function formatValue(value: unknown, type: QueryColumn["type"]) {
   return String(value);
 }
 
+// 한 칸에 여러 ID가 들어 있으면(8001|8023) ID마다 따로 그린다. 구분자는 원본 그대로 흐리게 남긴다.
+export function SplitValues({ text, separator, render }: { text: string; separator: string; render: (part: string) => React.ReactNode }) {
+  const parts = text.split(separator);
+  return (
+    <>
+      {parts.map((part, i) => (
+        <span key={i}>
+          {i > 0 && <span className="text-zinc-400">{separator}</span>}
+          {part.trim() ? render(part.trim()) : part}
+        </span>
+      ))}
+    </>
+  );
+}
+
 // 관계가 걸린 값. 누르면 연결된 행으로 따라간다.
 export function LinkValue({ text, onClick }: { text: string; onClick: () => void }) {
   return (

@@ -17,6 +17,7 @@ interface Hover {
   column: string;
   firstColumn: string | null;
   value: string;
+  row?: Record<string, unknown>; // 같은 행의 값. 타입+ID 열이 어느 테이블을 가리키는지 고를 때 쓴다
   x: number;
   y: number;
   bottom: number;
@@ -38,10 +39,17 @@ const DELAY = 300; // 표를 훑으며 지나갈 때마다 뜨지 않도록 잠�
 // 설명을 볼 수 있는 열인지. 다른 테이블을 쓰는 열과 행 자신의 ID 열(첫 열)이다.
 export function useExplainable(here: string | undefined, firstColumn: string | null) {
   const { model } = useDomainModel();
-  return (column: string) => {
+  // 타입+ID 열은 행의 종류 값에 맞는 연결이 있을 때만 설명을 단다(reward_type이 CURRENCY인데 연결이 ITEM뿐이면 달지 않는다).
+  return (column: string, row?: () => Record<string, unknown>) => {
     if (!here || !model) return false;
-    return explainTarget(model, here, column, firstColumn) !== null;
+    const typed = model.tables.get(here)?.out.some((l) => l.column === column && l.when);
+    return explainTarget(model, here, column, firstColumn, typed && row ? row() : undefined) !== null;
   };
+}
+
+// 표의 한 행을 열 이름 → 값으로 바꾼다. 마우스를 올렸을 때만 부른다.
+export function rowRecord(columns: { name: string }[], row: unknown[]) {
+  return Object.fromEntries(columns.map((c, i) => [c.name, row[i]]));
 }
 
 interface CellProps {
@@ -49,11 +57,12 @@ interface CellProps {
   column: string;
   firstColumn: string | null;
   value: unknown;
+  row?: () => Record<string, unknown>;
   children: ReactNode;
 }
 
 // 칸 내용을 감싼다. 값은 그대로 두고, 마우스를 잠깐 올리면 설명을 띄운다.
-export function ExplainCell({ here, column, firstColumn, value, children }: CellProps) {
+export function ExplainCell({ here, column, firstColumn, value, row, children }: CellProps) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   if (value === null || value === undefined || value === "") return <>{children}</>;
   return (
@@ -62,7 +71,7 @@ export function ExplainCell({ here, column, firstColumn, value, children }: Cell
       onMouseEnter={(e) => {
         const rect = e.currentTarget.getBoundingClientRect();
         if (timer.current) clearTimeout(timer.current);
-        timer.current = setTimeout(() => setHover({ here, column, firstColumn, value: String(value), x: rect.left, y: rect.top, bottom: rect.bottom }), DELAY);
+        timer.current = setTimeout(() => setHover({ here, column, firstColumn, value: String(value), row: row?.(), x: rect.left, y: rect.top, bottom: rect.bottom }), DELAY);
       }}
       onMouseLeave={() => {
         if (timer.current) clearTimeout(timer.current);
@@ -79,7 +88,7 @@ export function ExplainLayer() {
   const current = useSyncExternalStore(subscribe, () => hover, () => null);
   const { model } = useDomainModel();
   const [loaded, setLoaded] = useState<{ id: string; value: Explanation | "error" } | null>(null);
-  const target = current && model ? explainTarget(model, current.here, current.column, current.firstColumn) : null;
+  const target = current && model ? explainTarget(model, current.here, current.column, current.firstColumn, current.row) : null;
   const id = current && target ? `${target.key}|${target.column}|${current.value}` : null;
 
   useEffect(() => {

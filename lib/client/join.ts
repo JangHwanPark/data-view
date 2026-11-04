@@ -1,5 +1,5 @@
 import { qualifiedTable } from "@/lib/client/file-import";
-import type { Relation, TableRef } from "@/lib/client/relations";
+import { isExtended, type Relation, type TableRef } from "@/lib/client/relations";
 import { tableKey } from "@/lib/client/schema";
 import { quoteIdent, quoteString, type QueryColumn } from "@/lib/query-result";
 
@@ -40,6 +40,8 @@ export function joinCandidates(spec: JoinSpec, relations: Relation[]): JoinCandi
   const candidates: JoinCandidate[] = [];
   tables.forEach((t, i) => {
     for (const relation of relations) {
+      // 번호 붙은 열, 한 칸 여러 ID, 타입+ID 연결은 붙이면 한 행이 여러 행으로 늘어나 아직 붙여 보기에서 쓰지 않는다.
+      if (isExtended(relation.from)) continue;
       const used = (direction: "out" | "in") =>
         spec.steps.some((s) => s.relationId === relation.id && s.attachTo === i && s.direction === direction);
       if (same(relation.from, t) && !used("out")) {

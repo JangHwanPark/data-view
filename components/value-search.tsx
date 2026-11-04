@@ -7,7 +7,7 @@ import { Loader2, Search } from "lucide-react";
 import { RecordTable } from "@/components/record-table";
 import { sourceTableLabel } from "@/components/relations/relation-parts";
 import { sourceVersion, useWorkspace } from "@/components/workspace-provider";
-import { linkedColumns, serializeTrail, toKeyValue } from "@/lib/client/follow";
+import { columnSeparators, linkedColumns, serializeTrail, toKeyValue } from "@/lib/client/follow";
 import { loadColumns } from "@/lib/client/schema";
 import { searchValue, SEARCH_ROW_LIMIT, type SearchHit, type SearchMode } from "@/lib/client/search";
 
@@ -122,6 +122,7 @@ export function ValueSearch() {
                   <RecordTable
                     result={hit.result}
                     sourceKey={`${hit.sourceId}/${hit.table}`}
+                    separators={columnSeparators(hit.sourceId, hit.table, relations)}
                     linked={linkedColumns(hit.sourceId, hit.table, relations)}
                     highlighted={(column, r) => hit.matched[r]?.includes(column) ?? false}
                     onLinkClick={(column, value) => {

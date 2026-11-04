@@ -10,7 +10,7 @@ import { useWorkspace } from "@/components/workspace-provider";
 import { runQuery } from "@/lib/client/duckdb";
 import { qualifiedTable } from "@/lib/client/file-import";
 import { focusKey, focusWhere, parseRowFocus, tableHref } from "@/lib/client/doc-links";
-import { linkedColumns, parseTrail, serializeTrail, toKeyValue, type TrailStep } from "@/lib/client/follow";
+import { columnSeparators, linkedColumns, parseTrail, serializeTrail, toKeyValue, type TrailStep } from "@/lib/client/follow";
 import { quoteIdent, quoteString, type QueryResult } from "@/lib/query-result";
 import { TableDomainLine } from "@/components/map/table-domain-line";
 import { TableLinks } from "@/components/table-links";
@@ -228,6 +228,7 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
               rows={preview.result.rows}
               linked={linked}
               sourceKey={`${id}/${table}`}
+              separators={columnSeparators(id, table, links.relations)}
               onLinkClick={(column, value) => {
                 const key = toKeyValue(value);
                 if (key) setTrail([{ sourceId: id, table, column, ...key }]);

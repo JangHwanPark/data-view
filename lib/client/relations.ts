@@ -1,7 +1,7 @@
 import { runQuery } from "@/lib/client/duckdb";
 import { qualifiedTable } from "@/lib/client/file-import";
 import { tableKey } from "@/lib/client/schema";
-import { quoteIdent, type QueryColumn } from "@/lib/query-result";
+import { quoteIdent, quoteString, type QueryColumn } from "@/lib/query-result";
 
 export interface TableRef {
   sourceId: string;
@@ -12,11 +12,69 @@ export interface ColumnRef extends TableRef {
   column: string;
 }
 
+// 쓰는 쪽(설계 4.8). column은 대표 열(첫 열)이라 예전 관계와 그대로 맞는다. 게임 테이블의 네 가지 참조 방식을 다룬다.
+// - 단일 열: { column: "item_id" }
+// - 번호 붙은 여러 열: { column: "material_id_1", columns: ["material_id_1", ..., "material_id_5"] }
+// - 한 칸에 여러 ID: { column: "skill_ids", separator: "|" }
+// - 타입+ID: { column: "reward_id", when: { column: "reward_type", value: "ITEM" } }
+export interface FromSide extends ColumnRef {
+  columns?: string[];
+  separator?: string;
+  when?: { column: string; value: string };
+}
+
 // from이 to를 가리킨다. 예: 주문.고객ID -> 고객.ID
 export interface Relation {
   id: string;
-  from: ColumnRef;
+  from: FromSide;
   to: ColumnRef;
+}
+
+export function fromColumns(from: FromSide) {
+  return from.columns?.length ? from.columns : [from.column];
+}
+
+// 단일 열이 아닌 참조 방식인지. 붙여 보기처럼 아직 단일 열만 다루는 화면이 거른다.
+export function isExtended(from: FromSide) {
+  return fromColumns(from).length > 1 || !!from.separator || !!from.when;
+}
+
+// 화면에 쓰는 쓰는 쪽 이름. "material_id_1~5", "skill_ids(|로 나눔)", "reward_id(reward_type이 ITEM일 때)"
+export function fromLabel(from: FromSide) {
+  const cols = fromColumns(from);
+  let label = cols.length > 1 ? `${cols[0]} 외 ${cols.length - 1}개 열` : cols[0];
+  if (from.separator) label += `(${from.separator}로 나눔)`;
+  if (from.when) label += `(${from.when.column}이 ${from.when.value}일 때)`;
+  return label;
+}
+
+// 값 비교 기준. 글자로 바꾸고 앞뒤 공백과 엑셀이 붙이는 .0을 뗀다(800.0 → 800).
+export const normSql = (expr: string) => `regexp_replace(trim(CAST(${expr} AS VARCHAR)), '\\.0+$', '')`;
+
+// 쓰는 쪽 한 행이 쓰는 값들의 목록 식. 번호 붙은 열은 모아서, 구분자가 있으면 나눠서 하나의 목록으로 만든다.
+function fromListSql(from: FromSide) {
+  const parts = fromColumns(from).map((c) => {
+    const col = quoteIdent(c);
+    return from.separator ? `string_split(CAST(${col} AS VARCHAR), ${quoteString(from.separator)})` : `[CAST(${col} AS VARCHAR)]`;
+  });
+  return parts.length === 1 ? parts[0] : `flatten([${parts.join(", ")}])`;
+}
+
+function whenSql(from: FromSide) {
+  return from.when ? `CAST(${quoteIdent(from.when.column)} AS VARCHAR) = ${quoteString(from.when.value)}` : "true";
+}
+
+// 쓰는 쪽이 쓰는 값을 한 줄에 하나씩 펼친 표(열 이름 v). 빈 값은 버린다. 일치 확인, 없는 ID 찾기가 이 표로 센다.
+export function fromValuesSql(from: FromSide) {
+  return `SELECT v FROM (
+    SELECT ${normSql("x")} AS v FROM (SELECT UNNEST(${fromListSql(from)}) AS x FROM ${qualifiedTable(from.sourceId, from.table)} WHERE ${whenSql(from)})
+  ) WHERE v IS NOT NULL AND v <> ''`;
+}
+
+// 쓰는 쪽 테이블에서 이 값을 쓰는 행만 고르는 조건. 따라가기의 "이 값을 쓰는 행"과 값 설명의 "쓰이는 곳"이 쓴다.
+export function fromMatchWhere(from: FromSide, value: string) {
+  const v = value.trim().replace(/\.0+$/, "");
+  return `(${whenSql(from)} AND list_contains(list_transform(${fromListSql(from)}, x -> ${normSql("x")}), ${quoteString(v)}))`;
 }
 
 export interface RelationStats {
@@ -34,18 +92,20 @@ export function newRelationId() {
 export function sameEndpoints(a: Pick<Relation, "from" | "to">, b: Pick<Relation, "from" | "to">) {
   const eq = (x: ColumnRef, y: ColumnRef) =>
     x.sourceId === y.sourceId && x.table === y.table && x.column === y.column;
-  return eq(a.from, b.from) && eq(a.to, b.to);
+  // 같은 열이라도 타입 조건이나 묶은 열, 구분자가 다르면 다른 연결이다(reward_id → Item과 reward_id → Currency).
+  const extra = (f: FromSide) => JSON.stringify([fromColumns(f), f.separator ?? "", f.when ?? null]);
+  return eq(a.from, b.from) && eq(a.to, b.to) && extra(a.from) === extra(b.from);
 }
 
 // 숫자 1과 문자 "1"을 같은 값으로 보도록 문자열로 맞춰 비교한다.
-export async function relationStats(from: ColumnRef, to: ColumnRef): Promise<RelationStats> {
-  const f = quoteIdent(from.column);
+// 번호 붙은 열, 한 칸 여러 ID, 타입+ID도 값을 펼쳐서 센다. 이때 "행"은 펼친 값 하나하나다.
+export async function relationStats(from: FromSide, to: ColumnRef): Promise<RelationStats> {
   const t = quoteIdent(to.column);
   const result = await runQuery(
     `WITH f AS (
-       SELECT CAST(${f} AS VARCHAR) AS v, count(*) AS n FROM ${qualifiedTable(from.sourceId, from.table)} WHERE ${f} IS NOT NULL GROUP BY 1
+       SELECT v, count(*) AS n FROM (${fromValuesSql(from)}) GROUP BY 1
      ), t AS (
-       SELECT CAST(${t} AS VARCHAR) AS v FROM ${qualifiedTable(to.sourceId, to.table)} WHERE ${t} IS NOT NULL
+       SELECT ${normSql(t)} AS v FROM ${qualifiedTable(to.sourceId, to.table)} WHERE ${t} IS NOT NULL
      )
      SELECT
        (SELECT count(*) FROM f),

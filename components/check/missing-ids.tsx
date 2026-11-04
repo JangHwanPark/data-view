@@ -10,14 +10,15 @@ import { sourceVersion, useWorkspace } from "@/components/workspace-provider";
 import { tableHref } from "@/lib/client/doc-links";
 import type { DomainModel } from "@/lib/client/domain-model";
 import { findDuplicates, findMissing, TOP_LIMIT, type DuplicateResult, type MissingResult } from "@/lib/client/integrity";
-import type { ColumnRef } from "@/lib/client/relations";
+import type { ColumnRef, FromSide } from "@/lib/client/relations";
 
 // 없는 ID 찾기(설계 4.9 참조 무결성 검사). 앱이 찾은 연결과 확인한 연결을 모두 돌려,
 // 다른 테이블에 없는 ID를 쓰는 행과 ID 열에 같은 값이 겹친 곳을 모은다.
 
 interface CheckLink {
-  id: string; // 연결 id
-  from: ColumnRef;
+  id: string; // 연결 id + 쓰는 쪽 열(번호 붙은 열 묶음은 열마다 따로 센다)
+  relationId: string; // 연결 id. ?link=로 고를 때 쓴다
+  from: FromSide;
   to: ColumnRef;
   fromKey: string;
   toKey: string;
@@ -40,8 +41,11 @@ function collectLinks(model: DomainModel): CheckLink[] {
   const byId = new Map<string, CheckLink>();
   for (const t of model.tables.values()) {
     for (const l of t.out) {
-      if (byId.has(l.relationId)) continue;
-      byId.set(l.relationId, { id: l.relationId, from: split(t.key, l.column), to: split(l.key, l.otherColumn), fromKey: t.key, toKey: l.key });
+      // 번호 붙은 열 묶음은 열마다 따로 센다. 구분자와 타입 조건은 그대로 넘긴다.
+      const id = `${l.relationId}|${l.column}`;
+      if (byId.has(id)) continue;
+      const from: FromSide = { ...split(t.key, l.column), ...(l.separator ? { separator: l.separator } : {}), ...(l.when ? { when: l.when } : {}) };
+      byId.set(id, { id, relationId: l.relationId, from, to: split(l.key, l.otherColumn), fromKey: t.key, toKey: l.key });
     }
   }
   return [...byId.values()];
@@ -109,11 +113,14 @@ export function MissingIds() {
     document.querySelector(`[data-link="${CSS.escape(focusLink)}"]`)?.scrollIntoView({ block: "center" });
   }, [cached, focusLink]);
 
-  const toggle = (id: string) =>
+  // alias는 ?link=로 연 연결 id. 그 줄을 닫을 때 같이 지운다.
+  const toggle = (id: string, alias?: string) =>
     setOpen((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id) || (alias && next.has(alias))) {
+        next.delete(id);
+        if (alias) next.delete(alias);
+      } else next.add(id);
       return next;
     });
 
@@ -179,7 +186,7 @@ export function MissingIds() {
     .sort((a, b) => b.result.rows - a.result.rows);
   const okCount = links.length - problems.length;
   const missingRows = problems.reduce((n, p) => n + p.result.rows, 0);
-  const focusOk = focusLink && links.some((l) => l.id === focusLink) && !problems.some((p) => p.link.id === focusLink);
+  const focusOk = focusLink && links.some((l) => l.relationId === focusLink) && !problems.some((p) => p.link.relationId === focusLink);
   const tabCls = (active: boolean) =>
     `-mb-px border-b-2 px-3 py-1.5 ${active ? "border-zinc-900 font-medium dark:border-zinc-100" : "border-transparent text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"}`;
 
@@ -217,14 +224,14 @@ export function MissingIds() {
                 </thead>
                 <tbody>
                   {problems.map(({ link, result }) => {
-                    const isOpen = open.has(link.id);
+                    const isOpen = open.has(link.id) || open.has(link.relationId);
                     const Chevron = isOpen ? ChevronDown : ChevronRight;
                     return (
                       <FragmentRows key={link.id}>
                         <tr
-                          data-link={link.id}
-                          onClick={() => toggle(link.id)}
-                          className={`cursor-pointer border-t border-zinc-100 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/60 ${focusLink === link.id ? "bg-amber-50 dark:bg-amber-950/30" : ""}`}
+                          data-link={link.relationId}
+                          onClick={() => toggle(link.id, link.relationId)}
+                          className={`cursor-pointer border-t border-zinc-100 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/60 ${focusLink === link.relationId ? "bg-amber-50 dark:bg-amber-950/30" : ""}`}
                         >
                           <td className="px-3 py-1.5">
                             <span className="inline-flex items-center gap-1">

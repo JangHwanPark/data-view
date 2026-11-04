@@ -1,6 +1,6 @@
 import { runQuery } from "@/lib/client/duckdb";
 import { qualifiedTable } from "@/lib/client/file-import";
-import type { ColumnRef } from "@/lib/client/relations";
+import { fromValuesSql, normSql, type ColumnRef, type FromSide } from "@/lib/client/relations";
 import { quoteIdent } from "@/lib/query-result";
 
 // 참조 무결성 검사(설계 4.9). QA 화면 이름은 "없는 ID 찾기"다.
@@ -28,22 +28,16 @@ export function cleanValue(v: unknown) {
 
 // 값 비교는 따라가기, 연결 확인과 같은 기준이다. 글자로 바꿔 비교하고, 숫자면 숫자로도 비교해 800과 800.0을 같게 본다.
 // 개수는 BIGINT로 바꿔 읽는다. DuckDB의 sum()과 count() over()는 128비트 정수라 그대로 읽으면 숫자가 되지 않는다.
-export async function findMissing(from: ColumnRef, to: ColumnRef): Promise<MissingResult> {
-  const fc = quoteIdent(from.column);
+export async function findMissing(from: FromSide, to: ColumnRef): Promise<MissingResult> {
+  // 쓰는 쪽 값은 펼쳐서 센다(번호 붙은 열, 한 칸 여러 ID, 타입+ID). 비교는 글자로 바꾸고 .0을 뗀 값으로 한다.
   const tc = quoteIdent(to.column);
   const result = await runQuery(
     `WITH t AS (
-       SELECT DISTINCT CAST(${tc} AS VARCHAR) AS v FROM ${qualifiedTable(to.sourceId, to.table)} WHERE ${tc} IS NOT NULL
-     ), tn AS (
-       SELECT DISTINCT TRY_CAST(${tc} AS DOUBLE) AS d FROM ${qualifiedTable(to.sourceId, to.table)} WHERE TRY_CAST(${tc} AS DOUBLE) IS NOT NULL
+       SELECT DISTINCT ${normSql(tc)} AS v FROM ${qualifiedTable(to.sourceId, to.table)} WHERE ${tc} IS NOT NULL
      ), f AS (
-       SELECT CAST(${fc} AS VARCHAR) AS v, TRY_CAST(${fc} AS DOUBLE) AS d, count(*) AS n
-       FROM ${qualifiedTable(from.sourceId, from.table)}
-       WHERE ${fc} IS NOT NULL AND trim(CAST(${fc} AS VARCHAR)) <> ''
-       GROUP BY 1, 2
+       SELECT v, count(*) AS n FROM (${fromValuesSql(from)}) GROUP BY 1
      ), m AS (
-       SELECT v, n FROM f
-       WHERE v NOT IN (SELECT v FROM t) AND (d IS NULL OR d NOT IN (SELECT d FROM tn))
+       SELECT v, n FROM f WHERE v NOT IN (SELECT v FROM t)
      )
      SELECT v, CAST(n AS BIGINT), CAST(sum(n) OVER () AS BIGINT), CAST(count(*) OVER () AS BIGINT)
      FROM m ORDER BY n DESC, v LIMIT ${TOP_LIMIT}`,

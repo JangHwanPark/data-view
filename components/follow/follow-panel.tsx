@@ -7,6 +7,7 @@ import { sourceTableLabel } from "@/components/relations/relation-parts";
 import { useLinkedRelations } from "@/components/use-auto-links";
 import { useWorkspace } from "@/components/workspace-provider";
 import {
+  columnSeparators,
   fetchLinkedRows,
   LINKED_ROW_LIMIT,
   linkedColumns,
@@ -127,6 +128,7 @@ export function FollowPanel({ step, onFollow, onClose }: Props) {
                   <RecordTable
                     result={result}
                     sourceKey={`${link.target.sourceId}/${link.target.table}`}
+                    separators={columnSeparators(link.target.sourceId, link.target.table, targetLinks.relations)}
                     linked={linked}
                     highlighted={(column) => column === link.target.column}
                     onLinkClick={(column, value) => {

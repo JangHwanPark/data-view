@@ -9,7 +9,7 @@ import { TableGraph } from "@/components/table-graph";
 import { useWorkspace } from "@/components/workspace-provider";
 import { isAutoRelation } from "@/lib/client/auto-links";
 import type { RowFocus } from "@/lib/client/doc-links";
-import { newRelationId, type Relation } from "@/lib/client/relations";
+import { fromLabel, newRelationId, type Relation } from "@/lib/client/relations";
 import { graphHref } from "@/lib/client/table-view";
 
 interface Props {
@@ -66,7 +66,7 @@ export function TableLinks({ focus, sourceId, table, columns, relations, reasons
             other={r.to}
             text={
               <>
-                <span className="text-zinc-500">{r.from.column} →</span>
+                <span className="text-zinc-500">{fromLabel(r.from)} →</span>
                 {label(r.to.sourceId, r.to.table)}
               </>
             }
@@ -88,7 +88,7 @@ export function TableLinks({ focus, sourceId, table, columns, relations, reasons
             text={
               <>
                 {label(r.from.sourceId, r.from.table)}
-                <span className="text-zinc-500">.{r.from.column} →</span>
+                <span className="text-zinc-500">.{fromLabel(r.from)} →</span>
               </>
             }
           />

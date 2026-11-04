@@ -1,6 +1,7 @@
 import { focusWhere } from "@/lib/client/doc-links";
 import type { DomainModel, TableInfo } from "@/lib/client/domain-model";
 import { runQuery } from "@/lib/client/duckdb";
+import { fromMatchWhere } from "@/lib/client/relations";
 import { qualifiedTable } from "@/lib/client/file-import";
 import { quoteIdent, quoteString } from "@/lib/query-result";
 
@@ -56,10 +57,13 @@ function textColumn(columns: string[]) {
 }
 
 // 마우스를 올린 칸이 무엇을 가리키는지. 그 테이블의 첫 열(ID 열)이면 자기 행, 다른 테이블을 쓰는 열이면 그 테이블의 행이다.
-export function explainTarget(model: DomainModel, here: string, column: string, firstColumn: string | null) {
+// 타입+ID 열(reward_id)은 같은 행의 타입 값(reward_type ITEM)에 맞는 연결을 고른다. 행을 모르면 첫 연결을 쓴다.
+export function explainTarget(model: DomainModel, here: string, column: string, firstColumn: string | null, row?: Record<string, unknown>) {
   const info = model.tables.get(here);
   if (!info) return null;
-  const link = info.out.find((l) => l.column === column);
+  const links = info.out.filter((l) => l.column === column);
+  const typed = row ? links.find((l) => l.when && String(row[l.when.column] ?? "") === l.when.value) : undefined;
+  const link = typed ?? links.find((l) => !l.when) ?? (row ? undefined : links[0]);
   if (link) return { key: link.key, column: link.otherColumn };
   if (column === firstColumn) return { key: here, column };
   return null;
@@ -176,9 +180,9 @@ async function compute(model: DomainModel, target: { key: string; column: string
   for (const l of (info?.in ?? []).filter((l) => l.column === firstColumn).slice(0, MAX_USED_BY * 2)) {
     if (children.some((c) => c.key === l.key)) continue;
     const c = split(l.key);
-    const n = Number(
-      (await runQuery(`SELECT CAST(count(*) AS BIGINT) FROM ${qualifiedTable(c.sourceId, c.table)} WHERE ${focusWhere({ column: l.otherColumn, value: idValue })}`, 1)).rows[0]?.[0] ?? 0,
-    );
+    // 쓰는 쪽이 한 칸 여러 ID나 타입+ID면 펼친 값으로 찾는다.
+    const match = l.separator || l.when ? fromMatchWhere({ ...c, column: l.otherColumn, separator: l.separator, when: l.when }, idValue) : focusWhere({ column: l.otherColumn, value: idValue });
+    const n = Number((await runQuery(`SELECT CAST(count(*) AS BIGINT) FROM ${qualifiedTable(c.sourceId, c.table)} WHERE ${match}`, 1)).rows[0]?.[0] ?? 0);
     // 같은 테이블의 여러 열(item_id, bonus_item_id_1)에서 쓰면 한 줄로 합친다.
     const same = usedBy.find((u) => u.table === c.table);
     if (n && same) {

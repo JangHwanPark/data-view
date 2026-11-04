@@ -1,7 +1,7 @@
 "use client";
 
-import { formatValue, LinkValue } from "@/components/cell-value";
-import { ExplainCell, useExplainable } from "@/components/explain/value-explain";
+import { formatValue, LinkValue, SplitValues } from "@/components/cell-value";
+import { ExplainCell, rowRecord, useExplainable } from "@/components/explain/value-explain";
 import type { QueryResult } from "@/lib/query-result";
 
 interface Props {
@@ -10,10 +10,11 @@ interface Props {
   highlighted?: (column: string, rowIndex: number) => boolean;
   onLinkClick?: (column: string, value: unknown) => void;
   sourceKey?: string; // 이 표의 테이블 키. 주면 값에 마우스를 올렸을 때 어떤 데이터인지 보여준다
+  separators?: Map<string, string>; // 한 칸에 여러 ID를 넣는 열과 구분자
 }
 
 // 패널과 검색 결과에 쓰는 작은 표. 행이 적어서 가상 스크롤 없이 그린다.
-export function RecordTable({ result, linked, highlighted, onLinkClick, sourceKey }: Props) {
+export function RecordTable({ result, linked, highlighted, onLinkClick, sourceKey, separators }: Props) {
   const firstColumn = result.columns[0]?.name ?? null;
   const explainable = useExplainable(sourceKey, firstColumn);
   return (
@@ -35,8 +36,26 @@ export function RecordTable({ result, linked, highlighted, onLinkClick, sourceKe
                 const value = row[i];
                 const text = formatValue(value, c.type);
                 const isLink = linked?.has(c.name) && value !== null && onLinkClick;
-                const explain = sourceKey && explainable(c.name);
-                const content = isLink ? <LinkValue text={text} onClick={() => onLinkClick(c.name, value)} /> : text;
+                const explain = sourceKey && explainable(c.name, () => rowRecord(result.columns, row));
+                const record = () => rowRecord(result.columns, row);
+                const separator = value !== null ? separators?.get(c.name) : undefined;
+                const one = (part: string) => {
+                  const inner = isLink ? <LinkValue text={part} onClick={() => onLinkClick(c.name, part)} /> : part;
+                  return explain ? (
+                    <ExplainCell here={sourceKey} column={c.name} firstColumn={firstColumn} value={part} row={record}>
+                      {inner}
+                    </ExplainCell>
+                  ) : (
+                    inner
+                  );
+                };
+                const content = separator ? (
+                  <SplitValues text={text} separator={separator} render={one} />
+                ) : isLink ? (
+                  <LinkValue text={text} onClick={() => onLinkClick(c.name, value)} />
+                ) : (
+                  text
+                );
                 return (
                   <td
                     key={c.name}
@@ -45,8 +64,8 @@ export function RecordTable({ result, linked, highlighted, onLinkClick, sourceKe
                     } ${typeof value === "number" ? "text-right tabular-nums" : ""} ${value === null ? "text-zinc-400" : ""}`}
                     title={value === null || explain ? undefined : text}
                   >
-                    {explain ? (
-                      <ExplainCell here={sourceKey} column={c.name} firstColumn={firstColumn} value={value}>
+                    {explain && !separator ? (
+                      <ExplainCell here={sourceKey} column={c.name} firstColumn={firstColumn} value={value} row={record}>
                         {content}
                       </ExplainCell>
                     ) : (

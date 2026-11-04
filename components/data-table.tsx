@@ -3,8 +3,8 @@
 import { useRef } from "react";
 import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { formatValue, LinkValue } from "@/components/cell-value";
-import { ExplainCell, useExplainable } from "@/components/explain/value-explain";
+import { formatValue, LinkValue, SplitValues } from "@/components/cell-value";
+import { ExplainCell, rowRecord, useExplainable } from "@/components/explain/value-explain";
 import type { QueryColumn } from "@/lib/query-result";
 
 type Row = unknown[];
@@ -42,9 +42,10 @@ interface DataTableProps {
   linked?: Set<string>; // 관계가 걸린 열. 값을 눌러 따라갈 수 있다.
   onLinkClick?: (column: string, value: unknown) => void;
   sourceKey?: string; // 이 표의 테이블 키. 주면 값에 마우스를 올렸을 때 어떤 데이터인지 보여준다
+  separators?: Map<string, string>; // 한 칸에 여러 ID를 넣는 열과 구분자. ID마다 따로 링크와 설명을 단다
 }
 
-export function DataTable({ columns, tableColumns, rows, linked, onLinkClick, sourceKey }: DataTableProps) {
+export function DataTable({ columns, tableColumns, rows, linked, onLinkClick, sourceKey, separators }: DataTableProps) {
   const firstColumn = columns[0]?.name ?? null;
   const explainable = useExplainable(sourceKey, firstColumn);
   const table = useTable({ features, columns: tableColumns, data: rows });
@@ -107,8 +108,23 @@ export function DataTable({ columns, tableColumns, rows, linked, onLinkClick, so
                   const value = cell.getValue();
                   const column = columns[Number(cell.column.id)];
                   const isLink = column && linked?.has(column.name) && value !== null && onLinkClick;
-                  const explain = sourceKey && column && explainable(column.name);
-                  const content = isLink ? (
+                  const explain = sourceKey && column && explainable(column.name, () => rowRecord(columns, row.original));
+                  const record = () => rowRecord(columns, row.original);
+                  const separator = column && value !== null ? separators?.get(column.name) : undefined;
+                  // 한 칸 여러 ID: ID마다 링크(누르면 그 ID로 따라가기)와 설명을 따로 단다.
+                  const one = (part: string, partValue: unknown) => {
+                    const inner = isLink ? <LinkValue text={part} onClick={() => onLinkClick(column.name, partValue)} /> : part;
+                    return explain ? (
+                      <ExplainCell here={sourceKey} column={column.name} firstColumn={firstColumn} value={partValue} row={record}>
+                        {inner}
+                      </ExplainCell>
+                    ) : (
+                      inner
+                    );
+                  };
+                  const content = separator ? (
+                    <SplitValues text={String(value)} separator={separator} render={(part) => one(part, part)} />
+                  ) : isLink ? (
                     <LinkValue text={formatValue(value, column.type)} onClick={() => onLinkClick(column.name, value)} />
                   ) : (
                     <table.FlexRender cell={cell} />
@@ -122,8 +138,8 @@ export function DataTable({ columns, tableColumns, rows, linked, onLinkClick, so
                         typeof value === "number" ? "text-right tabular-nums" : ""
                       } ${value === null ? "text-zinc-400" : ""}`}
                     >
-                      {explain ? (
-                        <ExplainCell here={sourceKey} column={column.name} firstColumn={firstColumn} value={value}>
+                      {explain && !separator ? (
+                        <ExplainCell here={sourceKey} column={column.name} firstColumn={firstColumn} value={value} row={record}>
                           {content}
                         </ExplainCell>
                       ) : (

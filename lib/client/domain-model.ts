@@ -1,4 +1,4 @@
-import type { Relation } from "@/lib/client/relations";
+import { fromColumns, type Relation } from "@/lib/client/relations";
 
 // 도메인 지도(설계 4.12)의 계산. 테이블 목록과 관계만으로 도메인, 역할, 도메인 사이 연결을 정한다.
 // 화면과 DuckDB에 기대지 않는 순수 함수라 같은 입력이면 같은 결과가 나온다.
@@ -38,6 +38,8 @@ export interface LinkEnd {
   column: string; // 이 테이블 쪽 열
   otherColumn: string; // 상대 테이블 쪽 열
   relationId: string;
+  separator?: string; // 쓰는 쪽 열이 한 칸에 여러 ID를 넣을 때 구분자
+  when?: { column: string; value: string }; // 쓰는 쪽이 타입+ID일 때 이 조건인 행만
 }
 
 export interface TableInfo {
@@ -92,8 +94,12 @@ export function buildModel({ tables, relations, overrides }: ModelInput): Domain
     const a = modelKey(r.from.sourceId, r.from.table);
     const b = modelKey(r.to.sourceId, r.to.table);
     if (a === b || !keys.has(a) || !keys.has(b)) continue;
-    outs.set(a, [...(outs.get(a) ?? []), { key: b, column: r.from.column, otherColumn: r.to.column, relationId: r.id }]);
-    ins.set(b, [...(ins.get(b) ?? []), { key: a, column: r.to.column, otherColumn: r.from.column, relationId: r.id }]);
+    // 번호 붙은 열 묶음은 열마다 따로 잇는다. 연결 그림에서 열 하나하나가 선으로 보이게 하려는 목적이다.
+    const extra = { ...(r.from.separator ? { separator: r.from.separator } : {}), ...(r.from.when ? { when: r.from.when } : {}) };
+    for (const column of fromColumns(r.from)) {
+      outs.set(a, [...(outs.get(a) ?? []), { key: b, column, otherColumn: r.to.column, relationId: r.id, ...extra }]);
+      ins.set(b, [...(ins.get(b) ?? []), { key: a, column: r.to.column, otherColumn: column, relationId: r.id, ...extra }]);
+    }
   }
 
   // 2. 부모: 첫 열이 다른 테이블을 가리키면 그 테이블의 하위다.
@@ -182,7 +188,7 @@ export function buildModel({ tables, relations, overrides }: ModelInput): Domain
 function dedupeEnds(list: LinkEnd[]) {
   const seen = new Map<string, LinkEnd>();
   for (const l of list) {
-    const k = `${l.key}|${l.column}|${l.otherColumn}`;
+    const k = `${l.key}|${l.column}|${l.otherColumn}|${l.when?.value ?? ""}`;
     if (!seen.has(k)) seen.set(k, l);
   }
   return [...seen.values()];

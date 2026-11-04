@@ -1,5 +1,5 @@
 import type { WorkspaceSource } from "@/components/workspace-provider";
-import { coverage, rowCoverage, type ColumnRef, type RelationStats } from "@/lib/client/relations";
+import { coverage, rowCoverage, type ColumnRef, type RelationStats, fromLabel, isExtended, type FromSide } from "@/lib/client/relations";
 import { tableKey } from "@/lib/client/schema";
 import type { QueryColumn } from "@/lib/query-result";
 
@@ -7,14 +7,15 @@ export function endpointExists(ref: ColumnRef, columns: Map<string, QueryColumn[
   return columns.get(tableKey(ref.sourceId, ref.table))?.some((c) => c.name === ref.column) ?? false;
 }
 
-export function ColumnLabel({ refValue, sources }: { refValue: ColumnRef; sources: WorkspaceSource[] }) {
+// 쓰는 쪽이면 참조 방식(번호 붙은 열, 구분자, 종류 조건)까지 적는다.
+export function ColumnLabel({ refValue, sources }: { refValue: ColumnRef | FromSide; sources: WorkspaceSource[] }) {
   const source = sources.find((s) => s.meta.id === refValue.sourceId);
   return (
     <span className="min-w-0 break-all">
       <span className="text-zinc-500">{source?.meta.name ?? "삭제된 파일"} / </span>
       <span>{refValue.table}</span>
       <span className="text-zinc-500">.</span>
-      <span className="font-medium">{refValue.column}</span>
+      <span className="font-medium">{isExtended(refValue) ? fromLabel(refValue) : refValue.column}</span>
     </span>
   );
 }

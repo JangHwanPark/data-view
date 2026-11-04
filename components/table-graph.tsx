@@ -12,7 +12,7 @@ import { useDomainModel } from "@/components/use-domain-model";
 import { ROLE_LABEL } from "@/lib/client/domain-model";
 import { useWorkspace } from "@/components/workspace-provider";
 import { isAutoRelation } from "@/lib/client/auto-links";
-import type { Relation } from "@/lib/client/relations";
+import { fromLabel, isExtended, type Relation } from "@/lib/client/relations";
 
 // 가운데와 양옆 사이를 넓게 둬서 연결선 이름표가 상자에 가리지 않게 한다.
 const COLUMN_GAP = 440;
@@ -113,7 +113,7 @@ export function TableGraph({ sourceId, table }: { sourceId: string; table: strin
     source: `${r.from.sourceId}/${r.from.table}`,
     target: `${r.to.sourceId}/${r.to.table}`,
     // 열 이름이 같으면 한 번만 적어 이름표를 짧게 한다.
-    label: `${r.from.column === r.to.column ? r.from.column : `${r.from.column} → ${r.to.column}`}${isAutoRelation(r) ? " (앱이 찾음)" : ""}`,
+    label: `${r.from.column === r.to.column && !isExtended(r.from) ? r.from.column : `${fromLabel(r.from)} → ${r.to.column}`}${isAutoRelation(r) ? " (앱이 찾음)" : ""}`,
     // 꺾인 선으로 그려 같은 상자에서 나가는 선들이 한 줄로 겹치지 않고 높이별로 갈라지게 한다.
     type: "smoothstep",
     labelStyle: { fontSize: 10 },

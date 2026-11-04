@@ -9,9 +9,28 @@ import {
   relationStats,
   sameEndpoints,
   type ColumnRef,
+  type FromSide,
   type RelationStats,
 } from "@/lib/client/relations";
 import type { QueryColumn } from "@/lib/query-result";
+
+// 쓰는 쪽이 ID를 적는 방식(설계 4.8). 게임 테이블에서 흔한 네 가지다.
+type Mode = "single" | "numbered" | "split" | "typed";
+const MODES: { key: Mode; label: string; example: string }[] = [
+  { key: "single", label: "한 칸에 ID 하나", example: "item_id = 1001" },
+  { key: "numbered", label: "번호 붙은 여러 열", example: "material_id_1 ~ material_id_5" },
+  { key: "split", label: "한 칸에 여러 ID", example: "skill_ids = 1001|1002|1003" },
+  { key: "typed", label: "종류 + ID", example: "reward_type = ITEM 일 때 reward_id" },
+];
+const SEPARATORS = ["|", ",", ";", "/"];
+
+// material_id_1을 고르면 material_id_1, material_id_2 ...처럼 번호만 다른 열을 찾는다.
+function numberedSiblings(column: string, all: string[]) {
+  const m = column.match(/^(.*?)(\d+)$/);
+  if (!m) return [column];
+  const prefix = m[1];
+  return all.filter((c) => new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\d+$`).test(c));
+}
 
 interface Props {
   sources: WorkspaceSource[];
@@ -28,15 +47,38 @@ export function RelationForm({ sources, columns }: Props) {
   const [fromColumn, setFromColumn] = useState("");
   const [toTable, setToTable] = useState("");
   const [toColumn, setToColumn] = useState("");
+  const [mode, setMode] = useState<Mode>("single");
+  const [picked, setPicked] = useState<string[] | null>(null); // 번호 붙은 열 중 고른 것. null이면 자동으로 찾은 전부
+  const [separator, setSeparator] = useState("|");
+  const [whenColumn, setWhenColumn] = useState("");
+  const [whenValue, setWhenValue] = useState("");
   // 결과를 고른 조합의 키와 같이 저장하고, 키가 지금 선택과 다르면 계산 중으로 본다.
   const [result, setResult] = useState<{ key: string; value: RelationStats | "error" } | null>(null);
 
-  const from = toRef(fromTable, fromColumn);
+  const fromColumnNames = (columns.get(fromTable) ?? []).map((c) => c.name);
+  const siblings = fromColumn ? numberedSiblings(fromColumn, fromColumnNames) : [];
+  const base = toRef(fromTable, fromColumn);
+  // 고른 방식에 따라 쓰는 쪽을 만든다. 조건이 덜 채워졌으면 null이다.
+  const from: FromSide | null = !base
+    ? null
+    : mode === "numbered"
+      ? (picked ?? siblings).length > 1
+        ? { ...base, column: (picked ?? siblings)[0], columns: picked ?? siblings }
+        : null
+      : mode === "split"
+        ? separator
+          ? { ...base, separator }
+          : null
+        : mode === "typed"
+          ? whenColumn && whenValue.trim()
+            ? { ...base, when: { column: whenColumn, value: whenValue.trim() } }
+            : null
+          : base;
   const to = toRef(toTable, toColumn);
   const complete = from && to;
   const sameColumn = complete && fromTable === toTable && fromColumn === toColumn;
   const duplicate = complete && relations.some((r) => sameEndpoints(r, { from, to }));
-  const selectionKey = complete && !sameColumn ? JSON.stringify([fromTable, fromColumn, toTable, toColumn]) : null;
+  const selectionKey = complete && !sameColumn ? JSON.stringify([from, toTable, toColumn]) : null;
   const stats = !selectionKey ? null : result?.key === selectionKey ? result.value : "loading";
 
   useEffect(() => {
@@ -63,6 +105,8 @@ export function RelationForm({ sources, columns }: Props) {
     await addRelations([{ id: newRelationId(), from, to }]);
     setFromColumn("");
     setToColumn("");
+    setPicked(null);
+    setWhenValue("");
   }
 
   return (
@@ -82,7 +126,10 @@ export function RelationForm({ sources, columns }: Props) {
             setFromTable(v);
             setFromColumn("");
           }}
-          onColumn={setFromColumn}
+          onColumn={(v) => {
+            setFromColumn(v);
+            setPicked(null);
+          }}
         />
         <ArrowRight className="mx-auto mb-2 hidden size-5 text-zinc-400 md:block" aria-hidden />
         <EndpointPicker
@@ -98,6 +145,85 @@ export function RelationForm({ sources, columns }: Props) {
           onColumn={setToColumn}
         />
       </div>
+
+      <fieldset className="flex flex-col gap-2 rounded-lg border border-zinc-200 bg-white p-3 text-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <legend className="px-1 text-xs font-medium text-zinc-500">ID를 적는 방식</legend>
+        <div className="flex flex-wrap gap-x-4 gap-y-1">
+          {MODES.map((m) => (
+            <label key={m.key} className="inline-flex items-baseline gap-1.5">
+              <input type="radio" name="relation-mode" checked={mode === m.key} onChange={() => setMode(m.key)} />
+              <span>{m.label}</span>
+              <span className="font-mono text-xs text-zinc-400">{m.example}</span>
+            </label>
+          ))}
+        </div>
+        {mode === "numbered" && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+            {!fromColumn ? (
+              <span className="text-zinc-500">왼쪽에서 번호 붙은 열 하나(예: material_id_1)를 고르면 같은 이름의 번호 열을 모두 찾습니다.</span>
+            ) : siblings.length < 2 ? (
+              <span className="text-amber-700 dark:text-amber-400">{fromColumn}와 번호만 다른 열이 없습니다. 이름 끝이 숫자인 열을 골라 주세요.</span>
+            ) : (
+              <>
+                <span className="text-zinc-500">함께 볼 열</span>
+                {siblings.map((c) => (
+                  <label key={c} className="inline-flex items-center gap-1 font-mono">
+                    <input
+                      type="checkbox"
+                      checked={(picked ?? siblings).includes(c)}
+                      onChange={(e) => {
+                        const now = picked ?? siblings;
+                        setPicked(e.target.checked ? siblings.filter((x) => now.includes(x) || x === c) : now.filter((x) => x !== c));
+                      }}
+                    />
+                    {c}
+                  </label>
+                ))}
+              </>
+            )}
+          </div>
+        )}
+        {mode === "split" && (
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-zinc-500">ID 사이를 나누는 글자</span>
+            {SEPARATORS.map((sep) => (
+              <label key={sep} className="inline-flex items-center gap-1 font-mono">
+                <input type="radio" name="relation-sep" checked={separator === sep} onChange={() => setSeparator(sep)} />
+                {sep}
+              </label>
+            ))}
+            <input
+              aria-label="다른 구분 글자"
+              value={SEPARATORS.includes(separator) ? "" : separator}
+              onChange={(e) => setSeparator(e.target.value)}
+              placeholder="다른 글자"
+              className="w-20 rounded border border-zinc-300 bg-white px-1.5 py-0.5 font-mono dark:border-zinc-700 dark:bg-zinc-950"
+            />
+          </div>
+        )}
+        {mode === "typed" && (
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-zinc-500">이 열이</span>
+            <select aria-label="종류 열" className="rounded border border-zinc-300 bg-white px-1.5 py-0.5 dark:border-zinc-700 dark:bg-zinc-950" value={whenColumn} onChange={(e) => setWhenColumn(e.target.value)} disabled={!fromTable}>
+              <option value="">종류 열 선택(예: reward_type)</option>
+              {fromColumnNames.filter((c) => c !== fromColumn).map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            <span className="text-zinc-500">값</span>
+            <input
+              aria-label="종류 값"
+              value={whenValue}
+              onChange={(e) => setWhenValue(e.target.value)}
+              placeholder="예: ITEM"
+              className="w-28 rounded border border-zinc-300 bg-white px-1.5 py-0.5 font-mono dark:border-zinc-700 dark:bg-zinc-950"
+            />
+            <span className="text-zinc-500">인 행만 오른쪽 테이블을 가리킵니다. 종류마다(ITEM, CURRENCY …) 연결을 하나씩 만들어 주세요.</span>
+          </div>
+        )}
+      </fieldset>
 
       <div className="flex flex-wrap items-center gap-3">
         <button
