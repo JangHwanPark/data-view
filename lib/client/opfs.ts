@@ -161,3 +161,8 @@ export async function deleteFile(id: string) {
     if (!(e instanceof DOMException && e.name === "NotFoundError")) throw e;
   }
 }
+
+// 도메인 지도에서 사용자가 바꾼 테이블의 도메인. 테이블 키(소스 id/테이블) → 도메인 이름.
+const DOMAINS = "domains.json";
+export const readDomainOverrides = () => readJson<Record<string, string>>(DOMAINS, {});
+export const writeDomainOverrides = (value: Record<string, string>) => writeJson(DOMAINS, value);

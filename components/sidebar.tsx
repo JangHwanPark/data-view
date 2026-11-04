@@ -13,6 +13,7 @@ import {
   FolderOpen,
   GitFork,
   Loader2,
+  Network,
   PanelLeftClose,
   PanelLeftOpen,
   Search,
@@ -24,6 +25,7 @@ import { loadRowCounts, tableKey } from "@/lib/client/schema";
 
 const NAV = [
   { href: "/", label: "데이터 소스", icon: FolderOpen },
+  { href: "/map", label: "도메인 지도", icon: Network },
   { href: "/docs", label: "기획서", icon: BookOpen },
   { href: "/relations", label: "관계", icon: GitFork },
   { href: "/search", label: "값 검색", icon: Search },

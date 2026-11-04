@@ -23,6 +23,8 @@ export interface RelationStats {
   fromDistinct: number; // from 컬럼의 고유값 수 (null 제외)
   matched: number; // 그중 to 컬럼에 있는 값 수
   toUnique: boolean; // to 컬럼 값이 유일한지
+  fromRows: number; // from 컬럼의 값이 있는 행 수
+  matchedRows: number; // 그중 to 컬럼에 값이 있는 행 수
 }
 
 export function newRelationId() {
@@ -41,7 +43,7 @@ export async function relationStats(from: ColumnRef, to: ColumnRef): Promise<Rel
   const t = quoteIdent(to.column);
   const result = await runQuery(
     `WITH f AS (
-       SELECT DISTINCT CAST(${f} AS VARCHAR) AS v FROM ${qualifiedTable(from.sourceId, from.table)} WHERE ${f} IS NOT NULL
+       SELECT CAST(${f} AS VARCHAR) AS v, count(*) AS n FROM ${qualifiedTable(from.sourceId, from.table)} WHERE ${f} IS NOT NULL GROUP BY 1
      ), t AS (
        SELECT CAST(${t} AS VARCHAR) AS v FROM ${qualifiedTable(to.sourceId, to.table)} WHERE ${t} IS NOT NULL
      )
@@ -49,15 +51,25 @@ export async function relationStats(from: ColumnRef, to: ColumnRef): Promise<Rel
        (SELECT count(*) FROM f),
        (SELECT count(*) FROM f WHERE v IN (SELECT v FROM t)),
        (SELECT count(*) FROM t),
-       (SELECT count(DISTINCT v) FROM t)`,
+       (SELECT count(DISTINCT v) FROM t),
+       (SELECT CAST(coalesce(sum(n), 0) AS BIGINT) FROM f),
+       (SELECT CAST(coalesce(sum(n), 0) AS BIGINT) FROM f WHERE v IN (SELECT v FROM t))`,
     1,
   );
-  const [fromDistinct, matched, toCount, toDistinct] = (result.rows[0] ?? []).map(Number);
-  return { fromDistinct, matched, toUnique: toCount === toDistinct };
+  const [fromDistinct, matched, toCount, toDistinct, fromRows, matchedRows] = (result.rows[0] ?? []).map(Number);
+  return { fromDistinct, matched, toUnique: toCount === toDistinct, fromRows, matchedRows };
 }
 
 export function coverage(stats: RelationStats) {
   return stats.fromDistinct === 0 ? 0 : stats.matched / stats.fromDistinct;
+}
+
+// 행 기준 일치율. sum()은 128비트 정수라 그대로 읽으면 숫자로 바뀌지 않으므로 쿼리에서 BIGINT로 바꿔 읽는다. 등급처럼 값 종류가 적은 테이블을 가리킬 때는 깨진 ID 몇 개만 섞여도 고유값 기준 일치율이 크게 떨어진다.
+// (등급 6개 + 깨진 ID 24개 → 고유값 기준 20%, 행 기준 99%)
+export function rowCoverage(stats: RelationStats) {
+  const ratio = stats.fromRows === 0 ? 0 : stats.matchedRows / stats.fromRows;
+  // 값을 못 읽었으면 NaN이 되는데, NaN은 어떤 기준과 비교해도 걸러지지 않아 모든 후보가 통과한다. 0으로 본다.
+  return Number.isFinite(ratio) ? ratio : 0;
 }
 
 export interface Suggestion {

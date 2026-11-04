@@ -6,7 +6,10 @@ import { Background, MarkerType, Position, ReactFlow, type Edge, type Node } fro
 import "@xyflow/react/dist/style.css";
 import { sourceTableLabel } from "@/components/relations/relation-parts";
 import { useResolvedTheme } from "@/components/theme-toggle";
+import { roleColor } from "@/components/map/map-parts";
 import { useLinkedRelations } from "@/components/use-auto-links";
+import { useDomainModel } from "@/components/use-domain-model";
+import { ROLE_LABEL } from "@/lib/client/domain-model";
 import { useWorkspace } from "@/components/workspace-provider";
 import { isAutoRelation } from "@/lib/client/auto-links";
 import type { Relation } from "@/lib/client/relations";
@@ -70,7 +73,11 @@ export function TableGraph({ sourceId, table }: { sourceId: string; table: strin
   for (const p of placed) byLevel.set(p.level, [...(byLevel.get(p.level) ?? []), p]);
   const maxRows = Math.max(...[...byLevel.values()].map((l) => l.length));
 
+  // 도메인 지도를 다 계산했으면 상자에 도메인과 역할을 붙인다. 테두리 색이 역할이고, 글자로도 적는다.
+  const { model } = useDomainModel();
   const nodes: Node[] = placed.map((p) => {
+    const info = model?.tables.get(p.key);
+    const here = model?.tables.get(`${sourceId}/${table}`);
     const row = counts.get(p.level) ?? 0;
     counts.set(p.level, row + 1);
     const inLevel = byLevel.get(p.level)!.length;
@@ -78,13 +85,25 @@ export function TableGraph({ sourceId, table }: { sourceId: string; table: strin
     return {
       id: p.key,
       position: { x: p.level * COLUMN_GAP, y: (row - (inLevel - 1) / 2) * ROW_GAP },
-      data: { label: sourceTableLabel(sources.find((s) => s.meta.id === p.sourceId), p.table) },
+      data: {
+        label: info ? (
+          <div className="flex flex-col items-center leading-tight">
+            <span>{p.table}</span>
+            <span className="text-[10px] text-zinc-500">
+              {info.domain !== here?.domain ? `${info.domain} 도메인 · ` : ""}
+              {ROLE_LABEL[info.role]}
+            </span>
+          </div>
+        ) : (
+          sourceTableLabel(sources.find((s) => s.meta.id === p.sourceId), p.table)
+        ),
+      },
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
       draggable: false,
       connectable: false,
       className: center ? "!border-2 !border-zinc-900 !font-semibold dark:!border-zinc-100" : "cursor-pointer",
-      style: { width: 240, fontSize: 13, padding: "8px 10px" },
+      style: { width: 240, fontSize: 13, padding: "6px 10px", ...(info && !center ? { borderColor: roleColor(info.role), borderWidth: 2 } : {}) },
     };
   });
 
