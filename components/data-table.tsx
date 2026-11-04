@@ -43,9 +43,10 @@ interface DataTableProps {
   onLinkClick?: (column: string, value: unknown) => void;
   sourceKey?: string; // 이 표의 테이블 키. 주면 값에 마우스를 올렸을 때 어떤 데이터인지 보여준다
   separators?: Map<string, string>; // 한 칸에 여러 ID를 넣는 열과 구분자. ID마다 따로 링크와 설명을 단다
+  onRowClick?: (row: unknown[]) => void; // 행 번호를 누르면 그 행의 트리(쓰는 것, 쓰는 곳)를 연다
 }
 
-export function DataTable({ columns, tableColumns, rows, linked, onLinkClick, sourceKey, separators }: DataTableProps) {
+export function DataTable({ columns, tableColumns, rows, linked, onLinkClick, sourceKey, separators, onRowClick }: DataTableProps) {
   const firstColumn = columns[0]?.name ?? null;
   const explainable = useExplainable(sourceKey, firstColumn);
   const table = useTable({ features, columns: tableColumns, data: rows });
@@ -102,7 +103,18 @@ export function DataTable({ columns, tableColumns, rows, linked, onLinkClick, so
                 style={{ gridTemplateColumns, height: ROW_HEIGHT, transform: `translateY(${item.start}px)` }}
               >
                 <div role="cell" className="px-2 py-1 text-right text-xs text-zinc-400">
-                  {item.index + 1}
+                  {onRowClick ? (
+                    <button
+                      type="button"
+                      onClick={() => onRowClick(row.original)}
+                      className="rounded px-1 tabular-nums text-blue-700 hover:bg-blue-50 hover:underline dark:text-blue-400 dark:hover:bg-blue-950"
+                      title="이 행이 쓰는 것과 이 행을 쓰는 곳을 트리로 보기"
+                    >
+                      {item.index + 1}
+                    </button>
+                  ) : (
+                    item.index + 1
+                  )}
                 </div>
                 {row.getAllCells().map((cell) => {
                   const value = cell.getValue();

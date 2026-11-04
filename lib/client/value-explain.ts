@@ -37,7 +37,7 @@ const MAX_USED_BY = 8;
 const TEXT_COLUMNS = ["ko", "kr", "kor", "text", "en", "name"];
 
 let columnsCache: { model: DomainModel; map: Map<string, string[]> } | null = null;
-async function columnsOf(model: DomainModel, key: string) {
+export async function columnsOf(model: DomainModel, key: string) {
   if (columnsCache?.model !== model) columnsCache = { model, map: new Map() };
   const hit = columnsCache.map.get(key);
   if (hit) return hit;
@@ -51,7 +51,7 @@ async function columnsOf(model: DomainModel, key: string) {
 const split = (key: string) => ({ sourceId: key.slice(0, key.indexOf("/")), table: key.slice(key.indexOf("/") + 1) });
 
 // key 열과 ko/en 같은 글 열이 있으면 다국어 글 테이블로 본다(기획서 추론과 같은 기준).
-function textColumn(columns: string[]) {
+export function textColumn(columns: string[]) {
   if (!columns.includes("key")) return null;
   return TEXT_COLUMNS.find((c) => columns.some((x) => x.toLowerCase() === c)) ?? null;
 }
@@ -211,4 +211,15 @@ async function typedName(model: DomainModel, columns: string[], row: unknown[], 
   const nested = await compute(model, { key: target.key, column: first }, value, 1).catch(() => null);
   if (!nested) return "";
   return nested.found ? (nested.title ? `(${nested.title})` : "") : `(${target.table}에 없는 ID)`;
+}
+
+// 행 하나의 사람이 읽는 이름만 구한다(행 트리의 노드 이름). 설명 말풍선과 같은 규칙이고 결과는 기억해 둔다.
+const titleCache = new Map<string, Promise<string | null>>();
+export function titleOf(model: DomainModel, target: { key: string; column: string }, value: string) {
+  const id = `${target.key}|${target.column}|${value}`;
+  if (!titleCache.has(id)) {
+    titleCache.set(id, compute(model, target, value, 1).then((e) => (e.found ? e.title : null)).catch(() => null));
+    if (titleCache.size > 2000) titleCache.delete(titleCache.keys().next().value!);
+  }
+  return titleCache.get(id)!;
 }

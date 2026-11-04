@@ -6,10 +6,11 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, Loader2 } from "lucide-react";
 import { buildColumns, DataTable } from "@/components/data-table";
 import { FollowTrail } from "@/components/follow/follow-trail";
+import { RowTreePanel } from "@/components/row-tree/row-tree-panel";
 import { useWorkspace } from "@/components/workspace-provider";
 import { runQuery } from "@/lib/client/duckdb";
 import { qualifiedTable } from "@/lib/client/file-import";
-import { focusKey, focusWhere, parseRowFocus, tableHref } from "@/lib/client/doc-links";
+import { focusKey, focusWhere, parseRowFocus, tableHref, type RowFocus } from "@/lib/client/doc-links";
 import { columnSeparators, linkedColumns, parseTrail, serializeTrail, toKeyValue, type TrailStep } from "@/lib/client/follow";
 import { quoteIdent, quoteString, type QueryResult } from "@/lib/query-result";
 import { TableDomainLine } from "@/components/map/table-domain-line";
@@ -66,6 +67,24 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
     window.history[replace ? "replaceState" : "pushState"](null, "", `${pathname}${query}`);
   }
 
+  // 행 트리(설계 4.9). 행 번호를 누르면 그 행이 쓰는 것과 그 행을 쓰는 곳을 오른쪽에 트리로 연다.
+  // 따라가기 패널과 같은 자리를 쓰므로 하나를 열면 다른 하나는 닫는다.
+  const tree = parseRowFocus(searchParams.get("tree"));
+  const treeMode = searchParams.get("treeMode") === "usedBy" ? "usedBy" : "uses";
+  function setTree(next: RowFocus | null, mode: "uses" | "usedBy" = "uses") {
+    const params = new URLSearchParams();
+    const viewParam = searchParams.get("view");
+    if (viewParam) params.set("view", viewParam);
+    if (rowParam) params.set("row", rowParam);
+    if (next) {
+      params.set("tree", JSON.stringify(next));
+      if (mode === "usedBy") params.set("treeMode", "usedBy");
+    }
+    // 기획서에서 연 행이 있으면 따라가기 패널이 저절로 다시 열리지 않도록 닫힌 상태를 남긴다.
+    if (rowParam) params.set("trail", "[]");
+    window.history.pushState(null, "", `${pathname}?${params}`);
+  }
+
   useEffect(() => {
     if (!ready) return;
     let active = true;
@@ -112,7 +131,7 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
 
   // 기획서에서 행을 열고 들어오면, 그 키 열에 이어진 테이블이 있을 때 따라가기 패널을 바로 띄운다.
   // 퀘스트 ID라면 그 퀘스트를 가리키는 보상, 조건 행이 오른쪽에 열린다. 주소를 바꾸는 것이라 뒤로 가기 기록은 남기지 않는다.
-  const autoTrail = focus !== null && trailParam === null && links.ready && linked.has(focus.column);
+  const autoTrail = focus !== null && trailParam === null && !tree && links.ready && linked.has(focus.column);
   useEffect(() => {
     if (!autoTrail || !focus) return;
     setTrail([{ sourceId: id, table, column: focus.column, ...focusKey(focus) }], true);
@@ -206,7 +225,7 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
         />
       )}
       {linked.size > 0 && trail.length === 0 && !focus && (
-        <p className="-mt-1 text-xs text-zinc-500">표에서 파란 밑줄 값을 누르면 이어진 테이블의 행을 오른쪽에 열어 따라갈 수 있습니다.</p>
+        <p className="-mt-1 text-xs text-zinc-500">표에서 파란 밑줄 값을 누르면 이어진 테이블의 행을 오른쪽에 열어 따라갈 수 있습니다. 행 번호를 누르면 그 행이 쓰는 것과 그 행을 쓰는 곳을 트리로 봅니다.</p>
       )}
 
       {error && (
@@ -219,8 +238,8 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
         </div>
       )}
 
-      <div className={trail.length ? "flex flex-col gap-4 xl:flex-row" : ""}>
-        <div className={trail.length ? "min-w-0 xl:w-[45%] xl:shrink-0" : ""}>
+      <div className={trail.length || tree ? "flex flex-col gap-4 xl:flex-row" : ""}>
+        <div className={tree ? "min-w-0 flex-1" : trail.length ? "min-w-0 xl:w-[45%] xl:shrink-0" : ""}>
           {preview ? (
             <DataTable
               columns={preview.result.columns}
@@ -233,12 +252,27 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
                 const key = toKeyValue(value);
                 if (key) setTrail([{ sourceId: id, table, column, ...key }]);
               }}
+              onRowClick={(row) => {
+                const first = preview.result.columns[0]?.name;
+                if (first && row[0] !== null && row[0] !== undefined) setTree({ column: first, value: String(row[0]).replace(/^(-?\d+)\.0+$/, "$1") });
+              }}
             />
           ) : (
             !error && <Loading />
           )}
         </div>
-        {trail.length > 0 && <FollowTrail trail={trail} onChange={setTrail} />}
+        {tree ? (
+          <RowTreePanel
+            here={`${id}/${table}`}
+            column={tree.column}
+            value={tree.value}
+            mode={treeMode}
+            onMode={(m) => setTree(tree, m)}
+            onClose={() => setTree(null)}
+          />
+        ) : (
+          trail.length > 0 && <FollowTrail trail={trail} onChange={setTrail} />
+        )}
       </div>
     </div>
   );
