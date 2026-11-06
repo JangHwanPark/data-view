@@ -7,6 +7,7 @@ import { ChevronLeft, Loader2 } from "lucide-react";
 import { buildColumns, DataTable } from "@/components/data-table";
 import { FollowTrail } from "@/components/follow/follow-trail";
 import { RowTreePanel } from "@/components/row-tree/row-tree-panel";
+import { ColumnHeaderInfo, useColumnProfiles } from "@/components/column-info";
 import { useWorkspace } from "@/components/workspace-provider";
 import { runQuery } from "@/lib/client/duckdb";
 import { qualifiedTable } from "@/lib/client/file-import";
@@ -127,6 +128,8 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
   // 저장한 관계에 자동으로 찾은 연결을 더한다. 값 따라가기도 이 목록으로 동작한다.
   const links = useLinkedRelations([{ sourceId: id, table }]);
   const linked = linkedColumns(id, table, links.relations);
+  // 열 정보 줄(설계 6.2): 열마다 빈 칸, 값 종류, ID 열 여부를 센다.
+  const { profiles, version: profileVersion } = useColumnProfiles(id, table, columnNames, ready);
   const focusColumnMissing = focus !== null && columnNames.length > 0 && !columnNames.includes(focus.column);
 
   // 기획서에서 행을 열고 들어오면, 그 키 열에 이어진 테이블이 있을 때 따라가기 패널을 바로 띄운다.
@@ -252,6 +255,9 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
                 const key = toKeyValue(value);
                 if (key) setTrail([{ sourceId: id, table, column, ...key }]);
               }}
+              headerInfo={(column) => (
+                <ColumnHeaderInfo sourceId={id} table={table} column={column} profile={profiles?.get(column.name)} version={profileVersion} />
+              )}
               onRowClick={(row) => {
                 const first = preview.result.columns[0]?.name;
                 if (first && row[0] !== null && row[0] !== undefined) setTree({ column: first, value: String(row[0]).replace(/^(-?\d+)\.0+$/, "$1") });

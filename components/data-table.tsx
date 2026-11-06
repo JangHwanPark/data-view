@@ -44,9 +44,10 @@ interface DataTableProps {
   sourceKey?: string; // 이 표의 테이블 키. 주면 값에 마우스를 올렸을 때 어떤 데이터인지 보여준다
   separators?: Map<string, string>; // 한 칸에 여러 ID를 넣는 열과 구분자. ID마다 따로 링크와 설명을 단다
   onRowClick?: (row: unknown[]) => void; // 행 번호를 누르면 그 행의 트리(쓰는 것, 쓰는 곳)를 연다
+  headerInfo?: (column: QueryColumn) => React.ReactNode; // 머리글의 열 이름 아래 내용(열 정보 줄). 없으면 열 종류만 적는다
 }
 
-export function DataTable({ columns, tableColumns, rows, linked, onLinkClick, sourceKey, separators, onRowClick }: DataTableProps) {
+export function DataTable({ columns, tableColumns, rows, linked, onLinkClick, sourceKey, separators, onRowClick, headerInfo }: DataTableProps) {
   const firstColumn = columns[0]?.name ?? null;
   const explainable = useExplainable(sourceKey, firstColumn);
   const table = useTable({ features, columns: tableColumns, data: rows });
@@ -83,9 +84,11 @@ export function DataTable({ columns, tableColumns, rows, linked, onLinkClick, so
                   <div className="truncate font-medium" title={columns[i]?.name}>
                     <table.FlexRender header={header} />
                   </div>
-                  <div className="text-xs font-normal text-zinc-500">
-                    {TYPE_LABEL[columns[i]?.type ?? "unknown"]}
-                  </div>
+                  {headerInfo && columns[i] ? (
+                    headerInfo(columns[i])
+                  ) : (
+                    <div className="text-xs font-normal text-zinc-500">{TYPE_LABEL[columns[i]?.type ?? "unknown"]}</div>
+                  )}
                 </div>
               ))}
             </div>
