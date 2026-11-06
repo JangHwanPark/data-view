@@ -2,7 +2,7 @@ import { runQuery } from "@/lib/client/duckdb";
 import { qualifiedTable } from "@/lib/client/file-import";
 import type { DocTerm } from "@/lib/client/doc-terms";
 import { loadColumns, tableKey } from "@/lib/client/schema";
-import { quoteIdent, quoteString } from "@/lib/query-result";
+import { mostlyUnique, quoteIdent, quoteString } from "@/lib/query-result";
 
 export interface DocTarget {
   sourceId: string;
@@ -108,7 +108,7 @@ export async function loadCatalog(tables: { sourceId: string; table: string }[])
       );
       const [n, distinct, nonNull] = (r.rows[0] ?? []).map(Number);
       // 실제 데이터에는 실수로 들어간 중복 키가 섞여 있곤 해서, 98% 이상 유일하면 키로 본다.
-      if (n > 0 && distinct >= n * 0.98 && nonNull >= n * 0.98) keyColumn = cols[0];
+      if (mostlyUnique(n, distinct, nonNull)) keyColumn = cols[0];
     }
     result.push({ ...t, columns: cols, keyColumn });
   }

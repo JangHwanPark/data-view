@@ -1,7 +1,7 @@
 import { runQuery } from "@/lib/client/duckdb";
 import { loadIntoDuckDB, previousSchemaName, previousTable, qualifiedTable } from "@/lib/client/file-import";
 import { readPreviousFile, type FileSourceMeta } from "@/lib/client/opfs";
-import { quoteIdent } from "@/lib/query-result";
+import { mostlyUnique, quoteIdent } from "@/lib/query-result";
 
 // 패치 전후 비교(설계 4.9). 파일을 교체할 때 남겨 둔 이전 파일을 p_<id> 스키마에 올리고,
 // 지금 파일(s_<id>)과 시트 이름이 같은 테이블끼리 ID 열 기준으로 비교한다.
@@ -73,7 +73,7 @@ async function pickKey(oldT: string, newT: string, oldCols: string[], newCols: s
   for (const t of [oldT, newT]) {
     const r = await runQuery(`SELECT count(*), count(DISTINCT ${norm(col)}), count(${col}) FROM ${t}`, 1);
     const [n, distinct, nonNull] = (r.rows[0] ?? []).map(num);
-    if (n === 0 || distinct < n * 0.98 || nonNull < n * 0.98) return null;
+    if (!mostlyUnique(n, distinct, nonNull)) return null;
   }
   return first;
 }

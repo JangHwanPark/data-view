@@ -26,5 +26,5 @@ export async function ensureSampleData() {
     await run(process.execPath, [join(root, "scripts", "generate-shape-fixtures.mjs")], { cwd: root, timeout: 300_000 });
     created = true;
   }
-  return { game, docs, created };
+  return { game, docs, shape: join(root, "fixtures", "shape"), shapeDocs: join(root, "fixtures", "shape-docs"), created };
 }

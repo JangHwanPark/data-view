@@ -144,8 +144,9 @@ function Welcome({ onBusy, onNote }: { onBusy: (busy: boolean) => void; onNote: 
         />
       </div>
       <p className="text-xs text-zinc-500">파일을 하나씩 고르려면 오른쪽 위의 &lsquo;파일 불러오기&rsquo;를 누르세요.</p>
-      <div className="mt-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+      <div className="mt-2 flex flex-col gap-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">
         <SampleLoader onBusy={onBusy} onNote={onNote} />
+        <SampleLoader kind="shape" onBusy={onBusy} onNote={onNote} />
       </div>
     </div>
   );

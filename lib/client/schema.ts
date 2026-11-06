@@ -1,4 +1,5 @@
 import { runQuery } from "@/lib/client/duckdb";
+import { tableRules } from "@/lib/client/file-import";
 import type { ColumnType, QueryColumn } from "@/lib/query-result";
 
 export function tableKey(sourceId: string, table: string) {
@@ -25,6 +26,7 @@ export async function loadColumns(): Promise<Map<string, QueryColumn[]>> {
 }
 
 // 파일 소스 테이블마다 행 수를 한 번에 읽는다. 테이블마다 count(*)를 돌리지 않으려고 DuckDB 메타데이터를 쓴다.
+// ;로 막아 둔 비활성 행은 게임에서 쓰지 않으므로 행 수에서 뺀다.
 export async function loadRowCounts(): Promise<Map<string, number>> {
   const result = await runQuery(
     `SELECT schema_name, table_name, estimated_size
@@ -34,7 +36,9 @@ export async function loadRowCounts(): Promise<Map<string, number>> {
   );
   const map = new Map<string, number>();
   for (const [schema, table, size] of result.rows) {
-    map.set(tableKey(String(schema).slice(2), String(table)), Number(size));
+    const sourceId = String(schema).slice(2);
+    const inactive = tableRules(sourceId, String(table))?.inactive.length ?? 0;
+    map.set(tableKey(sourceId, String(table)), Math.max(0, Number(size) - inactive));
   }
   return map;
 }

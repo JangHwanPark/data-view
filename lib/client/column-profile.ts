@@ -1,6 +1,6 @@
 import { runQuery } from "@/lib/client/duckdb";
-import { qualifiedTable } from "@/lib/client/file-import";
-import { quoteIdent } from "@/lib/query-result";
+import { isMemoColumn, qualifiedTable } from "@/lib/client/file-import";
+import { mostlyUnique, quoteIdent } from "@/lib/query-result";
 
 // 테이블 열 정보 줄(설계 6.2). 열마다 채워진 칸, 빈 칸 비율, 값 종류 수, ID 열인지를 센다.
 // 테이블 하나에 쿼리 한 번으로 모든 열을 센다. 자주 나오는 값과 최솟값·최댓값은 머리글에 마우스를 올렸을 때만 구한다.
@@ -45,7 +45,8 @@ export function profileColumns(sourceId: string, table: string, columns: string[
         columns.forEach((c, i) => {
           const filled = row[1 + i * 2] ?? 0;
           const distinct = row[2 + i * 2] ?? 0;
-          map.set(c, { column: c, rows, filled, distinct, isId: rows > 0 && filled >= rows * 0.98 && distinct >= rows * 0.98 });
+          // # 메모 열(#이름)은 값이 모두 달라도 ID가 아니다.
+          map.set(c, { column: c, rows, filled, distinct, isId: !isMemoColumn(sourceId, table, c) && mostlyUnique(rows, distinct, filled) });
         });
         return map;
       })(),

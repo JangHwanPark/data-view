@@ -5,6 +5,7 @@ import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-tab
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { formatValue, LinkValue, SplitValues } from "@/components/cell-value";
 import { ExplainCell, rowRecord, useExplainable } from "@/components/explain/value-explain";
+import { inactiveIds, tableRules } from "@/lib/client/file-import";
 import type { QueryColumn } from "@/lib/query-result";
 
 type Row = unknown[];
@@ -49,6 +50,11 @@ interface DataTableProps {
 
 export function DataTable({ columns, tableColumns, rows, linked, onLinkClick, sourceKey, separators, onRowClick, headerInfo }: DataTableProps) {
   const firstColumn = columns[0]?.name ?? null;
+  // 엑셀 읽기 규칙(23단계): 두 줄 머리글의 윗줄, # 메모 열, ;로 막은 비활성 행.
+  const split = sourceKey ? { sourceId: sourceKey.slice(0, sourceKey.indexOf("/")), table: sourceKey.slice(sourceKey.indexOf("/") + 1) } : null;
+  const rules = split ? tableRules(split.sourceId, split.table) : undefined;
+  const ruleOf = (name: string) => rules?.columns.find((c) => c.name === name);
+  const inactive = split ? inactiveIds(split.sourceId, split.table) : new Set<string>();
   const explainable = useExplainable(sourceKey, firstColumn);
   const table = useTable({ features, columns: tableColumns, data: rows });
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -81,9 +87,19 @@ export function DataTable({ columns, tableColumns, rows, linked, onLinkClick, so
                   role="columnheader"
                   className="border-l border-zinc-200 px-2 py-1 dark:border-zinc-700"
                 >
+                  {ruleOf(columns[i]?.name ?? "")?.group && (
+                    <div className="truncate text-[11px] font-normal text-zinc-500" title={`두 줄 머리글의 윗줄: ${ruleOf(columns[i].name)!.group}`}>
+                      {ruleOf(columns[i].name)!.group}
+                    </div>
+                  )}
                   <div className="truncate font-medium" title={columns[i]?.name}>
                     <table.FlexRender header={header} />
                   </div>
+                  {ruleOf(columns[i]?.name ?? "")?.memo && (
+                    <div className="text-[11px] font-normal text-amber-700 dark:text-amber-400" title="#로 시작하는 열은 기획자가 적어 둔 메모입니다. DB에는 없는 열이라 연결을 찾을 때 쓰지 않습니다">
+                      메모 열(DB에 없음)
+                    </div>
+                  )}
                   {headerInfo && columns[i] ? (
                     headerInfo(columns[i])
                   ) : (
@@ -98,11 +114,13 @@ export function DataTable({ columns, tableColumns, rows, linked, onLinkClick, so
         <div role="rowgroup" className="relative" style={{ height: virtualizer.getTotalSize() }}>
           {virtualizer.getVirtualItems().map((item) => {
             const row = modelRows[item.index];
+            const off = inactive.size > 0 && row.original[0] !== null && inactive.has(String(row.original[0]));
             return (
               <div
                 key={row.id}
                 role="row"
-                className="absolute left-0 grid w-full border-t border-zinc-100 dark:border-zinc-800"
+                title={off ? "비활성 행(첫 칸이 ;로 시작). 게임에서 쓰지 않는 행이라 행 수에서 뺍니다" : undefined}
+                className={`absolute left-0 grid w-full border-t border-zinc-100 dark:border-zinc-800 ${off ? "bg-zinc-50 text-zinc-400 line-through opacity-60 dark:bg-zinc-900/60" : ""}`}
                 style={{ gridTemplateColumns, height: ROW_HEIGHT, transform: `translateY(${item.start}px)` }}
               >
                 <div role="cell" className="px-2 py-1 text-right text-xs text-zinc-400">
@@ -118,6 +136,7 @@ export function DataTable({ columns, tableColumns, rows, linked, onLinkClick, so
                   ) : (
                     item.index + 1
                   )}
+                  {off && <span className="ml-0.5 no-underline">;</span>}
                 </div>
                 {row.getAllCells().map((cell) => {
                   const value = cell.getValue();
@@ -151,7 +170,7 @@ export function DataTable({ columns, tableColumns, rows, linked, onLinkClick, so
                       title={value === null || explain ? undefined : String(value)}
                       className={`truncate border-l border-zinc-100 px-2 py-1 dark:border-zinc-800 ${
                         typeof value === "number" ? "text-right tabular-nums" : ""
-                      } ${value === null ? "text-zinc-400" : ""}`}
+                      } ${value === null ? "text-zinc-400" : ""} ${column && ruleOf(column.name)?.memo ? "italic text-zinc-500" : ""}`}
                     >
                       {explain && !separator ? (
                         <ExplainCell here={sourceKey} column={column.name} firstColumn={firstColumn} value={value} row={record}>

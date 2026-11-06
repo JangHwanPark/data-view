@@ -34,6 +34,8 @@ export interface RowGroup {
   note?: string; // 세부 행을 위 행으로 올렸을 때의 설명. 이때는 "외 n개"를 쓰지 않는다
 }
 
+// 번호 붙은 열 묶음 이름. Level#1, Level#2, Level#3 → Level#1~3
+export const groupLabel = (cols: string[]) => `${cols[0]}~${cols[cols.length - 1].match(/\d+$/)?.[0] ?? ""}`;
 const split = (key: string) => ({ sourceId: key.slice(0, key.indexOf("/")), table: key.slice(key.indexOf("/") + 1) });
 const clean = (v: unknown) => String(v).replace(/^(-?\d+)\.0+$/, "$1");
 
@@ -130,14 +132,20 @@ export async function usedByGroups(model: DomainModel, node: RowNode): Promise<R
   const info = model.tables.get(node.key);
   if (!info || !node.values || !node.unique) return [];
   const groups: RowGroup[] = [];
+  const seen = new Set<string>();
   for (const l of info.in.filter((x) => x.column === node.idColumn)) {
     const other = model.tables.get(l.key);
     if (!other) continue;
+    // 번호 붙은 열 묶음(Level#1~3)은 열마다 연결 끝이 있지만 묶음 하나로 한 번만 찾는다.
+    if (seen.has(l.relationId)) continue;
+    seen.add(l.relationId);
     // 세부 테이블이 위 테이블을 가리키는 연결(보상 → 보상 그룹)은 "이 행이 쓰는 것"의 세부로 이미 보여준다.
     if (other.parent === node.key && other.out.some((o) => o.key === node.key && o.column === l.otherColumn)) continue;
     const { sourceId, table } = split(l.key);
     const where =
-      l.separator || l.when ? fromMatchWhere({ sourceId, table, column: l.otherColumn, separator: l.separator, when: l.when }, node.idValue) : focusWhere({ column: l.otherColumn, value: node.idValue });
+      l.separator || l.when || l.group
+        ? fromMatchWhere({ sourceId, table, column: l.otherColumn, columns: l.group, separator: l.separator, when: l.when }, node.idValue)
+        : focusWhere({ column: l.otherColumn, value: node.idValue });
     const { records, total } = await fetchRows(l.key, where, MAX_ROWS);
     if (!total) continue;
     const parentLink = other.parent ? other.out.find((o) => o.key === other.parent) : undefined;
@@ -161,7 +169,7 @@ export async function usedByGroups(model: DomainModel, node: RowNode): Promise<R
     const how = l.separator ? `(${l.separator}로 나눈 값)` : l.when ? `(${l.when.column}이 ${l.when.value})` : "";
     groups.push({
       kind: "usedBy",
-      label: `${table}.${l.otherColumn}${how}${parentLink ? ` → ${split(parentLink.key).table}` : ""}`,
+      label: `${table}.${l.group ? groupLabel(l.group) : l.otherColumn}${how}${parentLink ? ` → ${split(parentLink.key).table}` : ""}`,
       key,
       total,
       nodes,

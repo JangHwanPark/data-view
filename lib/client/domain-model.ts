@@ -40,6 +40,7 @@ export interface LinkEnd {
   relationId: string;
   separator?: string; // 쓰는 쪽 열이 한 칸에 여러 ID를 넣을 때 구분자
   when?: { column: string; value: string }; // 쓰는 쪽이 타입+ID일 때 이 조건인 행만
+  group?: string[]; // 쓰는 쪽이 번호 붙은 열 묶음(Level#1~3)일 때 묶음의 모든 열. 값을 찾을 때 모든 열을 본다
 }
 
 export interface TableInfo {
@@ -95,8 +96,13 @@ export function buildModel({ tables, relations, overrides }: ModelInput): Domain
     const b = modelKey(r.to.sourceId, r.to.table);
     if (a === b || !keys.has(a) || !keys.has(b)) continue;
     // 번호 붙은 열 묶음은 열마다 따로 잇는다. 연결 그림에서 열 하나하나가 선으로 보이게 하려는 목적이다.
-    const extra = { ...(r.from.separator ? { separator: r.from.separator } : {}), ...(r.from.when ? { when: r.from.when } : {}) };
-    for (const column of fromColumns(r.from)) {
+    const group = fromColumns(r.from);
+    const extra = {
+      ...(r.from.separator ? { separator: r.from.separator } : {}),
+      ...(r.from.when ? { when: r.from.when } : {}),
+      ...(group.length > 1 ? { group } : {}),
+    };
+    for (const column of group) {
       outs.set(a, [...(outs.get(a) ?? []), { key: b, column, otherColumn: r.to.column, relationId: r.id, ...extra }]);
       ins.set(b, [...(ins.get(b) ?? []), { key: a, column: r.to.column, otherColumn: column, relationId: r.id, ...extra }]);
     }

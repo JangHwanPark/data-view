@@ -1,6 +1,6 @@
 import { loadCatalog, normalizeName, type Catalog } from "@/lib/client/doc-infer";
 import { runQuery } from "@/lib/client/duckdb";
-import { qualifiedTable } from "@/lib/client/file-import";
+import { isMemoColumn, qualifiedTable } from "@/lib/client/file-import";
 import { quoteIdent } from "@/lib/query-result";
 import { coverage, fromColumns, isExtended, relationStats, rowCoverage, type FromSide, sameEndpoints, type ColumnRef, type Relation } from "@/lib/client/relations";
 
@@ -20,8 +20,22 @@ const MIN_COVERAGE = 0.9;
 
 const strip = (column: string) => normalizeName(column.replace(/[_\s]?(id|no|code|key|idx|index)$/i, ""));
 
-// 번호 붙은 열(bonus_item_id_1)은 번호를 떼고 본다.
-const unnumbered = (column: string) => column.replace(/_\d+$/, "");
+// 번호 붙은 열(bonus_item_id_1, Level#1)은 번호를 떼고 본다.
+const unnumbered = (column: string) => column.replace(/(_|#)\d+$/, "");
+
+// 번호 붙은 열의 묶음 이름. bonus_item_id_1 → bonus_item_id, material_id1 → material_id, Level#1 → Level(#).
+// 회사 시트는 Level#1~3, Asset#1~2처럼 이름#번호로 적는다. 이 묶음은 이름이 id로 끝나지 않아도 ID 묶음으로 본다.
+function numbered(column: string): { base: string; hash: boolean } | null {
+  const m = column.match(/^(.+?)(_|#)?(\d+)$/);
+  if (!m) return null;
+  return { base: m[1].replace(/_$/, ""), hash: m[2] === "#" };
+}
+// 수량, 값처럼 ID가 아닌 묶음(item_count_1, Count#1).
+const QUANTITY = /(count|cnt|amount|qty|num|value|rate|prob|weight|ratio|percent|min|max)$/i;
+function isIdGroup(base: string, hash: boolean) {
+  if (/(id|no|code|key)$/i.test(base)) return true;
+  return hash && !QUANTITY.test(base);
+}
 
 // 열이 이 키 열을 가리키는 이름인지. 같거나, 쓰임새가 앞에 붙었다(sell_currency_id → currency_id).
 // 키 열 이름이 id, no처럼 흔한 말이면 거의 모든 열 끝에 붙으므로 뒤쪽 일치를 보지 않는다.
@@ -70,10 +84,13 @@ async function compute(
   target: { sourceId: string; table: string },
   kindOf: (sourceId: string) => string,
 ): Promise<AutoLink[]> {
-  const me = catalog.tables.find((t) => t.sourceId === target.sourceId && t.table === target.table);
-  if (!me) return [];
+  const found = catalog.tables.find((t) => t.sourceId === target.sourceId && t.table === target.table);
+  if (!found) return [];
+  // # 메모 열(#이름)은 DB에 없는 열이라 연결을 찾지 않는다(23단계).
+  const withoutMemo = (t: CatalogTable) => ({ ...t, columns: t.columns.filter((c) => !isMemoColumn(t.sourceId, t.table, c)) });
+  const me = withoutMemo(found);
   // 이름이 같은 테이블은 같은 데이터를 파일과 DB로 둘 다 연 복사본이라 연결 후보에서 뺀다.
-  const others = catalog.tables.filter((t) => t !== me && t.table !== me.table);
+  const others = catalog.tables.filter((t) => t !== found && t.table !== me.table).map(withoutMemo);
   // 같은 소스(같은 파일, 같은 DB) → 같은 종류(파일끼리, DB끼리) → 그 밖의 순서로 찾는다.
   // 게임 데이터는 여러 파일에 나뉘어 있어서, 같은 파일만 보면 다른 파일의 테이블을 놓친다.
   const prefer = <T extends { sourceId: string }>(list: T[]) => {
@@ -165,11 +182,9 @@ type CatalogTable = Catalog["tables"][number];
 
 // 이 열이 ID를 담는 번호 붙은 열 묶음(bonus_item_id_1~3)에 속하는지. 묶음 기준은 extendedCandidates와 같다.
 function inNumberedGroup(column: string, columns: string[]) {
-  const m = column.match(/^(.+?)_?(\d+)$/);
-  if (!m) return false;
-  const base = m[1].replace(/_$/, "");
-  if (!/(id|no|code|key)$/i.test(base)) return false;
-  return columns.filter((c) => c.match(/^(.+?)_?(\d+)$/)?.[1].replace(/_$/, "") === base).length >= 2;
+  const n = numbered(column);
+  if (!n || !isIdGroup(n.base, n.hash)) return false;
+  return columns.filter((c) => numbered(c)?.base === n.base).length >= 2;
 }
 const SEPARATORS = ["|", ";", ",", "/"];
 const SAMPLE_ROWS = 300;
@@ -198,13 +213,15 @@ async function extendedCandidates(
 
   // 1. 번호 붙은 열 묶음: 접두어가 같고 끝 번호만 다른 열이 둘 이상(material_id_1~5).
   const groups = new Map<string, string[]>();
+  const hashed = new Set<string>();
   for (const c of me.columns) {
-    const m = c.match(/^(.+?)_?(\d+)$/);
-    if (!m || c === me.keyColumn) continue;
-    groups.set(m[1].replace(/_$/, ""), [...(groups.get(m[1].replace(/_$/, "")) ?? []), c]);
+    const n = numbered(c);
+    if (!n || c === me.keyColumn) continue;
+    groups.set(n.base, [...(groups.get(n.base) ?? []), c]);
+    if (n.hash) hashed.add(n.base);
   }
   for (const [base, cols] of groups) {
-    if (cols.length < 2 || !/(id|no|code|key)$/i.test(base)) continue; // 수량, 값 열(item_count_1)은 ID가 아니다
+    if (cols.length < 2 || !isIdGroup(base, hashed.has(base))) continue; // 수량, 값 열(item_count_1, Count#1)은 ID가 아니다
     const from: FromSide = { ...target, column: cols[0], columns: cols };
     const byName = prefer(tablesByName(base, others));
     const label = `${cols[0]}~${cols[cols.length - 1].match(/\d+$/)![0]}`;

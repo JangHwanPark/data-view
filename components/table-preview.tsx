@@ -10,7 +10,7 @@ import { RowTreePanel } from "@/components/row-tree/row-tree-panel";
 import { ColumnHeaderInfo, useColumnProfiles } from "@/components/column-info";
 import { useWorkspace } from "@/components/workspace-provider";
 import { runQuery } from "@/lib/client/duckdb";
-import { qualifiedTable } from "@/lib/client/file-import";
+import { qualifiedTable, tableRules } from "@/lib/client/file-import";
 import { focusKey, focusWhere, parseRowFocus, tableHref, type RowFocus } from "@/lib/client/doc-links";
 import { columnSeparators, linkedColumns, parseTrail, serializeTrail, toKeyValue, type TrailStep } from "@/lib/client/follow";
 import { quoteIdent, quoteString, type QueryResult } from "@/lib/query-result";
@@ -154,13 +154,21 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
     );
   }
 
+  // ;로 막은 비활성 행(23단계). 표에는 줄을 그어 남기고 행 수에서는 뺀다.
+  const inactiveCount = tableRules(id, table)?.inactive.length ?? 0;
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h1 className="text-lg font-semibold break-all">{table}</h1>
         {preview && (
           <p className="text-zinc-500">
-            {activeSearch.text || (focus && !focusColumnMissing) ? `찾은 행 ${preview.total.toLocaleString()}개` : `전체 ${preview.total.toLocaleString()}행`}, 열{" "}
+            {activeSearch.text || (focus && !focusColumnMissing)
+              ? `찾은 행 ${preview.total.toLocaleString()}개`
+              : inactiveCount > 0
+                ? `쓰는 행 ${(preview.total - inactiveCount).toLocaleString()}행(비활성 ${inactiveCount.toLocaleString()}행 빼고)`
+                : `전체 ${preview.total.toLocaleString()}행`}
+            , 열{" "}
             {preview.result.columns.length}개
             {preview.result.truncated &&
               ` (앞의 ${PREVIEW_LIMIT.toLocaleString()}행만 표시)`}

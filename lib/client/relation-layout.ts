@@ -134,7 +134,7 @@ export function relationLayout({ model, center, columns, depth, open }: Input) {
   for (const { node, links } of left) {
     for (const l of links) {
       edges.push({
-        id: `${node.id}|${l.relationId}`,
+        id: `${node.id}|${l.relationId}|${l.column}|${l.otherColumn}`,
         source: node.id,
         target: centerNode.id,
         sourceHandle: node.kind === "table" ? `out:${l.otherColumn}` : "out",
@@ -148,7 +148,7 @@ export function relationLayout({ model, center, columns, depth, open }: Input) {
   for (const { node, links } of right) {
     for (const l of links) {
       edges.push({
-        id: `${node.id}|${l.relationId}`,
+        id: `${node.id}|${l.relationId}|${l.column}|${l.otherColumn}`,
         source: centerNode.id,
         target: node.id,
         sourceHandle: `out:${l.column}`,
