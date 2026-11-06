@@ -2,6 +2,7 @@ import { runQuery } from "@/lib/client/duckdb";
 import { qualifiedTable } from "@/lib/client/file-import";
 import type { DocTerm } from "@/lib/client/doc-terms";
 import { loadColumns, tableKey } from "@/lib/client/schema";
+import { stringKeyColumn, textColumn } from "@/lib/client/string-table";
 import { mostlyUnique, quoteIdent, quoteString } from "@/lib/query-result";
 
 export interface DocTarget {
@@ -113,10 +114,12 @@ export async function loadCatalog(tables: { sourceId: string; table: string }[])
     result.push({ ...t, columns: cols, keyColumn });
   }
   // key 열과 ko/en 같은 글 열을 가진 테이블을 다국어 문자열 테이블로 본다.
-  const str = result.find((t) => t.columns.includes("key") && t.columns.some((c) => /^(ko|kr|kor|en|text|name)$/i.test(c)));
+  // 회사 시트는 Key, Korean, English처럼 대문자로 쓰므로 대소문자를 가리지 않는다(25단계).
+  const str = result.find((t) => stringKeyColumn(t.columns) && textColumn(t.columns));
+  const strKey = str ? stringKeyColumn(str.columns)! : "";
   return {
     tables: result,
-    strings: str ? { sourceId: str.sourceId, table: str.table, keyColumn: "key", textColumns: str.columns.filter((c) => c !== "key") } : null,
+    strings: str ? { sourceId: str.sourceId, table: str.table, keyColumn: strKey, textColumns: str.columns.filter((c) => c !== strKey) } : null,
   };
 }
 

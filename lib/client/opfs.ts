@@ -105,6 +105,10 @@ export const readDocMappingsFile = <T>() => readJson<T[]>(DOC_MAPPINGS, []);
 export const writeDocMappingsFile = <T>(list: T[]) => writeJson(DOC_MAPPINGS, list);
 export const readGlossaryFile = () => readJson<string | null>(GLOSSARY, null);
 export const writeGlossaryFile = (text: string) => writeJson(GLOSSARY, text);
+// 단어 사전 csv(25단계). 영어,한글 줄. 기본 사전에 더하거나 바꾼다.
+const WORDS = "words.json";
+export const readWordsFile = () => readJson<string>(WORDS, "");
+export const writeWordsFile = (text: string) => writeJson(WORDS, text);
 
 async function docsDir() {
   const root = await navigator.storage.getDirectory();

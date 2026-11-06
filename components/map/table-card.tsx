@@ -1,5 +1,6 @@
 "use client";
 
+import { TableName } from "@/components/table-name";
 import Link from "next/link";
 import { useState } from "react";
 import { Pencil } from "lucide-react";
@@ -37,7 +38,7 @@ export function TableCard({ info, model, rows, domains }: Props) {
     >
       <header className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
         <Link href={tablePath(info.key)} className="font-semibold hover:underline">
-          {info.table}
+          <TableName sourceId={info.sourceId} table={info.table} />
         </Link>
         <RoleBadge role={info.role} />
         {parent && (

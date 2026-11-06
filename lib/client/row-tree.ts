@@ -51,7 +51,7 @@ async function toNode(model: DomainModel, key: string, values: Record<string, un
   const info = model.tables.get(key);
   const title = unique ? await titleOf(model, { key, column: idColumn }, idValue) : null;
   // 이름을 가져온 열(name_key)과 ID 열은 주요 값에서 뺀다.
-  const nameColumns = new Set((info?.out ?? []).filter((l) => /_key$/i.test(l.column)).map((l) => l.column));
+  const nameColumns = new Set((info?.out ?? []).filter((l) => /key$/i.test(l.column)).map((l) => l.column));
   const summary = columns
     .filter((c) => (unique ? c !== idColumn : true) && !nameColumns.has(c) && !skip.includes(c) && values[c] !== null && values[c] !== undefined && values[c] !== "")
     .slice(0, SUMMARY_FIELDS)

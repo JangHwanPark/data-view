@@ -1,5 +1,6 @@
 "use client";
 
+import { TableName } from "@/components/table-name";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -82,8 +83,8 @@ function RelNodeView({ data }: NodeProps<RelNodeType>) {
       {header}
       <div className="flex items-start gap-1 border-b border-zinc-200 px-2.5 pt-1.5 dark:border-zinc-700" style={{ height: HEAD }}>
         <div className="min-w-0 flex-1 leading-tight">
-          <p className="truncate text-[13px] font-semibold" title={info?.table}>
-            {info?.table}
+          <p className="flex truncate text-[13px] font-semibold" title={info?.table}>
+            {info ? <TableName sourceId={info.sourceId} table={info.table} className="truncate" /> : null}
           </p>
           <p className="truncate text-[10px] text-zinc-500">
             {info && info.domain !== centerDomain ? `${info.domain} 시스템 · ` : center && info ? `${info.domain} 시스템 · ` : ""}

@@ -4,6 +4,9 @@ import { runQuery } from "@/lib/client/duckdb";
 import { fromMatchWhere } from "@/lib/client/relations";
 import { qualifiedTable } from "@/lib/client/file-import";
 import { quoteIdent, quoteString } from "@/lib/query-result";
+import { stringKeyColumn, textColumn } from "@/lib/client/string-table";
+
+export { stringKeyColumn, textColumn };
 
 // 표의 값에 마우스를 올렸을 때 "이게 어떤 데이터인지"를 추론한다(설계 6.4).
 // 표의 값은 원본 그대로 두고, 그 값이 가리키는 행을 찾아 사람이 읽을 이름과 주요 값을 모은다.
@@ -34,7 +37,7 @@ export interface Explanation {
 
 const MAX_FIELDS = 6;
 const MAX_USED_BY = 8;
-const TEXT_COLUMNS = ["ko", "kr", "kor", "text", "en", "name"];
+
 
 let columnsCache: { model: DomainModel; map: Map<string, string[]> } | null = null;
 export async function columnsOf(model: DomainModel, key: string) {
@@ -49,12 +52,6 @@ export async function columnsOf(model: DomainModel, key: string) {
 }
 
 const split = (key: string) => ({ sourceId: key.slice(0, key.indexOf("/")), table: key.slice(key.indexOf("/") + 1) });
-
-// key 열과 ko/en 같은 글 열이 있으면 다국어 글 테이블로 본다(기획서 추론과 같은 기준).
-export function textColumn(columns: string[]) {
-  if (!columns.includes("key")) return null;
-  return TEXT_COLUMNS.find((c) => columns.some((x) => x.toLowerCase() === c)) ?? null;
-}
 
 // 마우스를 올린 칸이 무엇을 가리키는지. 그 테이블의 첫 열(ID 열)이면 자기 행, 다른 테이블을 쓰는 열이면 그 테이블의 행이다.
 // 타입+ID 열(reward_id)은 같은 행의 타입 값(reward_type ITEM)에 맞는 연결을 고른다. 행을 모르면 첫 연결을 쓴다.
@@ -100,7 +97,7 @@ async function compute(model: DomainModel, target: { key: string; column: string
   // 다국어 글 테이블이면 그 글이 곧 이름이다.
   const text = textColumn(columns);
   if (text) {
-    const others = columns.filter((c) => c !== "key" && c !== text);
+    const others = columns.filter((c) => c !== stringKeyColumn(columns) && c !== text);
     return { ...base, found: true, isText: true, title: cell(text), titleFrom: text, fields: others.map((c) => ({ column: c, value: cell(c) ?? "(비어 있음)" })).slice(0, MAX_FIELDS) };
   }
 
@@ -122,7 +119,8 @@ async function compute(model: DomainModel, target: { key: string; column: string
     }
   }
   // 이름 열이 없으면 name, 이름 같은 열, 그것도 없으면 memo, 설명 같은 메모 열을 이름 대신 쓴다(보상 그룹의 memo).
-  for (const pattern of [/^(name|title|이름|명칭)$/i, /^(memo|desc|description|comment|note|설명|비고|메모)$/i]) {
+  // #이름은 기획자가 적어 둔 한글 이름 메모 열이다(23단계).
+  for (const pattern of [/^#?(name|title|이름|명칭|한글\s*이름)$/i, /^(memo|desc|description|comment|note|설명|비고|메모)$/i]) {
     if (title) break;
     const nameColumn = columns.find((c) => pattern.test(c));
     if (nameColumn && cell(nameColumn)) {

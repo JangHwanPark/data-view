@@ -6,6 +6,8 @@ import { Columns3, Network, Table2 } from "lucide-react";
 import { ColumnTable } from "@/components/column-table";
 import { TableRelationView } from "@/components/relation-view/table-relation-view";
 import { TablePreview } from "@/components/table-preview";
+import { InferredMark } from "@/components/table-name";
+import { useKoreanNames } from "@/components/use-korean-names";
 import { parseView, readLastView, rememberView, subscribeLastView, type TableView } from "@/lib/client/table-view";
 
 // 테이블 화면(설계 4.13 G1, G2). 관계도, 데이터, 컬럼 표(24단계) 세 보기로 나눈다.
@@ -24,8 +26,17 @@ export function TablePage({ id, table }: { id: string; table: string }) {
     window.history.pushState(null, "", `${pathname}?view=${next}`);
   }
 
+  const korean = useKoreanNames().get(`${id}/${table}`);
+
   return (
     <div className="flex flex-col gap-3">
+      {korean && (
+        <p className="-mb-2 flex items-center text-sm text-zinc-600 dark:text-zinc-300" title={korean.inferred ? undefined : "엑셀 #Design 시트 머리말"}>
+          <span className="mr-1.5 text-xs text-zinc-400">한글 이름</span>
+          {korean.text}
+          <InferredMark name={korean} />
+        </p>
+      )}
       <nav className="flex gap-1 border-b border-zinc-200 text-sm dark:border-zinc-800" aria-label="테이블 보기">
         {(
           [

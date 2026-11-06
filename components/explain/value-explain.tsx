@@ -4,9 +4,8 @@ import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } fro
 import { Loader2 } from "lucide-react";
 import { RoleBadge } from "@/components/map/map-parts";
 import { useDomainModel } from "@/components/use-domain-model";
-import { useWorkspace } from "@/components/workspace-provider";
-import { parseGlossary } from "@/lib/client/doc-infer";
-import { normalizeName } from "@/lib/client/doc-infer";
+import { InferredMark } from "@/components/table-name";
+import { useKoreanNames } from "@/components/use-korean-names";
 import { explainTarget, explainValue, type Explanation } from "@/lib/client/value-explain";
 
 // 표의 값에 마우스를 올리면 그 값이 어떤 데이터인지 보여준다(설계 6.4).
@@ -133,14 +132,15 @@ export function ExplainLayer() {
 
 function ExplainBody({ e, self }: { e: Explanation; self: boolean }) {
   const { model } = useDomainModel();
-  const { glossary } = useWorkspace();
+  const names = useKoreanNames();
   const info = model?.tables.get(e.key);
-  const korean = koreanName(e.table, glossary);
+  const korean = names.get(e.key);
   const head = (
     <p className="flex flex-wrap items-center gap-x-1.5 text-zinc-500">
       <span className="font-medium text-zinc-700 dark:text-zinc-300">
-        {korean ? `${korean}(${e.table})` : e.table}
+        {korean ? `${korean.text}(${e.table})` : e.table}
       </span>
+      {korean && <InferredMark name={korean} />}
       {info && <span>· {info.domain} 시스템</span>}
       {info && <RoleBadge role={info.role} />}
     </p>
@@ -202,11 +202,4 @@ function ExplainBody({ e, self }: { e: Explanation; self: boolean }) {
       )}
     </div>
   );
-}
-
-// 기획서 이름 짝(아이템=Item)을 거꾸로 써서 테이블 이름의 한글 이름을 찾는다. 짝이 없으면 영어 이름만 쓴다.
-function koreanName(table: string, glossary: string) {
-  const n = normalizeName(table);
-  for (const [ko, en] of parseGlossary(glossary)) if (normalizeName(en) === n) return ko;
-  return null;
 }
