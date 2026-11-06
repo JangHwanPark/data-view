@@ -53,10 +53,10 @@ IDE 없이 저장소 폴더의 `start.bat`을 더블 클릭하면 됩니다.
 | 명령 | 더블 클릭 | 하는 일 |
 | --- | --- | --- |
 | `start.bat` | `start.bat` | 보통 실행 |
-| `start.bat dev` | `개발모드.bat` | 개발 모드. 코드를 고치면 화면에 바로 반영됩니다(보통 실행보다 느림) |
+| `start.bat dev` | `dev.bat` | 개발 모드. 코드를 고치면 화면에 바로 반영됩니다(보통 실행보다 느림) |
 | `start.bat update` | | 최신 코드를 받고(`git pull`) 다시 빌드한 뒤 실행 |
 | `start.bat rebuild` | | 빌드를 강제로 다시 한 뒤 실행 |
-| `start.bat sample` | `테스트데이터.bat` | 게임 테스트 데이터(`fixtures` 폴더)를 만듦 |
+| `start.bat sample` | `sample.bat` | 게임 테스트 데이터(`fixtures` 폴더)를 만듦 |
 
 직접 실행하려면 아래 순서입니다.
 
@@ -68,10 +68,22 @@ npm run start
 
 개발할 때는 `npm run dev`를 씁니다. 서버는 다른 PC에서 접속하지 못하도록 `127.0.0.1`에만 열립니다.
 
+## 보안 설정
+
+회사 PC에서 실행할 수 있게 아래처럼 막아 두었습니다. 설정은 저장소 폴더의 `.env.local`에 적습니다(`.env.example`을 복사해서 씁니다). 고친 뒤에는 앱을 다시 켜야 합니다.
+
+| 막는 것 | 방법 | 설정 |
+| --- | --- | --- |
+| 다른 사이트가 이 PC의 앱을 부르기(DNS 리바인딩 포함) | API는 접속 주소가 `127.0.0.1`, `localhost`일 때만 받고, 바꾸는 요청은 같은 화면에서 보낸 JSON 요청만 받습니다 | 다른 주소가 필요하면 `DATA_VIEW_ALLOWED_HOSTS` |
+| 아무 폴더의 파일 읽기 | 경로 불러오기와 `.env` 읽기는 정한 폴더 아래만 됩니다. 테스트 데이터(`fixtures`)는 늘 됩니다 | `DATA_VIEW_ROOTS`(여러 개면 `;`) |
+| DB 비밀번호 새기 | 기본은 `.env.local`의 접속 정보만 쓰고 비밀번호를 앱에 저장하지 않습니다. 화면에서 입력해 저장하는 기능은 켤 때만 보입니다 | `DATA_VIEW_SAVE_DB_PASSWORDS=1` |
+| `data` 폴더 복사로 비밀번호 풀기 | 암호화 키를 `data` 밖(Windows는 `%APPDATA%\data-view`)에 둡니다. 예전 `data\secret.key`는 처음 쓸 때 옮깁니다 | `DATA_VIEW_KEY_DIR`, `APP_SECRET` |
+| 실행 파일이 한글 때문에 깨짐 | `start.bat`, `dev.bat`, `sample.bat`은 영문(ASCII)만 씁니다 | |
+
 ## 데이터 저장 위치
 
 - 연 파일, 기획서, 관계, 용어 매칭: 브라우저 저장소(OPFS). 브라우저마다 따로 저장되고, 관계는 관계 화면에서 JSON으로 내보내 동료와 나눌 수 있습니다.
-- 데이터베이스 접속 정보: 저장소 폴더의 `data/connections.json`. 비밀번호는 AES-256-GCM으로 암호화하고, 키는 `.env.local`의 `APP_SECRET` 또는 처음 저장할 때 만드는 `data/secret.key`를 씁니다. `data/`는 git에 올라가지 않습니다.
+- 데이터베이스 접속 정보: 저장소 폴더의 `data/connections.json`. `.env.local`에서 불러온 접속은 비밀번호 없이 어느 설정인지만 남깁니다. 화면에서 저장한 비밀번호(켰을 때만)는 AES-256-GCM으로 암호화하고, 키는 `APP_SECRET` 또는 사용자 폴더의 `data-view/secret.key`를 씁니다. `data/`는 git에 올라가지 않습니다.
 
 ## 테스트 데이터
 

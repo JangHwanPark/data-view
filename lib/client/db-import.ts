@@ -42,7 +42,11 @@ export function dbErrorText(code: string) {
 }
 
 export async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init);
+  // 서버는 바꾸는 요청(POST, DELETE)을 application/json으로만 받는다(PLAN.md 1-2).
+  const method = (init?.method ?? "GET").toUpperCase();
+  const headers = new Headers(init?.headers);
+  if (method !== "GET" && method !== "HEAD" && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  const res = await fetch(url, { ...init, headers });
   const body = await res.json().catch(() => null);
   if (!res.ok) {
     throw new DbRequestError(body?.error?.code ?? "UNKNOWN", body?.error?.message ?? `HTTP ${res.status}`);

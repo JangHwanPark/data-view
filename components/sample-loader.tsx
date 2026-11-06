@@ -27,7 +27,7 @@ export function SampleLoader({ compact = false, onBusy, onNote }: Props) {
     onBusy?.(true);
     try {
       setProgress("테스트 데이터를 준비하는 중입니다. 처음에는 30초쯤 걸립니다.");
-      const res = await fetch("/api/sample", { method: "POST" });
+      const res = await fetch("/api/sample", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
       const body = (await res.json()) as { game?: string; docs?: string; error?: { message: string } };
       if (!res.ok || !body.game || !body.docs) throw new Error(body.error?.message ?? `HTTP ${res.status}`);
       // 이미 연 파일은 다시 열지 않는다.

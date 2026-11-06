@@ -1,6 +1,7 @@
 import "server-only";
 import { readFile, readdir, stat } from "node:fs/promises";
-import { extname, join, resolve } from "node:path";
+import { extname, join } from "node:path";
+import { assertAllowedPath } from "@/lib/server/roots";
 
 // 경로를 지정해서 불러올 수 있는 확장자. 이 밖의 파일은 목록에도 넣지 않고 내용도 넘기지 않는다.
 export const DATA_EXTENSIONS = [".xlsx", ".xls", ".csv"];
@@ -21,7 +22,7 @@ export function isAllowed(path: string) {
 
 // 폴더면 안의 파일(하위 폴더 제외)을, 파일이면 그 파일 하나를 돌려준다. 엑셀 임시 파일(~$)은 뺀다.
 export async function listLocalFiles(input: string): Promise<LocalFileEntry[]> {
-  const target = resolve(input);
+  const target = await assertAllowedPath(input);
   const info = await stat(target);
   const paths = info.isDirectory()
     ? (await readdir(target, { withFileTypes: true })).filter((d) => d.isFile()).map((d) => join(target, d.name))
@@ -37,7 +38,7 @@ export async function listLocalFiles(input: string): Promise<LocalFileEntry[]> {
 }
 
 export async function readLocalFile(path: string) {
-  const target = resolve(path);
+  const target = await assertAllowedPath(path);
   if (!isAllowed(target)) throw Object.assign(new Error("not allowed"), { code: "NOT_ALLOWED" });
   const s = await stat(target);
   if (!s.isFile()) throw Object.assign(new Error("not a file"), { code: "ENOENT" });
@@ -49,6 +50,6 @@ export function fileErrorCode(e: unknown) {
   const code = (e as { code?: string })?.code;
   if (code === "ENOENT" || code === "ENOTDIR") return "NOT_FOUND";
   if (code === "EACCES" || code === "EPERM") return "NO_PERMISSION";
-  if (code === "NOT_ALLOWED" || code === "TOO_LARGE") return code;
+  if (code === "NOT_ALLOWED" || code === "TOO_LARGE" || code === "OUTSIDE_ROOT") return code;
   return "READ_FAILED";
 }

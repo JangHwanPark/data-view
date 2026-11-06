@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { CheckCircle2, Loader2, PlugZap } from "lucide-react";
 import { useWorkspace } from "@/components/workspace-provider";
+import { useAppConfig } from "@/lib/client/app-config";
 import { DbRequestError, dbErrorText, requestJson } from "@/lib/client/db-import";
 
 interface Form {
@@ -38,7 +39,7 @@ interface EnvConnection {
 }
 
 // 환경변수에서 찾은 접속 정보로 바로 연결한다. 비밀번호는 서버에만 있고 화면에는 "있음/없음"만 보인다.
-function EnvConnections() {
+function EnvConnections({ primary = false }: { primary?: boolean }) {
   const { addDatabase } = useWorkspace();
   const router = useRouter();
   const [file, setFile] = useState("");
@@ -82,10 +83,12 @@ function EnvConnections() {
   }
 
   return (
-    <details className="flex flex-col gap-2 rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-      <summary className="cursor-pointer font-semibold">고급: 접속 정보 파일에서 불러오기</summary>
+    <details open={primary || undefined} className="flex flex-col gap-2 rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+      <summary className="cursor-pointer font-semibold">{primary ? "환경변수에서 불러오기" : "고급: 접속 정보 파일에서 불러오기"}</summary>
       <p className="mt-2 text-xs text-zinc-500">
-        개발팀이 접속 정보를 파일(.env)로 준 경우에만 씁니다. 파일 경로를 적고 찾기를 누르면 그 안의 DB 접속 정보를 찾아 보여줍니다. 경로를 비우고 찾으면 이 PC의 앱 설정에서 찾습니다.
+        {primary
+          ? "앱 폴더의 .env.local에 적어 둔 DB 접속 정보를 찾습니다. 경로를 비우고 찾기를 누르면 됩니다. 개발팀이 따로 준 .env 파일이 있으면, 열 수 있게 정한 폴더 안에 두고 그 경로를 적어 주세요. 비밀번호는 앱에 저장하지 않고 쓸 때마다 이 설정에서 다시 읽습니다."
+          : "개발팀이 접속 정보를 파일(.env)로 준 경우에만 씁니다. 파일 경로를 적고 찾기를 누르면 그 안의 DB 접속 정보를 찾아 보여줍니다. 경로를 비우고 찾으면 이 PC의 앱 설정에서 찾습니다."}
       </p>
       <form onSubmit={(e) => void find(e)} className="mt-2 flex gap-2">
         <input
@@ -139,6 +142,32 @@ function EnvConnections() {
 }
 
 export function DatabaseConnectForm() {
+  const config = useAppConfig();
+  if (!config) return <p className="text-zinc-500">불러오는 중...</p>;
+  // 기본은 비밀번호를 앱에 저장하지 않고 .env.local에서만 읽는다(PLAN.md 1-3).
+  if (!config.saveDbPasswords) {
+    return (
+      <div className="flex max-w-xl flex-col gap-4">
+        <div>
+          <h1 className="text-lg font-semibold">개발 DB에서 불러오기</h1>
+          <p className="text-zinc-500">
+            엑셀 대신 개발 DB(MySQL, MariaDB)에서 테이블을 바로 불러옵니다. 보안 때문에 DB 비밀번호를 화면에서 입력해 저장하지 않고, 앱 폴더의 .env.local에 적어 둔 접속 정보만 씁니다.
+          </p>
+        </div>
+        <EnvConnections primary />
+        <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-400">
+          <p className="font-medium">.env.local 예시 (값은 개발팀에서 받은 것으로)</p>
+          <pre className="mt-1 font-mono">{"GAME_DB_HOST=127.0.0.1\nGAME_DB_PORT=3306\nGAME_DB_USER=reader\nGAME_DB_PASSWORD=...\nGAME_DB_NAME=game"}</pre>
+          <p className="mt-1">.env.local을 고친 뒤에는 앱을 껐다가 다시 켜 주세요. 데이터를 고칠 수 없는 읽기 전용 계정을 받는 것이 안전합니다.</p>
+        </div>
+      </div>
+    );
+  }
+  return <ManualConnectForm />;
+}
+
+// 화면에서 접속 정보를 입력해 저장하는 방식. .env.local의 DATA_VIEW_SAVE_DB_PASSWORDS=1일 때만 보인다.
+function ManualConnectForm() {
   const { addDatabase } = useWorkspace();
   const router = useRouter();
   const [form, setForm] = useState<Form>(EMPTY);

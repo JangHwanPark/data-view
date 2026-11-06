@@ -1,6 +1,6 @@
 import "server-only";
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { assertAllowedPath } from "@/lib/server/roots";
 import type { ConnectionInput } from "@/lib/server/connections";
 
 // 환경변수에서 DB 접속 정보를 찾는다. 두 가지 꼴을 알아본다.
@@ -99,7 +99,9 @@ function detect(env: Record<string, string | undefined>, origin: string): Found[
 async function findAll(file?: string): Promise<Found[]> {
   const result = detect(process.env, "이 PC의 앱 설정");
   if (file) {
-    const path = resolve(file);
+    // 접속 정보 파일도 정한 폴더 안의 .env 꼴 파일(.env, .env.local, db.env)만 읽는다.
+    const path = await assertAllowedPath(file);
+    if (!/(^\.env|\.env$)/i.test(path.split(/[\\/]/).pop() ?? "")) throw Object.assign(new Error("not an env file"), { code: "NOT_ALLOWED" });
     result.push(...detect(parseDotenv(await readFile(path, "utf8")), path));
   }
   return result;

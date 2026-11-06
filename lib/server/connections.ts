@@ -1,12 +1,15 @@
 import "server-only";
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { keyFile } from "@/lib/server/settings";
 
-// 접속 정보는 서버 쪽 data/connections.json에 둔다. 비밀번호는 AES-256-GCM으로 암호화한다.
+// 접속 정보는 서버 쪽 data/connections.json에 둔다(PLAN.md 1-3).
+// - 환경변수(.env.local)에서 찾은 접속은 비밀번호를 저장하지 않고, 어느 설정인지만 남겨 쓸 때마다 다시 읽는다. 기본은 이쪽이다.
+// - 화면에서 입력한 비밀번호는 DATA_VIEW_SAVE_DB_PASSWORDS=1일 때만 AES-256-GCM으로 암호화해 저장한다.
+//   키는 data 밖(사용자 폴더)에 두어, data 폴더만 복사해서는 비밀번호를 풀 수 없다.
 const DATA_DIR = join(process.cwd(), "data");
 const CONNECTIONS_FILE = join(DATA_DIR, "connections.json");
-const KEY_FILE = join(DATA_DIR, "secret.key");
 
 export interface ConnectionInput {
   name: string;
@@ -20,7 +23,8 @@ export interface ConnectionInput {
 export interface StoredConnection extends Omit<ConnectionInput, "password"> {
   id: string;
   type: "mysql";
-  passwordEnc: string;
+  passwordEnc?: string; // 화면에서 입력해 저장한 접속만 있다
+  env?: { id: string; file?: string }; // 환경변수에서 찾은 접속. 쓸 때마다 이 설정을 다시 읽는다
   createdAt: string;
 }
 
@@ -31,13 +35,16 @@ function ensureDataDir() {
   if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// APP_SECRET이 있으면 그것을, 없으면 처음 쓸 때 만든 data/secret.key를 키로 쓴다.
+// APP_SECRET이 있으면 그것을, 없으면 처음 쓸 때 사용자 폴더에 만든 secret.key를 키로 쓴다.
 function key(): Buffer {
   const secret = process.env.APP_SECRET;
   if (secret) return createHash("sha256").update(secret).digest();
-  ensureDataDir();
-  if (!existsSync(KEY_FILE)) writeFileSync(KEY_FILE, randomBytes(32).toString("hex"), { mode: 0o600 });
-  return Buffer.from(readFileSync(KEY_FILE, "utf8").trim(), "hex");
+  const file = keyFile();
+  if (!existsSync(file)) {
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, randomBytes(32).toString("hex"), { mode: 0o600 });
+  }
+  return Buffer.from(readFileSync(file, "utf8").trim(), "hex");
 }
 
 function encrypt(text: string) {
@@ -79,7 +86,15 @@ export function getConnection(id: string) {
 }
 
 export function getPassword(conn: StoredConnection) {
+  if (!conn.passwordEnc) throw new Error("no saved password");
   return decrypt(conn.passwordEnc);
+}
+
+// 환경변수에서 찾은 접속을 비밀번호 없이 저장한다.
+export function saveEnvConnection(input: Omit<ConnectionInput, "password">, env: { id: string; file?: string }): PublicConnection {
+  const conn: StoredConnection = { ...input, id: randomBytes(6).toString("hex"), type: "mysql", env, createdAt: new Date().toISOString() };
+  writeAll([...readAll(), conn]);
+  return toPublic(conn);
 }
 
 export function saveConnection(input: ConnectionInput): PublicConnection {

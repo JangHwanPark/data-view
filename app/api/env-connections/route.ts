@@ -1,4 +1,4 @@
-import { saveConnection } from "@/lib/server/connections";
+import { saveEnvConnection } from "@/lib/server/connections";
 import { listEnvConnections, resolveEnvConnection } from "@/lib/server/env-connections";
 import { errorResponse, rejectCrossOrigin } from "@/lib/server/http";
 import { fileErrorCode } from "@/lib/server/local-files";
@@ -24,7 +24,10 @@ export async function POST(request: Request) {
   if (!input) return errorResponse(404, "NOT_FOUND", "이 DB 접속 정보를 다시 찾지 못했습니다. 접속 정보 파일이 바뀌었는지 확인해 주세요.");
   try {
     const tables = await withConnection(input, (conn) => listTables(conn, input.database));
-    return Response.json({ connection: saveConnection(input), tableCount: tables.length });
+    // 비밀번호는 저장하지 않고 어느 설정인지만 남긴다. 쓸 때마다 이 설정을 다시 읽는다.
+    const { password: _, ...rest } = input;
+    void _;
+    return Response.json({ connection: saveEnvConnection(rest, { id: body.connect, file }), tableCount: tables.length });
   } catch (e) {
     return errorResponse(400, errorCode(e), e instanceof Error ? e.message : String(e));
   }

@@ -7,7 +7,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/connections/
   const rejected = rejectCrossOrigin(request);
   if (rejected) return rejected;
   const { id, table } = await ctx.params;
-  const input = resolveConnection(id);
+  const input = await resolveConnection(id);
   if (!input) return errorResponse(404, "NOT_FOUND", "저장된 DB 접속 정보를 찾을 수 없습니다. 다시 연결해 주세요.");
   try {
     const result = await withConnection(input, async (conn) => {

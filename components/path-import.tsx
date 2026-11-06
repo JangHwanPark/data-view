@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore, type FormEvent } from "react";
 import { FolderSearch, Loader2 } from "lucide-react";
 import { useWorkspace } from "@/components/workspace-provider";
+import { useAppConfig } from "@/lib/client/app-config";
 import { DbRequestError } from "@/lib/client/db-import";
 import { fetchLocalFile, listLocalFiles, localFileErrorText, type LocalFileEntry } from "@/lib/client/local-files";
 
@@ -68,6 +69,7 @@ export function PathImport({ kind }: { kind: PathKind }) {
   const router = useRouter();
   const [path, setPath] = useState("");
   // 최근 경로는 서버 렌더링 결과와 어긋나지 않도록 입력칸에 바로 넣지 않고 버튼으로 보여준다.
+  const config = useAppConfig();
   const lastPath = useSyncExternalStore(noopSubscribe, () => readLastPath(kind), () => "");
   const copy = TITLE[kind ?? "all"];
   const [files, setFiles] = useState<LocalFileEntry[] | null>(null);
@@ -169,6 +171,17 @@ export function PathImport({ kind }: { kind: PathKind }) {
           목록 보기
         </button>
       </form>
+      {config && (
+        <p className="-mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs text-zinc-500">
+          <span>열 수 있는 폴더:</span>
+          {config.roots.map((r) => (
+            <button key={r} type="button" onClick={() => setPath(r)} className="font-mono text-blue-700 underline dark:text-blue-400" title="누르면 경로 칸에 넣습니다">
+              {r}
+            </button>
+          ))}
+          <span className="text-zinc-400">보안 때문에 이 폴더 아래만 엽니다. 더하려면 .env.local의 DATA_VIEW_ROOTS에 적고 앱을 다시 켜 주세요.</span>
+        </p>
+      )}
       {lastPath && !path && (
         <p className="-mt-2 text-xs text-zinc-500">
           최근 경로:{" "}

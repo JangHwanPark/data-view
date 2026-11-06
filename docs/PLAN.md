@@ -68,7 +68,7 @@
 
 | 단계 | 내용 | 바탕 |
 | :--- | :--- | :--- |
-| 21 | 보안 고치기: Host 검사, Origin 없는 요청 막기, JSON만 받기, 키를 `data\` 밖으로, 읽을 폴더 묶기, `start.bat` 영문으로 | 1-1~1-5 |
+| 21 | 보안 고치기: Host 검사, Origin 없는 요청 막기, JSON만 받기, 키를 `data\` 밖으로, 읽을 폴더 묶기, `start.bat` 영문으로 (완료, 아래 「21단계 결과」) | 1-1~1-5 |
 | 22 | 가짜 데이터 늘리기: 2절 모양을 가진 새 테이블 묶음과 서식 있는 기획서 | 2-1~2-11 |
 | 23 | 엑셀 읽기 규칙: 머리글 줄 찾기, 두 줄 머리글, `;` 비활성 행(줄긋기, 건수에서 빼기), `#` 메모 열, `Level#` 번호 열 | 2-3~2-7, 3-9 일부, 3-10 |
 | 24 | 컬럼 설명과 연결 근거: `#Design`, `#Definition` 읽기, 컬럼 표, 설명 문구로 찾는 실선과 값으로 찾는 점선 | 3-1, 3-2 |
@@ -85,3 +85,15 @@
 - **읽을 폴더(1-4)**: 묶을 폴더를 어디서 정할지. 이 계획은 `.env.local`의 `DATA_VIEW_ROOTS`(여러 개면 `;`로 나눔)로 정하고, 정하지 않으면 저장소 폴더의 `fixtures`만 허용하는 쪽으로 한다.
 - **키 위치(1-3)**: 키를 Windows 사용자 폴더(`%APPDATA%\data-view\secret.key`)에 두고, 화면에서 입력해 저장하는 기능은 `.env.local`에서 켤 때만 보이게 한다.
 - **설치본(5-10)**: Node를 함께 넣은 압축본을 만들지, 회사에서 허용하는 다른 방법이 있는지 정보보안실 기준을 먼저 본다.
+
+## 21단계 결과
+
+| | 한 일 | 확인 |
+| :--- | :--- | :--- |
+| 1-1 | `lib/server/http.ts`: Host 이름이 `127.0.0.1`, `localhost`, `[::1]`(더할 것은 `DATA_VIEW_ALLOWED_HOSTS`)이 아니면 403 | `Host: evil.example` → 403, `127.0.0.1`, `localhost` → 200 |
+| 1-2 | 바꾸는 요청은 Origin이 없거나 다르면 403, `application/json`이 아니면 415. 화면의 요청은 늘 JSON 머리를 붙인다(`requestJson`) | Origin 없는 POST, 다른 Origin → 403, text/plain → 415 |
+| 1-3 | 환경변수에서 찾은 접속은 비밀번호 없이 설정 이름만 저장하고 쓸 때마다 다시 읽는다. 화면에서 입력한 비밀번호 저장은 `DATA_VIEW_SAVE_DB_PASSWORDS=1`일 때만(꺼져 있으면 DB 화면이 환경변수 방식만 보여줌). 키는 `%APPDATA%\data-view\secret.key`(그 밖은 `~/.config/data-view`, `DATA_VIEW_KEY_DIR`로 바꿈), 예전 `data\secret.key`는 처음 쓸 때 옮긴다 | 저장 요청 → 403 SAVE_DISABLED, 예전 키가 새 자리로 옮겨지고 원래 파일이 없어짐 |
+| 1-4 | `lib/server/roots.ts`: 경로 목록, 파일 읽기, `.env` 읽기를 `DATA_VIEW_ROOTS`(`;`로 나눔)와 `fixtures` 아래로 묶는다. 실제 경로(realpath)로 비교해 `..`와 바로가기로 빠져나가는 것도 막는다. `.env` 읽기는 `.env`로 시작하거나 끝나는 파일만. 경로 불러오기 화면에 열 수 있는 폴더를 보여준다 | `/etc`, `../package.json`, fixtures 안 바로가기 → OUTSIDE_ROOT, 정한 폴더 → 200, 이웃 폴더 → 400 |
+| 1-5 | `start.bat`을 영문(ASCII)으로 다시 쓰고 `chcp 65001`을 뺐다. 도우미 파일을 `dev.bat`, `sample.bat`으로 바꿨다 | 세 파일 모두 0x80 이상 바이트 0개 |
+
+설정 예시는 저장소의 `.env.example`에 있다. Windows에서 배치 파일을 실제로 돌려 보는 것과 실제 MySQL로 접속해 보는 것은 집 환경에서 하지 못했다.
