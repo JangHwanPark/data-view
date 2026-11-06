@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start -H 127.0.0.1",
     "lint": "eslint",
-    "fixtures": "node scripts/generate-game-fixtures.mjs && node scripts/generate-doc-fixtures.mjs"
+    "fixtures": "node scripts/generate-game-fixtures.mjs && node scripts/generate-doc-fixtures.mjs && node scripts/generate-shape-fixtures.mjs"
   },
   "dependencies": {
     "@duckdb/duckdb-wasm": "^1.32.0",

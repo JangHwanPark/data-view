@@ -104,6 +104,8 @@ npm run fixtures
 | `fixtures/docs` | 옛 기획서 4종과 `expected.json`(의도한 어긋남 목록) |
 | `fixtures/mysql/seed.sql` | 같은 데이터를 MySQL에 넣는 SQL |
 | `fixtures/env/test.env` | 환경변수 연결 시험용 .env |
+| `fixtures/shape` | 회사 테이블과 같은 모양의 지어낸 과일 농장 데이터 10개: `#Design`, `#Definition` 시트, 파일마다 다른 머리글 줄, `;` 비활성 행, 두 줄 머리글, `Level#1` 꼴 번호 열, `#이름` 메모 열, 문자열 키, 오타 쌍, 같은 한글 이름. `expected.json`에 만든 모양과 일부러 넣은 문제 목록 |
+| `fixtures/shape-docs` | 서식 있는 기획서(제목 1~3, 번호 목록, 글머리표, 합친 칸, 굵게, 목차 줄, 글상자, 필드, 지운 글자) |
 
 테스트용 MySQL은 Docker로 띄웁니다. `npm run fixtures`를 먼저 실행해야 시드가 들어갑니다.
 

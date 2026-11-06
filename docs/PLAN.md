@@ -69,7 +69,7 @@
 | 단계 | 내용 | 바탕 |
 | :--- | :--- | :--- |
 | 21 | 보안 고치기: Host 검사, Origin 없는 요청 막기, JSON만 받기, 키를 `data\` 밖으로, 읽을 폴더 묶기, `start.bat` 영문으로 (완료, 아래 「21단계 결과」) | 1-1~1-5 |
-| 22 | 가짜 데이터 늘리기: 2절 모양을 가진 새 테이블 묶음과 서식 있는 기획서 | 2-1~2-11 |
+| 22 | 가짜 데이터 늘리기: 2절 모양을 가진 새 테이블 묶음과 서식 있는 기획서 (완료, 아래 「22단계 결과」) | 2-1~2-11 |
 | 23 | 엑셀 읽기 규칙: 머리글 줄 찾기, 두 줄 머리글, `;` 비활성 행(줄긋기, 건수에서 빼기), `#` 메모 열, `Level#` 번호 열 | 2-3~2-7, 3-9 일부, 3-10 |
 | 24 | 컬럼 설명과 연결 근거: `#Design`, `#Definition` 읽기, 컬럼 표, 설명 문구로 찾는 실선과 값으로 찾는 점선 | 3-1, 3-2 |
 | 25 | 한글 이름: 단어 사전 csv로 추론, 「추론」 표시, 같은 이름 구분, 목록 묶기와 이름 표시 | 3-5, 3-6, 3-12 |
@@ -97,3 +97,25 @@
 | 1-5 | `start.bat`을 영문(ASCII)으로 다시 쓰고 `chcp 65001`을 뺐다. 도우미 파일을 `dev.bat`, `sample.bat`으로 바꿨다 | 세 파일 모두 0x80 이상 바이트 0개 |
 
 설정 예시는 저장소의 `.env.example`에 있다. Windows에서 배치 파일을 실제로 돌려 보는 것과 실제 MySQL로 접속해 보는 것은 집 환경에서 하지 못했다.
+
+## 22단계 결과
+
+`scripts/generate-shape-fixtures.mjs`가 지어낸 과일 농장 데이터를 만든다(`npm run fixtures`에 포함, 첫 화면의 테스트 데이터 준비도 없으면 만든다). 게임 테스트 데이터는 그대로 둔다.
+
+| | 모양 | 들어간 곳 (`fixtures/shape`) |
+| :--- | :--- | :--- |
+| 2-1 | `#Design`: 1행 머리말, 2행 「컬럼 / 설명」, 설명 안의 `<테이블>[컬럼]` | 10개 파일 모두. 예: Fruit.ColorId 「<Color> 테이블의 [Id] 참조」, Fruit.Level# 「<Growth> 테이블 참조」(컬럼 없음) |
+| 2-2 | `#Definition`에만 있는 컬럼 | Fruit.Season, Fruit.Period |
+| 2-3 | 머리글 줄 위치 | Fruit 3행(설명 2줄 뒤), Asset 4행, 나머지 1행 |
+| 2-4 | `;` 비활성 행 | Fruit `;1003`, `;1017`, Asset `;5004` |
+| 2-5 | 두 줄 머리글 | RewardDaily/Weekly/Event의 `Reward_` 줄바꿈 `Asset#1` 꼴 4칸 |
+| 2-6 | 번호 붙은 열 | Fruit `Level#1~3`(→ Growth), 보상 `Asset#1~2`(→ Asset), `Count#1~2` |
+| 2-7 | `#` 메모 열 한글 이름 | Fruit, Color, Growth, Asset의 `#이름` |
+| 2-8 | 문자열 테이블과 키 | StringFruit(Key, Korean, English), Fruit.NameKey `Str_Fruit_n`. 영어를 일부러 비운 키 3개 |
+| 2-9 | 서식 있는 기획서 | `fixtures/shape-docs/과일_농장_기획서.docx`: 제목 1~3 스타일, 번호 목록 3줄, 글머리표 2줄, 가로로 합친 칸, 굵게, 목차 줄(TOC1/TOC2 스타일), 글상자, 쪽 번호 필드, 지운 글자 |
+| 2-10 | 오타 쌍 | FruitPrice, FruitPrise(머리말 모두 「과일 가격」) |
+| 2-11 | 같은 한글 이름 | RewardDaily, RewardWeekly, RewardEvent(머리말 모두 「보상」) |
+
+뒤 단계 시험용으로 일부러 넣은 문제: 깨진 참조 Fruit.ColorId 99, 중복 Id Fruit 1012, 비활성 행을 가리키는 참조 RewardEvent.Asset#1 → `;5004`, FruitPrice.FruitId → `;1003`. 모두 `fixtures/shape/expected.json`에 있다.
+
+지금 앱으로 불러오면 오류 없이 열리지만, 머리글 줄 찾기, 두 줄 머리글, 비활성 행, `#Design` 읽기는 23~24단계에서 한다. 그래서 첫 화면의 "테스트용 게임 데이터로 시작하기"는 아직 이 데이터를 불러오지 않는다.

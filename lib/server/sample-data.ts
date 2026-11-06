@@ -21,5 +21,10 @@ export async function ensureSampleData() {
     await run(process.execPath, [join(root, "scripts", "generate-doc-fixtures.mjs")], { cwd: root, timeout: 300_000 });
     created = true;
   }
+  // 회사 테이블과 같은 모양의 과일 농장 데이터(22단계). 예전에 만든 fixtures에는 없으므로 따로 확인한다.
+  if (!existsSync(join(root, "fixtures", "shape"))) {
+    await run(process.execPath, [join(root, "scripts", "generate-shape-fixtures.mjs")], { cwd: root, timeout: 300_000 });
+    created = true;
+  }
   return { game, docs, created };
 }
