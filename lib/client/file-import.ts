@@ -1,6 +1,7 @@
 import { DuckDBDataProtocol } from "@duckdb/duckdb-wasm";
 import * as XLSX from "xlsx";
 import { execute, getDuckDB } from "@/lib/client/duckdb";
+import { columnDescriptions, descSheetKind, parseDescSheet, type ColumnDesc, type DescSheet } from "@/lib/client/design-sheet";
 import type { FileKind, FileSourceMeta } from "@/lib/client/opfs";
 import { quoteIdent, quoteString } from "@/lib/query-result";
 
@@ -75,6 +76,8 @@ export interface TableRules {
   headerRow: number; // 머리글이 있던 줄(1부터)
   columns: ColumnRule[];
   inactive: string[]; // ;로 막아 둔 행의 Id(;는 뗀 값)
+  title: string | null; // #Design 머리말(테이블 한글 이름)
+  descriptions: ColumnDesc[]; // #Design, #Definition의 컬럼 설명(24단계)
 }
 const rulesBySource = new Map<string, Map<string, TableRules>>();
 
@@ -87,6 +90,11 @@ export function inactiveIds(sourceId: string, table: string): Set<string> {
   return new Set(tableRules(sourceId, table)?.inactive ?? []);
 }
 
+// 컬럼 하나의 설명. Level#1이면 「Level#」 설명을 준다.
+export function columnDescription(sourceId: string, table: string, column: string): ColumnDesc | undefined {
+  return tableRules(sourceId, table)?.descriptions.find((d) => d.columns.includes(column));
+}
+
 export function isMemoColumn(sourceId: string, table: string, column: string) {
   return !!tableRules(sourceId, table)?.columns.some((c) => c.name === column && c.memo);
 }
@@ -96,17 +104,21 @@ async function loadExcel(meta: FileSourceMeta, file: File, schema: string, targe
   const workbook = XLSX.read(await file.arrayBuffer(), { cellDates: true, dense: true });
   const tables: string[] = [];
   const rules = new Map<string, TableRules>();
+  // 설명 시트와 그 시트가 설명하는 데이터 시트. 이름에 테이블이 없으면(#Design) 바로 앞 데이터 시트, 그것도 없으면 첫 데이터 시트.
+  const descSheets: { sheet: DescSheet; target: string | null; after: string | null }[] = [];
+  const sheetTable = new Map<string, string>();
+  let lastTable: string | null = null;
+  const readAoa = (sheetName: string) =>
+    XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[sheetName], { header: 1, raw: true, defval: null, blankrows: false });
 
   for (const sheetName of workbook.SheetNames) {
-    // #Design, #Definition처럼 #로 시작하는 시트는 데이터가 아니라 설명이다. 내용은 24단계에서 읽는다.
-    if (sheetName.trim().startsWith("#")) continue;
-    const sheet = workbook.Sheets[sheetName];
-    const aoa = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
-      header: 1,
-      raw: true,
-      defval: null,
-      blankrows: false,
-    });
+    // #Design, #Definition처럼 #로 시작하는 시트는 데이터가 아니라 설명이다. 테이블로 만들지 않는다.
+    if (sheetName.trim().startsWith("#")) {
+      const kind = descSheetKind(sheetName);
+      if (kind) descSheets.push({ sheet: parseDescSheet(readAoa(sheetName), kind.kind), target: kind.target, after: lastTable });
+      continue;
+    }
+    const aoa = readAoa(sheetName);
     // 빈 시트는 테이블을 만들지 않는다.
     if (aoa.length === 0) continue;
 
@@ -131,7 +143,18 @@ async function loadExcel(meta: FileSourceMeta, file: File, schema: string, targe
       await execute(`ALTER TABLE ${target} ALTER COLUMN ${col} TYPE TIMESTAMP USING CAST(${col} AS TIMESTAMP)`);
     }
     tables.push(table);
-    rules.set(table, { headerRow: headerRow + 1, columns, inactive });
+    sheetTable.set(sheetName.trim().toLowerCase(), table);
+    lastTable = table;
+    rules.set(table, { headerRow: headerRow + 1, columns, inactive, title: null, descriptions: [] });
+  }
+  const byTable = new Map<string, DescSheet[]>();
+  for (const d of descSheets) {
+    const table = (d.target && sheetTable.get(d.target.toLowerCase())) || d.after || tables[0];
+    if (table) byTable.set(table, [...(byTable.get(table) ?? []), d.sheet]);
+  }
+  for (const [table, sheets] of byTable) {
+    const rule = rules.get(table)!;
+    Object.assign(rule, columnDescriptions(sheets, rule.columns.map((c) => c.name)));
   }
   // 이전 버전(비교용 p_ 스키마)을 읽을 때는 지금 규칙을 덮어쓰지 않는다.
   if (schema === schemaName(meta.id)) rulesBySource.set(meta.id, rules);

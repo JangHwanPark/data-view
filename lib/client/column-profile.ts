@@ -94,3 +94,33 @@ export function columnDetail(sourceId: string, table: string, column: string, ve
   }
   return detailCache.get(key)!;
 }
+
+const exampleCache = new Map<string, Promise<Map<string, string[]>>>();
+
+// 컬럼 표(24단계)의 값 예시. 열마다 서로 다른 값 3개를 한 번의 쿼리로 구한다.
+export function columnExamples(sourceId: string, table: string, columns: string[], version: string) {
+  const key = `${version}|${sourceId}/${table}`;
+  if (!exampleCache.has(key)) {
+    exampleCache.set(
+      key,
+      (async () => {
+        const map = new Map<string, string[]>();
+        if (!columns.length) return map;
+        const parts = columns.map((c) => {
+          const v = `CAST(${quoteIdent(c)} AS VARCHAR)`;
+          // 값 사이 구분자는 값에 거의 나오지 않는 글자(0x1F)를 쓴다.
+          return `array_to_string(list_slice(list(DISTINCT ${v}) FILTER (WHERE ${v} IS NOT NULL AND trim(${v}) <> ''), 1, 3), chr(31))`;
+        });
+        const r = await runQuery(`SELECT ${parts.join(", ")} FROM ${qualifiedTable(sourceId, table)}`, 1);
+        const row = r.rows[0] ?? [];
+        columns.forEach((c, i) => {
+          const raw = row[i];
+          map.set(c, raw === null || raw === undefined || raw === "" ? [] : String(raw).split("\u001f").map((x) => x.replace(/^(-?\d+)\.0+$/, "$1")));
+        });
+        return map;
+      })(),
+    );
+    if (exampleCache.size > 200) exampleCache.delete(exampleCache.keys().next().value!);
+  }
+  return exampleCache.get(key)!;
+}

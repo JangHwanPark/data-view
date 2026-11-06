@@ -11,7 +11,7 @@ import { useLinkedRelations } from "@/components/use-auto-links";
 import { useDomainModel } from "@/components/use-domain-model";
 import { ROLE_LABEL } from "@/lib/client/domain-model";
 import { useWorkspace } from "@/components/workspace-provider";
-import { isAutoRelation } from "@/lib/client/auto-links";
+import { isAutoRelation, isDesignRelation } from "@/lib/client/auto-links";
 import { fromLabel, isExtended, type Relation } from "@/lib/client/relations";
 
 // 가운데와 양옆 사이를 넓게 둬서 연결선 이름표가 상자에 가리지 않게 한다.
@@ -107,19 +107,19 @@ export function TableGraph({ sourceId, table }: { sourceId: string; table: strin
     };
   });
 
-  // 자동으로 찾은 연결은 점선으로 그려 저장한 관계와 구분한다.
+  // 이름과 값으로 찾은 연결은 점선, 기획 설명(#Design)에 적힌 연결과 확인한 연결은 실선으로 그린다.
   const flowEdges: Edge[] = edges.map((r) => ({
     id: r.id,
     source: `${r.from.sourceId}/${r.from.table}`,
     target: `${r.to.sourceId}/${r.to.table}`,
     // 열 이름이 같으면 한 번만 적어 이름표를 짧게 한다.
-    label: `${r.from.column === r.to.column && !isExtended(r.from) ? r.from.column : `${fromLabel(r.from)} → ${r.to.column}`}${isAutoRelation(r) ? " (앱이 찾음)" : ""}`,
+    label: `${r.from.column === r.to.column && !isExtended(r.from) ? r.from.column : `${fromLabel(r.from)} → ${r.to.column}`}${isDesignRelation(r) ? " (기획 설명)" : isAutoRelation(r) ? " (앱이 찾음)" : ""}`,
     // 꺾인 선으로 그려 같은 상자에서 나가는 선들이 한 줄로 겹치지 않고 높이별로 갈라지게 한다.
     type: "smoothstep",
     labelStyle: { fontSize: 10 },
     labelBgPadding: [4, 2],
     markerEnd: { type: MarkerType.ArrowClosed },
-    style: isAutoRelation(r) ? { strokeDasharray: "5 4" } : undefined,
+    style: isAutoRelation(r) && !isDesignRelation(r) ? { strokeDasharray: "5 4" } : undefined,
   }));
 
   const height = Math.min(Math.max(maxRows * ROW_GAP + 90, 300), 640);
@@ -128,7 +128,7 @@ export function TableGraph({ sourceId, table }: { sourceId: string; table: strin
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-2 text-xs text-zinc-500">
         <span>이어진 테이블</span>
-        <span className="text-zinc-400">왼쪽은 이 테이블을 쓰는 테이블, 오른쪽은 이 테이블이 쓰는 테이블, 점선은 앱이 찾은 연결</span>
+        <span className="text-zinc-400">왼쪽은 이 테이블을 쓰는 테이블, 오른쪽은 이 테이블이 쓰는 테이블, 실선은 기획 설명에 적혀 있거나 확인한 연결, 점선은 앱이 이름과 값으로 찾은 연결</span>
         {depth === 2 && !wide.ready && <span className="text-zinc-400">이웃 테이블의 연결을 찾는 중</span>}
         <span className="ml-auto">보기 범위</span>
         {[1, 2].map((d) => (

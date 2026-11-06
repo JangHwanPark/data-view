@@ -7,7 +7,7 @@ import { sourceTableLabel } from "@/components/relations/relation-parts";
 import { TableDocNotes } from "@/components/table-doc-notes";
 import { TableGraph } from "@/components/table-graph";
 import { useWorkspace } from "@/components/workspace-provider";
-import { isAutoRelation } from "@/lib/client/auto-links";
+import { isAutoRelation, isDesignRelation } from "@/lib/client/auto-links";
 import type { RowFocus } from "@/lib/client/doc-links";
 import { fromLabel, newRelationId, type Relation } from "@/lib/client/relations";
 import { graphHref } from "@/lib/client/table-view";
@@ -109,19 +109,20 @@ interface ChipProps {
   reason?: string;
 }
 
-// 저장한 관계는 실선, 자동으로 찾은 연결은 점선 테두리. 자동 연결은 옆 버튼으로 관계로 저장한다.
+// 저장한 관계와 기획 설명(#Design)에 적힌 연결은 실선, 이름과 값으로 찾은 연결은 점선 테두리. 자동 연결은 옆 버튼으로 관계로 저장한다.
 function RelationChip({ r, other, text, reason }: ChipProps) {
   const { addRelations } = useWorkspace();
   const auto = isAutoRelation(r);
+  const design = isDesignRelation(r);
   return (
     <span className="inline-flex items-center">
       <Link
         href={`/sources/${other.sourceId}/tables/${encodeURIComponent(other.table)}`}
-        className={`${chip} ${auto ? "border-dashed" : ""}`}
+        className={`${chip} ${auto && !design ? "border-dashed" : ""}`}
         title={auto ? reason : "확인한 연결"}
       >
         {text}
-        {auto && <span className="text-[10px] text-zinc-400">앱이 찾음</span>}
+        {auto && <span className="text-[10px] text-zinc-400">{design ? "기획 설명" : "앱이 찾음"}</span>}
       </Link>
       {auto && (
         <button

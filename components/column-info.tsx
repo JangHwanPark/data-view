@@ -6,6 +6,7 @@ import { sourceVersion, useWorkspace } from "@/components/workspace-provider";
 import { useDomainModel } from "@/components/use-domain-model";
 import { columnDetail, profileColumns, type ColumnDetail, type ColumnProfile } from "@/lib/client/column-profile";
 import type { LinkEnd } from "@/lib/client/domain-model";
+import { columnDescription } from "@/lib/client/file-import";
 import type { QueryColumn } from "@/lib/query-result";
 
 // 테이블 열 정보 줄(설계 6.2). 데이터 표의 머리글 아래에 열마다 종류, 빈 칸, 값 종류, ID 열 여부,
@@ -131,6 +132,7 @@ function DetailPopover({ rect, sourceId, table, column, profile, version, uses, 
     };
   }, [sourceId, table, column.name, version]);
 
+  const desc = columnDescription(sourceId, table, column.name);
   const left = Math.max(8, Math.min(rect.left, (typeof window !== "undefined" ? window.innerWidth : 1200) - 336));
   return (
     <div
@@ -139,6 +141,12 @@ function DetailPopover({ rect, sourceId, table, column, profile, version, uses, 
       style={{ left, top: rect.bottom + 6 }}
     >
       <p className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-100">{column.name}</p>
+      {desc && (
+        <p className="mt-1 text-zinc-700 dark:text-zinc-300">
+          <span className="text-zinc-500">{desc.from === "design" ? "설명(#Design)" : "정의(#Definition)"}: </span>
+          {desc.text}
+        </p>
+      )}
       {profile && (
         <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 tabular-nums">
           <dt className="text-zinc-500">종류</dt>

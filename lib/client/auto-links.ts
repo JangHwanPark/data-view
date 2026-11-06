@@ -1,6 +1,6 @@
 import { loadCatalog, normalizeName, type Catalog } from "@/lib/client/doc-infer";
 import { runQuery } from "@/lib/client/duckdb";
-import { isMemoColumn, qualifiedTable } from "@/lib/client/file-import";
+import { isMemoColumn, qualifiedTable, tableRules } from "@/lib/client/file-import";
 import { quoteIdent } from "@/lib/query-result";
 import { coverage, fromColumns, isExtended, relationStats, rowCoverage, type FromSide, sameEndpoints, type ColumnRef, type Relation } from "@/lib/client/relations";
 
@@ -16,7 +16,10 @@ export interface AutoLink {
   reason: string;
 }
 
+// 이름으로 찾은 후보는 값이 50% 이상 맞으면 연결로 본다(점선). 값으로만 찾은 후보는 90% 이상이어야 한다.
+// 기획 설명(#Design)에 적힌 연결은 값이 덜 맞아도 연결로 둔다(실선). 맞지 않는 행 수는 근거에 적는다.
 const MIN_COVERAGE = 0.9;
+const MIN_NAME_COVERAGE = 0.5;
 
 const strip = (column: string) => normalizeName(column.replace(/[_\s]?(id|no|code|key|idx|index)$/i, ""));
 
@@ -56,6 +59,7 @@ function catalogFor(version: string, tables: { sourceId: string; table: string }
   if (catalogCache?.key !== version) {
     catalogCache = { key: version, value: loadCatalog(tables) };
     linkCache.clear();
+    enumCache.clear();
   }
   return catalogCache.value;
 }
@@ -101,8 +105,11 @@ async function compute(
   };
 
   const candidates: Candidate[] = [];
-  // 번호 붙은 열 묶음, 한 칸 여러 ID, 종류+ID(17단계)를 먼저 찾는다. 여기서 다룬 열은 아래 단일 열 찾기에서 뺀다.
   const handled = new Set<string>();
+  // 기획 설명(#Design, #Definition)의 <테이블>[컬럼]으로 찾는 연결을 가장 먼저 본다.
+  const designFrom = new Set<string>(); // 다른 테이블에서 이 테이블을 가리킨다고 적힌 열(테이블.열)
+  candidates.push(...designCandidates(me, others, prefer, handled, designFrom));
+  // 번호 붙은 열 묶음, 한 칸 여러 ID, 종류+ID(17단계)를 먼저 찾는다. 여기서 다룬 열은 아래 단일 열 찾기에서 뺀다.
   candidates.push(...(await extendedCandidates(me, others, target, prefer, handled)));
   for (const column of me.columns) {
     if (column === me.keyColumn || handled.has(column)) continue;
@@ -130,6 +137,8 @@ async function compute(
         .filter((c) => c !== t.keyColumn || t.keyColumn === me.keyColumn)
         // 번호 붙은 열 묶음에 속한 열은 그 테이블에서 묶음으로 찾으므로 하나씩 잇지 않는다.
         .filter((c) => !inNumberedGroup(c, t.columns))
+        // 기획 설명으로 이미 이 테이블을 가리킨다고 적힌 열은 다시 찾지 않는다.
+        .filter((c) => !designFrom.has(`${t.sourceId}/${t.table}.${c}`))
         .filter((c) => namesKey(c, me.keyColumn!) || strip(c) === myName)
         .map((c) => ({ t, c })),
     );
@@ -145,29 +154,44 @@ async function compute(
   const links: (AutoLink & { ratio: number; exclusive?: string })[] = [];
   for (const c of candidates) {
     if (c.from.sourceId === c.to.sourceId && c.from.table === c.to.table && c.from.column === c.to.column && !isExtended(c.from)) continue;
+    // 열거값 열(GOLD, SEED처럼 대문자 단어만 있는 Type 열)은 이름이 비슷해도 ID가 아니다.
+    if (!c.design && (await isEnumColumn(c.from))) continue;
     const stats = await relationStats(c.from, c.to).catch(() => null);
+    const extra = isExtended(c.from) ? `|${JSON.stringify([fromColumns(c.from), c.from.separator ?? "", c.from.when ?? null])}` : "";
+    const id = `${c.design ? DESIGN_PREFIX : "auto:"}${c.from.sourceId}/${c.from.table}.${c.from.column}>${c.to.sourceId}/${c.to.table}.${c.to.column}${extra}`;
+    if (c.design) {
+      links.push({ relation: { id, from: c.from, to: c.to }, reason: stats && stats.fromRows > 0 ? `${c.reason}. ${matchText(stats)}` : c.reason, ratio: 1 });
+      continue;
+    }
     if (!stats || stats.fromDistinct === 0) continue;
     const ratio = Math.max(coverage(stats), rowCoverage(stats));
-    if (ratio < MIN_COVERAGE) continue;
-    // 값으로만 찾은 후보는 값 종류가 적으면 우연히 맞기 쉬워 고유값 기준으로도 맞아야 한다.
+    // 값으로만 찾은 후보는 값 종류가 적으면 우연히 맞기 쉬워 고유값 기준으로도 90% 이상 맞아야 한다.
+    if (ratio < (c.byValue ? MIN_COVERAGE : MIN_NAME_COVERAGE)) continue;
     if (c.byValue && (coverage(stats) < MIN_COVERAGE || stats.fromDistinct < 5)) continue;
-    const extra = isExtended(c.from) ? `|${JSON.stringify([fromColumns(c.from), c.from.separator ?? "", c.from.when ?? null])}` : "";
     links.push({
-      relation: {
-        id: `auto:${c.from.sourceId}/${c.from.table}.${c.from.column}>${c.to.sourceId}/${c.to.table}.${c.to.column}${extra}`,
-        from: c.from,
-        to: c.to,
-      },
+      relation: { id, from: c.from, to: c.to },
       // QA가 읽기 쉽게 비율 대신 개수로 쓴다(설계 1.1). "3,000행 중 2,991행 맞음, 9행은 없는 ID"
       reason: `${c.reason}. ${matchText(stats)}`,
       ratio,
       exclusive: c.exclusive,
     });
   }
+  // 기획 설명으로 찾은 연결과 같은 열, 같은 상대 테이블을 이름이나 값으로 또 찾았으면 기획 설명 쪽만 남긴다.
+  const designLinks = links.filter((l) => isDesignRelation(l.relation));
+  const covered = (l: (typeof links)[number]) =>
+    designLinks.some(
+      (d) =>
+        d.relation.from.sourceId === l.relation.from.sourceId &&
+        d.relation.from.table === l.relation.from.table &&
+        d.relation.to.sourceId === l.relation.to.sourceId &&
+        d.relation.to.table === l.relation.to.table &&
+        fromColumns(l.relation.from).some((c) => fromColumns(d.relation.from).includes(c)),
+    );
+  const kept = links.filter((l) => isDesignRelation(l.relation) || !covered(l));
   // 같은 쓰는 쪽에 대상이 여럿이면(effect_ids → ItemEffect, SkillEffect) 가장 잘 맞는 하나만 남긴다.
   const best = new Map<string, number>();
-  for (const l of links) if (l.exclusive) best.set(l.exclusive, Math.max(best.get(l.exclusive) ?? 0, l.ratio));
-  return links.filter((l) => !l.exclusive || l.ratio === best.get(l.exclusive)).map(({ relation, reason }) => ({ relation, reason }));
+  for (const l of kept) if (l.exclusive) best.set(l.exclusive, Math.max(best.get(l.exclusive) ?? 0, l.ratio));
+  return kept.filter((l) => !l.exclusive || l.ratio === best.get(l.exclusive)).map(({ relation, reason }) => ({ relation, reason }));
 }
 
 interface Candidate {
@@ -176,6 +200,82 @@ interface Candidate {
   reason: string;
   exclusive?: string; // 같은 값이면 가장 잘 맞는 후보 하나만 남긴다
   byValue?: boolean; // 이름 없이 값으로만 찾은 후보
+  design?: boolean; // 기획 설명(#Design)에 적힌 연결
+}
+
+const DESIGN_PREFIX = "auto:d:";
+
+// 기획 설명(#Design, #Definition)에서 찾은 연결인지. 연결 그림에서 실선으로 그린다.
+export function isDesignRelation(r: { id: string } | string) {
+  return (typeof r === "string" ? r : r.id).startsWith(DESIGN_PREFIX);
+}
+
+const sameName = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+
+// 기획 설명의 <테이블>[컬럼]으로 찾는 후보. 이 테이블이 가리키는 것과, 다른 테이블의 설명이 이 테이블을 가리키는 것 둘 다 본다.
+// [컬럼]이 없으면 상대 테이블의 ID 열(없으면 첫 열)을 가리키는 것으로 본다.
+function designCandidates(
+  me: CatalogTable,
+  others: CatalogTable[],
+  prefer: <T extends { sourceId: string }>(list: T[]) => T[],
+  handled: Set<string>,
+  designFrom: Set<string>,
+): Candidate[] {
+  const out: Candidate[] = [];
+  const toColumn = (t: CatalogTable, column: string | null) => (column ? (t.columns.find((c) => sameName(c, column)) ?? null) : (t.keyColumn ?? t.columns[0] ?? null));
+  const fromSide = (t: CatalogTable, cols: string[]): FromSide =>
+    cols.length > 1 ? { sourceId: t.sourceId, table: t.table, column: cols[0], columns: cols } : { sourceId: t.sourceId, table: t.table, column: cols[0] };
+  const reason = (from: string, text: string) => `기획 설명(${from === "design" ? "#Design" : "#Definition"})에 「${text}」라고 적혀 있음`;
+
+  for (const d of tableRules(me.sourceId, me.table)?.descriptions ?? []) {
+    const cols = d.columns.filter((c) => me.columns.includes(c));
+    if (!cols.length) continue;
+    for (const ref of d.refs) {
+      const target = prefer(others.filter((t) => sameName(t.table, ref.table)))[0];
+      const column = target && toColumn(target, ref.column);
+      if (!target || !column) continue;
+      out.push({ from: fromSide(me, cols), to: { sourceId: target.sourceId, table: target.table, column }, reason: reason(d.from, d.text), design: true });
+      cols.forEach((c) => handled.add(c));
+    }
+  }
+  for (const t of others) {
+    for (const d of tableRules(t.sourceId, t.table)?.descriptions ?? []) {
+      const cols = d.columns.filter((c) => t.columns.includes(c));
+      if (!cols.length) continue;
+      for (const ref of d.refs.filter((r) => sameName(r.table, me.table))) {
+        const column = toColumn(me, ref.column);
+        if (!column) continue;
+        out.push({ from: fromSide(t, cols), to: { sourceId: me.sourceId, table: me.table, column }, reason: reason(d.from, d.text), design: true });
+        cols.forEach((c) => designFrom.add(`${t.sourceId}/${t.table}.${c}`));
+      }
+    }
+  }
+  return out;
+}
+
+// 값이 모두 대문자 단어(GOLD, SEED, FRUIT)이고 종류가 50개 이하인 열. 종류를 적는 열이라 다른 테이블의 ID를 가리키지 않는다.
+// 숫자가 섞인 값(STR_ITEM_1001)은 문자열 키라서 열거값으로 보지 않는다.
+const enumCache = new Map<string, Promise<boolean>>();
+function isEnumColumn(from: FromSide) {
+  if (isExtended(from)) return Promise.resolve(false);
+  const key = `${from.sourceId}/${from.table}.${from.column}`;
+  if (!enumCache.has(key)) {
+    const q = quoteIdent(from.column);
+    enumCache.set(
+      key,
+      runQuery(
+        `SELECT CAST(count(*) AS BIGINT), CAST(count(*) FILTER (WHERE regexp_matches(CAST(v AS VARCHAR), '^[A-Z][A-Z_]*$')) AS BIGINT)
+         FROM (SELECT DISTINCT ${q} AS v FROM ${qualifiedTable(from.sourceId, from.table)} WHERE ${q} IS NOT NULL)`,
+        1,
+      )
+        .then((r) => {
+          const [n, words] = (r.rows[0] ?? []).map(Number);
+          return n > 0 && n <= 50 && n === words;
+        })
+        .catch(() => false),
+    );
+  }
+  return enumCache.get(key)!;
 }
 
 type CatalogTable = Catalog["tables"][number];
@@ -221,6 +321,7 @@ async function extendedCandidates(
     if (n.hash) hashed.add(n.base);
   }
   for (const [base, cols] of groups) {
+    if (cols.some((c) => handled.has(c))) continue; // 기획 설명으로 이미 찾은 묶음
     if (cols.length < 2 || !isIdGroup(base, hashed.has(base))) continue; // 수량, 값 열(item_count_1, Count#1)은 ID가 아니다
     const from: FromSide = { ...target, column: cols[0], columns: cols };
     const byName = prefer(tablesByName(base, others));

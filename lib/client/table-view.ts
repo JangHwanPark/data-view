@@ -1,13 +1,13 @@
-// 테이블 화면의 보기(설계 4.13 G1, G2). 관계도와 데이터 두 가지이고, 마지막으로 고른 보기를 브라우저에 기억한다.
+// 테이블 화면의 보기(설계 4.13 G1, G2). 관계도, 데이터, 컬럼 표(24단계)이고, 마지막으로 고른 보기를 브라우저에 기억한다.
 // 처음 쓰는 사람은 관계도부터 본다. 사이드바 링크는 보기를 적지 않고, 테이블 화면이 이 규칙으로 고른다.
-export type TableView = "graph" | "data";
+export type TableView = "graph" | "data" | "columns";
 
 const KEY = "data-view:table-view";
 const listeners = new Set<() => void>();
 
 export function readLastView(): TableView {
   try {
-    return localStorage.getItem(KEY) === "data" ? "data" : "graph";
+    return parseView(localStorage.getItem(KEY)) ?? "graph";
   } catch {
     return "graph";
   }
@@ -28,7 +28,7 @@ export function subscribeLastView(listener: () => void) {
 }
 
 export function parseView(raw: string | null): TableView | null {
-  return raw === "graph" || raw === "data" ? raw : null;
+  return raw === "graph" || raw === "data" || raw === "columns" ? raw : null;
 }
 
 export function parseDepth(raw: string | null): 1 | 2 {

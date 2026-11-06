@@ -2,12 +2,13 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import { useSyncExternalStore } from "react";
-import { Network, Table2 } from "lucide-react";
+import { Columns3, Network, Table2 } from "lucide-react";
+import { ColumnTable } from "@/components/column-table";
 import { TableRelationView } from "@/components/relation-view/table-relation-view";
 import { TablePreview } from "@/components/table-preview";
 import { parseView, readLastView, rememberView, subscribeLastView, type TableView } from "@/lib/client/table-view";
 
-// 테이블 화면(설계 4.13 G1, G2). 관계도와 데이터 두 보기로 나눈다.
+// 테이블 화면(설계 4.13 G1, G2). 관계도, 데이터, 컬럼 표(24단계) 세 보기로 나눈다.
 // 주소에 view가 없으면, 기획서의 "행 열기"(row)나 따라가기(trail)는 데이터로, 그 밖은 마지막으로 고른 보기(처음에는 관계도)로 연다.
 export function TablePage({ id, table }: { id: string; table: string }) {
   const searchParams = useSearchParams();
@@ -30,6 +31,7 @@ export function TablePage({ id, table }: { id: string; table: string }) {
           [
             { key: "graph", label: "연결 그림", icon: Network },
             { key: "data", label: "데이터", icon: Table2 },
+            { key: "columns", label: "컬럼 표", icon: Columns3 },
           ] as const
         ).map(({ key, label, icon: Icon }) => (
           <button
@@ -46,7 +48,13 @@ export function TablePage({ id, table }: { id: string; table: string }) {
           </button>
         ))}
       </nav>
-      {view === "graph" ? <TableRelationView id={id} table={table} /> : <TablePreview id={id} table={table} />}
+      {view === "graph" ? (
+        <TableRelationView id={id} table={table} />
+      ) : view === "columns" ? (
+        <ColumnTable id={id} table={table} />
+      ) : (
+        <TablePreview id={id} table={table} />
+      )}
     </div>
   );
 }

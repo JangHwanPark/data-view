@@ -22,6 +22,8 @@ import { dataHref, graphHref, MAX_VIA, parseDepth, parseVia } from "@/lib/client
 
 // 자동으로 찾은 연결은 id가 auto:로 시작한다(auto-links.ts).
 const isAuto = (relationId: string) => relationId.startsWith("auto:");
+// 그중 기획 설명(#Design)에 적힌 연결은 실선으로 그린다(auto:d:로 시작).
+const isDesign = (relationId: string) => relationId.startsWith("auto:d:");
 
 type RelNodeData = {
   node: LayoutNode;
@@ -195,7 +197,7 @@ export function TableRelationView({ id, table }: { id: string; table: string }) 
       sourceHandle: e.sourceHandle,
       targetHandle: e.targetHandle,
       markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14 },
-      style: { strokeDasharray: auto ? "5 4" : undefined, strokeWidth: active ? 2.5 : 1.4, stroke: active ? "var(--color-zinc-900)" : undefined },
+      style: { strokeDasharray: auto && !isDesign(e.relationId) ? "5 4" : undefined, strokeWidth: active ? 2.5 : 1.4, stroke: active ? "var(--color-zinc-900)" : undefined },
       interactionWidth: 14,
       zIndex: active ? 10 : 0,
     };
@@ -292,7 +294,7 @@ export function TableRelationView({ id, table }: { id: string; table: string }) 
             <EdgeDetail edge={picked} reason={reasons.get(picked.relationId)} onDone={() => setSelected(null)} />
           ) : (
             <p className="text-xs text-zinc-500">
-              상자를 누르면 그 테이블이 가운데로 옵니다. 선에 마우스를 올리면 왜 이어졌다고 보는지 나오고, 선을 누르면 앱이 찾은 연결(점선)을 맞는 연결로 확인할 수 있습니다.
+              상자를 누르면 그 테이블이 가운데로 옵니다. 선에 마우스를 올리면 왜 이어졌다고 보는지 나오고, 선을 누르면 앱이 찾은 연결을 맞는 연결로 확인할 수 있습니다. 실선은 기획 설명(#Design)에 적혀 있거나 확인한 연결, 점선은 앱이 이름과 값으로 찾은 연결입니다.
             </p>
           )}
         </div>
