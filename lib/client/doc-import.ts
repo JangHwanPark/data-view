@@ -15,10 +15,37 @@ export interface DocSection {
   title: string;
   lines: string[];
   tables: DocTable[];
+  path?: string[]; // 제목 경로(1. 개요 > 1.1 과일 데이터 정의). 워드만 있다
+  level?: number; // 제목 수준(1~9). 워드만 있다
 }
+
+// 원문 창(26단계, 3-8)에 그릴 워드 문서 조각. 서식(굵게), 번호, 글머리표, 합친 칸, 목차, 글상자를 살린다.
+export interface DocRun {
+  text: string;
+  bold?: boolean;
+}
+export interface DocCell {
+  runs: DocRun[];
+  span: number; // 가로로 합친 칸 수
+}
+export type DocBlock =
+  | { kind: "heading"; sectionId: string; level: number; label?: string; runs: DocRun[]; style: string }
+  | {
+      kind: "para";
+      sectionId: string;
+      runs: DocRun[];
+      style: string;
+      label?: string; // 번호(1., 가.)나 글머리표(•)
+      indent?: number; // 목록 수준(0부터)
+      toc?: boolean; // 목차 줄. 흐리게 그린다
+      textbox?: boolean; // 글상자 안의 글
+      title?: boolean; // 문서 제목 스타일
+    }
+  | { kind: "table"; sectionId: string; rows: DocCell[][] };
 
 export interface ParsedDoc {
   sections: DocSection[];
+  blocks?: DocBlock[]; // 워드만 있다. 없으면 원문 창이 절의 줄과 표로 그린다
 }
 
 export function detectDocKind(fileName: string): DocKind | null {
@@ -29,9 +56,9 @@ export function detectDocKind(fileName: string): DocKind | null {
 
 export async function parseDoc(kind: DocKind, file: File): Promise<ParsedDoc> {
   const buffer = await file.arrayBuffer();
-  const sections =
-    kind === "docx" ? await parseDocx(buffer) : kind === "pptx" ? await parsePptx(buffer) : kind === "pdf" ? await parsePdf(buffer) : parseXlsx(buffer);
-  return { sections: sections.map((s, i) => ({ ...s, id: `s${i}` })) };
+  if (kind === "docx") return parseDocx(buffer);
+  const sections = kind === "pptx" ? await parsePptx(buffer) : kind === "pdf" ? await parsePdf(buffer) : parseXlsx(buffer);
+  return { sections: sections.map((s, i) => ({ ...s, id: `s${i}`, path: [s.title] })) };
 }
 
 type RawSection = Omit<DocSection, "id">;
@@ -55,26 +82,224 @@ function tableOf(tbl: Element, rowTag: string, cellTag: string, textTag: string)
   return { header: rows[0], rows: rows.slice(1) };
 }
 
-async function parseDocx(buffer: ArrayBuffer): Promise<RawSection[]> {
+// 워드 읽기. 제목 스타일 문단에서 절을 나누고, 원문 창용 조각(blocks)을 함께 만든다.
+// - 제목 수준: styles.xml의 스타일 이름(heading 1, 제목 1)이나 스타일 id(Heading1)
+// - 번호: numbering.xml의 번호 형식(1., 가., ①)과 글머리표를 목록마다 세어 붙인다
+// - 표: 가로로 합친 칸(gridSpan)을 살린다. 불일치 검출용 표(DocTable)는 합친 칸 뒤를 빈 칸으로 채워 열을 맞춘다
+// - 글상자: 문단 안의 글상자 글은 따로 조각으로 둔다. 대체 내용(mc:Fallback)은 같은 글이 두 번 나오므로 뺀다
+// - 지운 글자(w:delText)는 읽지 않는다
+async function parseDocx(buffer: ArrayBuffer): Promise<ParsedDoc> {
   const zip = await JSZip.loadAsync(buffer);
   const doc = xml(await zip.file("word/document.xml")!.async("string"));
+  const styles = await readStyles(zip);
+  const numbering = await readNumbering(zip);
+  const counters = new Map<string, number[]>();
   const body = doc.getElementsByTagName("w:body")[0];
-  const sections: RawSection[] = [{ title: "머리말", lines: [], tables: [] }];
+
+  const raw: (RawSection & { level: number })[] = [{ title: "머리말", lines: [], tables: [], level: 0, path: [] }];
+  const blocks: (DocBlock & { raw: number })[] = [];
+  const stack: { level: number; title: string }[] = [];
+
   for (const node of Array.from(body?.children ?? [])) {
-    const current = sections[sections.length - 1];
+    const index = raw.length - 1;
+    const current = raw[index];
     if (node.tagName === "w:p") {
-      const text = textOf(node, "w:t");
-      if (!text) continue;
-      const style = node.getElementsByTagName("w:pStyle")[0]?.getAttribute("w:val") ?? "";
-      // 제목 스타일(Heading1, 제목 1 등)을 만나면 새 절을 시작한다.
-      if (/^(heading|제목)/i.test(style)) sections.push({ title: text, lines: [], tables: [] });
-      else current.lines.push(text);
+      const runs = runsOf(node);
+      const text = clean(runs.map((r) => r.text).join(""));
+      const styleId = node.getElementsByTagName("w:pStyle")[0]?.getAttribute("w:val") ?? "";
+      const styleName = styles.get(styleId) ?? styleId;
+      const level = headingLevel(styleId, styleName);
+      const label = numberLabel(node, numbering, counters);
+      if (text && level) {
+        // 제목 스타일을 만나면 새 절을 시작한다. 제목 경로는 더 높은 수준의 제목들이다.
+        while (stack.length && stack[stack.length - 1].level >= level) stack.pop();
+        const title = label && !text.startsWith(label.trim()) ? `${label} ${text}` : text;
+        stack.push({ level, title });
+        raw.push({ title, lines: [], tables: [], level, path: stack.map((h) => h.title) });
+        blocks.push({ kind: "heading", raw: raw.length - 1, sectionId: "", level, label, runs, style: styleName });
+      } else if (text) {
+        current.lines.push(label && !/^[•●○■◆▪\-]$/.test(label.trim()) ? `${label} ${text}` : text);
+        const toc = /^(toc|목차)\s*\d/i.test(styleName) || /^toc\d/i.test(styleId);
+        blocks.push({
+          kind: "para",
+          raw: index,
+          sectionId: "",
+          runs,
+          style: styleName,
+          ...(label ? { label, indent: Number(node.getElementsByTagName("w:ilvl")[0]?.getAttribute("w:val") ?? 0) } : {}),
+          ...(toc ? { toc } : {}),
+          ...(/^(title|제목)$/i.test(styleName) ? { title: true } : {}),
+        });
+      }
+      // 글상자 안의 문단. 본문 줄에도 넣어 찾기와 설명에 쓰인다.
+      for (const box of textboxesOf(node)) {
+        for (const p of Array.from(box.getElementsByTagName("w:p"))) {
+          const boxRuns = runsOf(p, true);
+          const boxText = clean(boxRuns.map((r) => r.text).join(""));
+          if (!boxText) continue;
+          current.lines.push(boxText);
+          blocks.push({ kind: "para", raw: index, sectionId: "", runs: boxRuns, style: "글상자", textbox: true });
+        }
+      }
     } else if (node.tagName === "w:tbl") {
-      const table = tableOf(node, "w:tr", "w:tc", "w:t");
-      if (table) current.tables.push(table);
+      const rows = Array.from(node.getElementsByTagName("w:tr"))
+        .filter((tr) => !hasAncestor(tr, "w:txbxContent"))
+        .map((tr) =>
+          Array.from(tr.children)
+            .filter((tc) => tc.tagName === "w:tc")
+            .map((tc) => ({
+              runs: Array.from(tc.getElementsByTagName("w:p")).flatMap((p, i) => [...(i ? [{ text: " " }] : []), ...runsOf(p)]),
+              span: Number(tc.getElementsByTagName("w:gridSpan")[0]?.getAttribute("w:val") ?? 1) || 1,
+            })),
+        );
+      if (!rows.length) continue;
+      blocks.push({ kind: "table", raw: index, sectionId: "", rows });
+      const flat = rows.map((r) => r.flatMap((c) => [clean(c.runs.map((x) => x.text).join("")), ...Array(c.span - 1).fill("")]));
+      current.tables.push({ header: flat[0], rows: flat.slice(1) });
     }
   }
-  return sections.filter((s) => s.lines.length || s.tables.length || s.title !== "머리말");
+
+  // 빈 머리말 절은 뺀다. 절 id는 남은 절 차례로 붙인다.
+  const keep = raw.map((s, i) => ({ s, i })).filter(({ s }) => s.lines.length || s.tables.length || s.title !== "머리말");
+  const idOf = new Map(keep.map(({ i }, n) => [i, `s${n}`]));
+  return {
+    sections: keep.map(({ s }, n) => ({ id: `s${n}`, title: s.title, lines: s.lines, tables: s.tables, path: s.path, level: s.level })),
+    blocks: blocks.map(({ raw: r, ...b }) => ({ ...b, sectionId: idOf.get(r) ?? "s0" }) as DocBlock),
+  };
+}
+
+// 문단의 글자 조각. 글상자 안 글과 지운 글자는 뺀다(inBox면 글상자 안을 읽는 중이라 글상자를 빼지 않는다).
+function runsOf(p: Element, inBox = false): DocRun[] {
+  const runs: DocRun[] = [];
+  for (const r of Array.from(p.getElementsByTagName("w:r"))) {
+    if (hasAncestor(r, "w:del") || hasAncestor(r, "mc:Fallback")) continue;
+    if (!inBox && hasAncestor(r, "w:txbxContent")) continue;
+    let text = "";
+    for (const c of Array.from(r.children)) {
+      if (c.tagName === "w:t") text += c.textContent ?? "";
+      else if (c.tagName === "w:tab") text += "\t";
+      else if (c.tagName === "w:br") text += " ";
+    }
+    if (!text) continue;
+    const b = r.getElementsByTagName("w:rPr")[0]?.getElementsByTagName("w:b")[0];
+    const bold = !!b && !/^(0|false|off)$/i.test(b.getAttribute("w:val") ?? "");
+    const last = runs[runs.length - 1];
+    if (last && !!last.bold === bold) last.text += text;
+    else runs.push(bold ? { text, bold } : { text });
+  }
+  return runs;
+}
+
+// 문단 안의 글상자. 대체 내용(mc:Fallback) 쪽은 같은 글상자라 뺀다.
+function textboxesOf(p: Element) {
+  return Array.from(p.getElementsByTagName("w:txbxContent")).filter((b) => !hasAncestor(b, "mc:Fallback") && !hasAncestor(b.parentElement!, "w:txbxContent"));
+}
+
+async function readStyles(zip: JSZip) {
+  const map = new Map<string, string>();
+  const file = zip.file("word/styles.xml");
+  if (!file) return map;
+  const doc = xml(await file.async("string"));
+  for (const st of Array.from(doc.getElementsByTagName("w:style"))) {
+    const id = st.getAttribute("w:styleId");
+    const name = st.getElementsByTagName("w:name")[0]?.getAttribute("w:val");
+    if (id && name) map.set(id, name);
+  }
+  return map;
+}
+
+// 제목 수준. heading 1, 제목 1, Heading1, 개요 1 꼴. 제목이 아니면 0.
+function headingLevel(id: string, name: string) {
+  for (const s of [name, id]) {
+    const m = s.match(/^(?:heading|제목|개요)\s*(\d)$/i);
+    if (m) return Number(m[1]);
+  }
+  return 0;
+}
+
+interface NumLevel {
+  fmt: string;
+  text: string;
+  start: number;
+}
+
+async function readNumbering(zip: JSZip) {
+  const nums = new Map<string, NumLevel[]>();
+  const file = zip.file("word/numbering.xml");
+  if (!file) return nums;
+  const doc = xml(await file.async("string"));
+  const abstract = new Map<string, NumLevel[]>();
+  for (const a of Array.from(doc.getElementsByTagName("w:abstractNum"))) {
+    const levels: NumLevel[] = [];
+    for (const lvl of Array.from(a.getElementsByTagName("w:lvl"))) {
+      const i = Number(lvl.getAttribute("w:ilvl") ?? 0);
+      levels[i] = {
+        fmt: lvl.getElementsByTagName("w:numFmt")[0]?.getAttribute("w:val") ?? "decimal",
+        text: lvl.getElementsByTagName("w:lvlText")[0]?.getAttribute("w:val") ?? "",
+        start: Number(lvl.getElementsByTagName("w:start")[0]?.getAttribute("w:val") ?? 1),
+      };
+    }
+    abstract.set(a.getAttribute("w:abstractNumId") ?? "", levels);
+  }
+  for (const n of Array.from(doc.getElementsByTagName("w:num"))) {
+    const aid = n.getElementsByTagName("w:abstractNumId")[0]?.getAttribute("w:val") ?? "";
+    nums.set(n.getAttribute("w:numId") ?? "", abstract.get(aid) ?? []);
+  }
+  return nums;
+}
+
+const GANADA = "가나다라마바사아자차카타파하";
+const CHOSUNG = "ㄱㄴㄷㄹㅁㅂㅅㅇㅈㅊㅋㅌㅍㅎ";
+function formatNumber(n: number, fmt: string) {
+  const roman = (x: number) => {
+    const t: [number, string][] = [[1000, "m"], [900, "cm"], [500, "d"], [400, "cd"], [100, "c"], [90, "xc"], [50, "l"], [40, "xl"], [10, "x"], [9, "ix"], [5, "v"], [4, "iv"], [1, "i"]];
+    let out = "";
+    for (const [v, s] of t) {
+      while (x >= v) {
+        out += s;
+        x -= v;
+      }
+    }
+    return out;
+  };
+  switch (fmt) {
+    case "lowerLetter":
+      return String.fromCharCode(96 + (((n - 1) % 26) + 1));
+    case "upperLetter":
+      return String.fromCharCode(64 + (((n - 1) % 26) + 1));
+    case "lowerRoman":
+      return roman(n);
+    case "upperRoman":
+      return roman(n).toUpperCase();
+    case "ganada":
+    case "koreanDigital":
+      return GANADA[(n - 1) % GANADA.length];
+    case "chosung":
+      return CHOSUNG[(n - 1) % CHOSUNG.length];
+    case "decimalEnclosedCircle":
+      return n <= 20 ? String.fromCharCode(0x2460 + n - 1) : String(n);
+    default:
+      return String(n);
+  }
+}
+
+// 문단의 번호. 목록(numId)마다 수준별로 센다. 윗 수준 번호가 오르면 아래 수준은 처음부터.
+function numberLabel(p: Element, nums: Map<string, NumLevel[]>, counters: Map<string, number[]>) {
+  const numPr = p.getElementsByTagName("w:numPr")[0];
+  if (!numPr) return undefined;
+  const numId = numPr.getElementsByTagName("w:numId")[0]?.getAttribute("w:val") ?? "";
+  const ilvl = Number(numPr.getElementsByTagName("w:ilvl")[0]?.getAttribute("w:val") ?? 0);
+  const levels = nums.get(numId);
+  const lvl = levels?.[ilvl];
+  if (!lvl || numId === "0") return undefined;
+  if (lvl.fmt === "bullet") return /^[\uF000-\uF0FF]$/.test(lvl.text) || !lvl.text ? "•" : lvl.text;
+  if (lvl.fmt === "none") return undefined;
+  const count = counters.get(numId) ?? [];
+  for (let i = 0; i <= ilvl; i++) if (count[i] === undefined) count[i] = (levels[i]?.start ?? 1) - 1;
+  count[ilvl] += 1;
+  count.length = ilvl + 1;
+  counters.set(numId, count);
+  return lvl.text.replace(/%(\d)/g, (_, d) => formatNumber(count[Number(d) - 1] ?? 1, levels[Number(d) - 1]?.fmt ?? "decimal"));
 }
 
 async function parsePptx(buffer: ArrayBuffer): Promise<RawSection[]> {

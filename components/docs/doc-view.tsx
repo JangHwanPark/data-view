@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
-import { ArrowUpRight, Check, Loader2, RefreshCw, Undo2, X, ListChecks } from "lucide-react";
+import { ArrowUpRight, Check, Loader2, RefreshCw, Undo2, X, ListChecks, FileText, Tags } from "lucide-react";
+import { DocOriginal } from "@/components/docs/doc-original";
 import { Highlighted, KIND_LABEL, STATE_LABEL, TargetLabel } from "@/components/docs/doc-parts";
 import { useCandidates } from "@/components/docs/use-candidates";
 import { useWorkspace } from "@/components/workspace-provider";
@@ -24,6 +26,11 @@ export function DocView({ id }: { id: string }) {
   const doc = docs.find((d) => d.meta.id === id);
   const [filter, setFilter] = useState<TermState | "all">("candidate");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  // 보기: 용어(데이터와 맞춰 보기)와 원문(26단계). 주소의 view=original로 원문을 연다.
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const view = searchParams.get("view") === "original" ? "original" : "terms";
+  const chooseView = (next: "original" | "terms") => window.history.pushState(null, "", next === "original" ? `${pathname}?view=original` : pathname);
 
   // 한 문서의 용어는 렌더마다 다시 뽑아도 가볍다. 후보 계산은 키가 같으면 다시 하지 않는다.
   const terms = doc?.parsed ? extractTerms(doc.parsed) : null;
@@ -92,9 +99,33 @@ export function DocView({ id }: { id: string }) {
         </p>
       </div>
 
-      <DocCheckPanel check={check} />
+      <nav className="flex gap-1 border-b border-zinc-200 text-sm dark:border-zinc-800" aria-label="기획서 보기">
+        {(
+          [
+            { key: "terms", label: "용어와 데이터", icon: Tags },
+            { key: "original", label: "원문", icon: FileText },
+          ] as const
+        ).map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => chooseView(key)}
+            aria-current={view === key ? "page" : undefined}
+            className={`-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-1.5 ${
+              view === key ? "border-zinc-900 font-medium dark:border-zinc-100" : "border-transparent text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+            }`}
+          >
+            <Icon className="size-3.5" aria-hidden />
+            {label}
+          </button>
+        ))}
+      </nav>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[11rem_minmax(0,1fr)_22rem]">
+      {view === "original" && <DocOriginal key={searchParams.get("q") ?? ""} doc={doc} initialQuery={searchParams.get("q") ?? ""} />}
+
+      {view === "terms" && <DocCheckPanel check={check} />}
+
+      <div hidden={view !== "terms"} className="grid grid-cols-1 gap-4 lg:grid-cols-[11rem_minmax(0,1fr)_22rem]">
         <nav aria-label="절 목록" className="hidden lg:block">
           <ul className="sticky top-14 flex max-h-[calc(100vh-8rem)] flex-col gap-0.5 overflow-y-auto text-xs">
             {sections.map((s) => (

@@ -7,21 +7,14 @@ import { sourceVersion, useWorkspace, type WorkspaceDoc } from "@/components/wor
 import { idsInTable, nameRefersToTable, parseGlossary, type DocMapping } from "@/lib/client/doc-infer";
 import { tableHref, valuePattern, type RowFocus } from "@/lib/client/doc-links";
 import { extractTerms } from "@/lib/client/doc-terms";
+import { TableOverview } from "@/components/table-overview";
+import { useKoreanNames } from "@/components/use-korean-names";
+import { relatedSections, type TableWords } from "@/lib/client/doc-notes";
 
 const MAX_LINES = 4;
 
-interface Note {
-  docId: string;
-  docName: string;
-  sectionId: string;
-  sectionTitle: string;
-  lines: string[];
-  tables: number; // 이 테이블의 열을 머리글로 가진 기획서 표 수
-  words: string[]; // 강조할 말
-}
-
-// 테이블 화면의 "기획서 설명". 이 테이블을 가리키는 말이 나오는 기획서 절을 찾아 그 문장을 보여준다.
-// 가리키는 말: 이 테이블로 확정한 용어, 이름이 같은 말(QuestTable, Quest), 용어집으로 바꾸면 같은 말(퀘스트 테이블).
+// 테이블 화면의 기획서 설명(26단계). 위에 개요(줄마다 출처), 아래에 관련 기획서(제목 경로로 묶은 절, 40개까지).
+// 테이블을 가리키는 말: 영어 이름, 한글 이름(「과일 테이블」, 「과일(Fruit)」 꼴), 기획서에서 이 테이블로 확정한 말, 용어집으로 바꾸면 같은 말.
 interface Props {
   sourceId: string;
   table: string;
@@ -33,64 +26,47 @@ interface Props {
 export function TableDocNotes({ sourceId, table, columns, focus, narrow }: Props) {
   const { docs, mappings, glossary } = useWorkspace();
   const glossaryMap = parseGlossary(glossary);
+  const korean = useKoreanNames().get(`${sourceId}/${table}`);
   // 같은 데이터를 파일과 DB로 둘 다 연 경우가 있어서, 확정한 대상은 소스와 상관없이 테이블 이름으로 맞춘다.
   const confirmed = new Set(mappings.filter((m) => m.target && m.target.table === table && !m.target.column).map((m) => m.key));
-
-  const notes: Note[] = [];
+  const extra = new Set<string>();
   for (const doc of docs) {
     if (!doc.parsed) continue;
-    const words = extractTerms(doc.parsed)
-      .filter((t) => t.kind === "name" && (confirmed.has(t.key) || nameRefersToTable(t.text, table, glossaryMap)))
-      .map((t) => t.text);
-    if (!words.length) continue;
-    // QuestCondition 속의 Quest처럼 다른 이름의 일부로 나온 경우는 세지 않는다.
-    const pattern = wordPattern(words);
-    for (const section of doc.parsed.sections) {
-      const all = [section.title, ...section.lines];
-      const lines = all.filter((line) => new RegExp(pattern.source).test(line));
-      const tables = section.tables.filter((t) => t.header.some((h) => columns.includes(h))).length;
-      if (!lines.length) continue;
-      notes.push({
-        docId: doc.meta.id,
-        docName: doc.meta.name,
-        sectionId: section.id,
-        sectionTitle: section.title,
-        // 절 제목에만 나오면 본문 첫 문장들을 대신 보여준다.
-        lines: (lines.length === 1 && lines[0] === section.title ? section.lines : lines.filter((l) => l !== section.title)).slice(0, MAX_LINES),
-        tables,
-        words,
-      });
+    for (const t of extractTerms(doc.parsed)) {
+      if (t.kind === "name" && t.text !== table && (confirmed.has(t.key) || nameRefersToTable(t.text, table, glossaryMap))) extra.add(t.text);
     }
   }
+  const words: TableWords = { table, korean: korean?.base ?? null, columns, extra: [...extra] };
+  const parsedDocs = docs.filter((d) => d.parsed).map((d) => ({ id: d.meta.id, name: d.meta.name, parsed: d.parsed! }));
+  const related = relatedSections(parsedDocs, words);
+  const emphasis = [table, ...extra, ...(korean ? [korean.base] : [])];
 
   return (
     <div className="flex flex-col gap-1.5">
       {focus && <RowNotes focus={focus} />}
       <DocIds sourceId={sourceId} table={table} focus={focus} />
+      <TableOverview sourceId={sourceId} table={table} words={words} />
       <p className="inline-flex items-center gap-1 text-zinc-500">
         <BookOpen className="size-3.5" aria-hidden />
-        기획서 설명
+        관련 기획서{related.total ? ` ${related.total}곳` : ""}
+        {related.total > related.sections.length && <span className="text-zinc-400">(앞 {related.sections.length}곳만)</span>}
       </p>
-      {notes.length === 0 ? (
+      {related.sections.length === 0 ? (
         <p className="text-zinc-400">
-          {docs.length === 0 ? "열어 둔 기획서가 없습니다." : `기획서에서 ${table} 테이블을 설명하는 내용을 찾지 못했습니다. 기획서에 다른 이름으로 적혀 있으면 기획서 화면에서 그 이름을 이 테이블로 "맞음" 표시해 주세요.`}
+          {docs.length === 0 ? "열어 둔 기획서가 없습니다." : `기획서에서 ${table} 테이블이 나오는 곳을 찾지 못했습니다. 기획서에 다른 이름으로 적혀 있으면 기획서 화면에서 그 이름을 이 테이블로 "맞음" 표시해 주세요.`}
         </p>
       ) : (
-        <ul className={`grid grid-cols-1 gap-1.5 ${narrow ? "" : "xl:grid-cols-2"}`}>
-          {notes.map((n) => (
+        <ul className={`grid grid-cols-1 gap-1 ${narrow ? "" : "xl:grid-cols-2"}`}>
+          {related.sections.map((n) => (
             <li key={`${n.docId}/${n.sectionId}`} className="rounded border border-zinc-200 bg-white px-2.5 py-1.5 dark:border-zinc-700 dark:bg-zinc-900">
-              <Link href={`/docs/${n.docId}#${n.sectionId}`} className="flex flex-wrap items-baseline gap-x-1.5 hover:underline">
+              <Link href={`/docs/${n.docId}?view=original#${n.sectionId}`} className="flex flex-wrap items-baseline gap-x-1.5 hover:underline" title="누르면 기획서 원문의 이 자리로 갑니다">
                 <span className="text-zinc-500">{n.docName}</span>
-                <span className="font-medium">{n.sectionTitle}</span>
-                {n.tables > 0 && <span className="text-zinc-400">표 {n.tables}개</span>}
+                <span className="font-medium">{n.path.join(" › ")}</span>
+                <span className="text-zinc-400">{n.hits}줄</span>
               </Link>
-              <ul className="mt-0.5 flex flex-col gap-0.5 text-zinc-700 dark:text-zinc-300">
-                {n.lines.map((line, i) => (
-                  <li key={i}>
-                    <Emphasis text={line} words={n.words} />
-                  </li>
-                ))}
-              </ul>
+              <p className="mt-0.5 line-clamp-2 text-zinc-700 dark:text-zinc-300">
+                <Emphasis text={n.first} words={emphasis} />
+              </p>
             </li>
           ))}
         </ul>
