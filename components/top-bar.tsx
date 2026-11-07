@@ -61,7 +61,7 @@ export function TopBar() {
           테이블 <span className="tabular-nums text-zinc-900 dark:text-zinc-100">{tableTotal}</span>
         </span>
         <Link href="/relations" className="hover:text-zinc-900 dark:hover:text-zinc-100">
-          확인한 연결 <span className="tabular-nums text-zinc-900 dark:text-zinc-100">{relations.length}</span>
+          확인한 참조 관계 <span className="tabular-nums text-zinc-900 dark:text-zinc-100">{relations.length}</span>
         </Link>
       </div>
 
@@ -100,8 +100,8 @@ function breadcrumb(
   }
   if (parts[0] === "relations") {
     return parts[1] === "diagram"
-      ? [{ label: "연결 목록", href: "/relations" }, { label: "연결 그림" }]
-      : [{ label: "연결 목록" }];
+      ? [{ label: "참조 관계 목록", href: "/relations" }, { label: "참조 관계 그림" }]
+      : [{ label: "참조 관계 목록" }];
   }
   if (parts[0] === "docs") {
     return parts[1]
@@ -112,7 +112,11 @@ function breadcrumb(
   }
   if (parts[0] === "search") return [{ label: "ID·값 찾기" }];
   if (parts[0] === "join") return [{ label: "여러 테이블 붙여 보기" }];
-  if (parts[0] === "map") return parts[1] === "tables" ? [{ label: "시스템 지도", href: "/map" }, { label: "테이블별 연결" }] : [{ label: "시스템 지도" }];
+  if (parts[0] === "charts") return [{ label: "차트" }];
+  if (parts[0] === "dashboard") return [{ label: "대시보드" }];
+  if (parts[0] === "vectors") return [{ label: "벡터 DB" }];
+  if (parts[0] === "tc") return [{ label: "TC 시트" }];
+  if (parts[0] === "map") return parts[1] === "tables" ? [{ label: "시스템 지도", href: "/map" }, { label: "테이블별 참조 관계" }] : [{ label: "시스템 지도" }];
   if (parts[0] === "files") return [{ label: "불러온 파일" }];
   if (parts[0] === "check") return [{ label: "없는 ID 찾기" }];
   if (parts[0] === "compare") return [{ label: "패치 전후 비교" }];

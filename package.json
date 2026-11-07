@@ -8,6 +8,8 @@
     "build": "next build",
     "start": "next start -H 127.0.0.1",
     "lint": "eslint",
+    "package:win": "node scripts/package-win.mjs",
+    "fixtures:many": "node scripts/generate-many-fixtures.mjs",
     "fixtures": "node scripts/generate-game-fixtures.mjs && node scripts/generate-doc-fixtures.mjs && node scripts/generate-shape-fixtures.mjs"
   },
   "dependencies": {

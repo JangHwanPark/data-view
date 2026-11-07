@@ -18,7 +18,7 @@ import type { QueryColumn } from "@/lib/query-result";
 type Mode = "single" | "numbered" | "split" | "typed";
 const MODES: { key: Mode; label: string; example: string }[] = [
   { key: "single", label: "한 칸에 ID 하나", example: "item_id = 1001" },
-  { key: "numbered", label: "번호 붙은 여러 열", example: "material_id_1 ~ material_id_5" },
+  { key: "numbered", label: "번호 붙은 여러 컬럼", example: "material_id_1 ~ material_id_5" },
   { key: "split", label: "한 칸에 여러 ID", example: "skill_ids = 1001|1002|1003" },
   { key: "typed", label: "종류 + ID", example: "reward_type = ITEM 일 때 reward_id" },
 ];
@@ -113,11 +113,11 @@ export function RelationForm({ sources, columns }: Props) {
     <section className="flex flex-col gap-3">
       <h2 className="font-medium">직접 잇기</h2>
       <p className="text-sm text-zinc-500">
-        다른 테이블의 ID를 쓰는 열(예: 퀘스트의 reward_group_id)을 왼쪽에, 그 ID가 있는 열(예: 보상 그룹의 reward_group_id)을 오른쪽에 고릅니다.
+        다른 테이블의 ID를 참조하는 컬럼(예: 퀘스트의 reward_group_id)을 왼쪽에, 그 ID가 있는 컬럼(예: 보상 그룹의 reward_group_id)을 오른쪽에 고릅니다.
       </p>
       <div className="grid grid-cols-1 items-end gap-3 rounded-lg border border-zinc-200 bg-white p-4 md:grid-cols-[1fr_auto_1fr] dark:border-zinc-800 dark:bg-zinc-900">
         <EndpointPicker
-          title="ID를 쓰는 쪽"
+          title="ID를 참조하는 쪽"
           options={options}
           columns={columns}
           table={fromTable}
@@ -160,12 +160,12 @@ export function RelationForm({ sources, columns }: Props) {
         {mode === "numbered" && (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
             {!fromColumn ? (
-              <span className="text-zinc-500">왼쪽에서 번호 붙은 열 하나(예: material_id_1)를 고르면 같은 이름의 번호 열을 모두 찾습니다.</span>
+              <span className="text-zinc-500">왼쪽에서 번호 붙은 컬럼 하나(예: material_id_1)를 고르면 같은 이름의 번호 컬럼을 모두 찾습니다.</span>
             ) : siblings.length < 2 ? (
-              <span className="text-amber-700 dark:text-amber-400">{fromColumn}와 번호만 다른 열이 없습니다. 이름 끝이 숫자인 열을 골라 주세요.</span>
+              <span className="text-amber-700 dark:text-amber-400">{fromColumn}와 번호만 다른 컬럼이 없습니다. 이름 끝이 숫자인 컬럼을 골라 주세요.</span>
             ) : (
               <>
-                <span className="text-zinc-500">함께 볼 열</span>
+                <span className="text-zinc-500">함께 볼 컬럼</span>
                 {siblings.map((c) => (
                   <label key={c} className="inline-flex items-center gap-1 font-mono">
                     <input
@@ -203,9 +203,9 @@ export function RelationForm({ sources, columns }: Props) {
         )}
         {mode === "typed" && (
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="text-zinc-500">이 열이</span>
-            <select aria-label="종류 열" className="rounded border border-zinc-300 bg-white px-1.5 py-0.5 dark:border-zinc-700 dark:bg-zinc-950" value={whenColumn} onChange={(e) => setWhenColumn(e.target.value)} disabled={!fromTable}>
-              <option value="">종류 열 선택(예: reward_type)</option>
+            <span className="text-zinc-500">이 컬럼이</span>
+            <select aria-label="종류 컬럼" className="rounded border border-zinc-300 bg-white px-1.5 py-0.5 dark:border-zinc-700 dark:bg-zinc-950" value={whenColumn} onChange={(e) => setWhenColumn(e.target.value)} disabled={!fromTable}>
+              <option value="">종류 컬럼 선택(예: reward_type)</option>
               {fromColumnNames.filter((c) => c !== fromColumn).map((c) => (
                 <option key={c} value={c}>
                   {c}
@@ -220,7 +220,7 @@ export function RelationForm({ sources, columns }: Props) {
               placeholder="예: ITEM"
               className="w-28 rounded border border-zinc-300 bg-white px-1.5 py-0.5 font-mono dark:border-zinc-700 dark:bg-zinc-950"
             />
-            <span className="text-zinc-500">인 행만 오른쪽 테이블을 가리킵니다. 종류마다(ITEM, CURRENCY …) 연결을 하나씩 만들어 주세요.</span>
+            <span className="text-zinc-500">인 행만 오른쪽 테이블을 가리킵니다. 종류마다(ITEM, CURRENCY …) 참조 관계를 하나씩 만들어 주세요.</span>
           </div>
         )}
       </fieldset>
@@ -233,10 +233,10 @@ export function RelationForm({ sources, columns }: Props) {
           className="inline-flex items-center gap-2 rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
         >
           <Plus className="size-4" aria-hidden />
-          연결 저장
+          참조 관계 저장
         </button>
         {sameColumn && <p className="text-sm text-red-600">같은 열끼리는 이을 수 없습니다.</p>}
-        {duplicate && <p className="text-sm text-zinc-500">이미 있는 연결입니다.</p>}
+        {duplicate && <p className="text-sm text-zinc-500">이미 있는 참조 관계입니다.</p>}
         {stats === "loading" && (
           <p className="inline-flex items-center gap-1 text-sm text-zinc-500">
             <Loader2 className="size-3.5 animate-spin" aria-hidden />
@@ -274,13 +274,13 @@ function EndpointPicker({ title, options, columns, table, column, onTable, onCol
         ))}
       </select>
       <select
-        aria-label={`${title} 열`}
+        aria-label={`${title} 컬럼`}
         className={selectClass}
         value={column}
         disabled={!table}
         onChange={(e) => onColumn(e.target.value)}
       >
-        <option value="">열 선택</option>
+        <option value="">컬럼 선택</option>
         {cols.map((c) => (
           <option key={c.name} value={c.name}>
             {c.name}

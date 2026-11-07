@@ -8,6 +8,8 @@ import { idsInTable, nameRefersToTable, parseGlossary, type DocMapping } from "@
 import { tableHref, valuePattern, type RowFocus } from "@/lib/client/doc-links";
 import { extractTerms } from "@/lib/client/doc-terms";
 import { TableOverview } from "@/components/table-overview";
+import { CopyEvidence } from "@/components/copy-evidence";
+import { docEvidence } from "@/lib/client/evidence";
 import { useKoreanNames } from "@/components/use-korean-names";
 import { relatedSections, type TableWords } from "@/lib/client/doc-notes";
 
@@ -64,9 +66,12 @@ export function TableDocNotes({ sourceId, table, columns, focus, narrow }: Props
                 <span className="font-medium">{n.path.join(" › ")}</span>
                 <span className="text-zinc-400">{n.hits}줄</span>
               </Link>
-              <p className="mt-0.5 line-clamp-2 text-zinc-700 dark:text-zinc-300">
-                <Emphasis text={n.first} words={emphasis} />
-              </p>
+              <div className="mt-0.5 flex items-start gap-1">
+                <p className="line-clamp-2 min-w-0 flex-1 text-zinc-700 dark:text-zinc-300">
+                  <Emphasis text={n.first} words={emphasis} />
+                </p>
+                <CopyEvidence compact label="기획서 문장 근거 복사" text={() => docEvidence(n.docName, n.path, n.first, korean ? `${korean.text}(${table})` : table)} />
+              </div>
             </li>
           ))}
         </ul>
@@ -219,7 +224,7 @@ function DocIds({ sourceId, table, focus }: { sourceId: string; table: string; f
   if (!keyColumn || found.length === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-1">
-      <span className="inline-flex shrink-0 items-center gap-1 text-zinc-500" title={`기획서에 적힌 숫자 중 이 테이블의 ID 열(${keyColumn})에 있는 ID`}>
+      <span className="inline-flex shrink-0 items-center gap-1 text-zinc-500" title={`기획서에 적힌 숫자 중 이 테이블의 ID 컬럼(${keyColumn})에 있는 ID`}>
         <Hash className="size-3.5" aria-hidden />
         기획서에 나온 ID {found.length}개
       </span>

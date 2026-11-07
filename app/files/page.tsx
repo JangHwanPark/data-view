@@ -1,5 +1,6 @@
 import { SourceList } from "@/components/source-list";
 import { WordDictionary } from "@/components/word-dictionary";
+import { TeamSettings } from "@/components/team-settings";
 
 export default function FilesPage() {
   return (
@@ -7,6 +8,7 @@ export default function FilesPage() {
       <h1 className="text-xl font-semibold">불러온 파일</h1>
       <SourceList />
       <WordDictionary />
+      <TeamSettings />
     </div>
   );
 }

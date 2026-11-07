@@ -40,7 +40,7 @@ export function TableDomainLine({ sourceId, table }: { sourceId: string; table: 
         )}
       </span>
       <span className="text-zinc-400">
-        이 테이블이 쓰는 테이블 {new Set(info.out.map((l) => l.key)).size}개, 이 테이블을 쓰는 테이블 {new Set(info.in.map((l) => l.key)).size}개
+        이 테이블의 참조 대상 {new Set(info.out.map((l) => l.key)).size}개, 이 테이블을 참조하는 테이블 {new Set(info.in.map((l) => l.key)).size}개
       </span>
     </p>
   );

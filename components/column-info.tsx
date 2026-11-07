@@ -71,9 +71,9 @@ export function ColumnHeaderInfo({ sourceId, table, column, profile, version }: 
       <div className="flex flex-wrap items-center gap-x-1.5 text-xs font-normal text-zinc-500">
         <span>{TYPE_LABEL[column.type]}</span>
         {profile?.isId && (
-          <span className="inline-flex items-center gap-0.5 text-zinc-700 dark:text-zinc-300" title="값이 모두 다르고 빈 칸이 없어 ID 열로 볼 수 있습니다">
+          <span className="inline-flex items-center gap-0.5 text-zinc-700 dark:text-zinc-300" title="값이 모두 다르고 빈 칸이 없어 ID 컬럼으로 볼 수 있습니다">
             <KeyRound className="size-3" aria-hidden />
-            ID 열
+            ID 컬럼
           </span>
         )}
         {/* ID 열인데 같은 값이 있으면(98% 기준이라 몇 개는 섞일 수 있다) 몇 개 겹치는지 알린다. */}
@@ -86,19 +86,24 @@ export function ColumnHeaderInfo({ sourceId, table, column, profile, version }: 
           <span className={empty >= 0.5 ? "text-amber-700 dark:text-amber-400" : ""}>빈 칸 {formatPercent(empty)}</span>
         )}
         {profile && !profile.isId && <span>값 {profile.distinct.toLocaleString()}종</span>}
+        {profile && profile.zeros > 0 && column.type === "number" && (
+          <span className="text-violet-700 dark:text-violet-400" title="값이 0인 칸 수. 경계값을 확인할 때 조건 거르기에서 「같음 0」으로 행을 볼 수 있습니다">
+            0인 칸 {profile.zeros.toLocaleString()}
+          </span>
+        )}
       </div>
       {(usesTables.length > 0 || usedBy.length > 0) && (
         <div className="flex flex-wrap items-center gap-x-1.5 text-[11px] font-normal">
           {usesTables.length > 0 && (
-            <span className="inline-flex items-center gap-0.5 text-blue-700 dark:text-blue-400" title="이 열의 값이 가리키는 테이블">
+            <span className="inline-flex items-center gap-0.5 text-blue-700 dark:text-blue-400" title="이 컬럼의 참조 대상">
               <ArrowRight className="size-3" aria-hidden />
               {usesTables.length > 2 ? `${usesTables.slice(0, 2).join(", ")} 외 ${usesTables.length - 2}` : usesTables.join(", ")}
             </span>
           )}
           {usedBy.length > 0 && (
-            <span className="inline-flex items-center gap-0.5 text-emerald-700 dark:text-emerald-400" title="이 열의 값을 쓰는 곳">
+            <span className="inline-flex items-center gap-0.5 text-emerald-700 dark:text-emerald-400" title="이 컬럼을 참조하는 곳">
               <ArrowLeft className="size-3" aria-hidden />
-              {new Set(usedBy.map((l) => l.key)).size}곳에서 씀
+              {new Set(usedBy.map((l) => l.key)).size}곳에서 참조
             </span>
           )}
         </div>
@@ -156,13 +161,19 @@ function DetailPopover({ rect, sourceId, table, column, profile, version, uses, 
             {profile.rows.toLocaleString()}행 중 {profile.filled.toLocaleString()}행
             {profile.rows > profile.filled && ` (빈 칸 ${(profile.rows - profile.filled).toLocaleString()})`}
           </dd>
+          {profile.zeros > 0 && (
+            <>
+              <dt className="text-zinc-500">0인 칸</dt>
+              <dd>{profile.zeros.toLocaleString()}행</dd>
+            </>
+          )}
           <dt className="text-zinc-500">값 종류</dt>
           <dd>
             {profile.distinct.toLocaleString()}종
             {profile.isId
               ? profile.filled > profile.distinct
-                ? ` · ID 열이지만 같은 값이 ${(profile.filled - profile.distinct).toLocaleString()}행 겹침`
-                : " · 값이 모두 달라 ID 열로 볼 수 있음"
+                ? ` · ID 컬럼이지만 같은 값이 ${(profile.filled - profile.distinct).toLocaleString()}행 겹침`
+                : " · 값이 모두 달라 ID 컬럼으로 볼 수 있음"
               : ""}
           </dd>
           {detail && detail !== "error" && detail.min !== null && (
@@ -195,7 +206,7 @@ function DetailPopover({ rect, sourceId, table, column, profile, version, uses, 
       ) : null}
       {uses.length > 0 && (
         <div className="mt-1.5">
-          <p className="text-zinc-500">이 열이 쓰는 테이블</p>
+          <p className="text-zinc-500">이 컬럼의 참조 대상</p>
           <ul>
             {uses.map((l, i) => (
               <li key={i}>
@@ -209,7 +220,7 @@ function DetailPopover({ rect, sourceId, table, column, profile, version, uses, 
       )}
       {usedBy.length > 0 && (
         <div className="mt-1.5">
-          <p className="text-zinc-500">이 열의 값을 쓰는 곳</p>
+          <p className="text-zinc-500">이 컬럼을 참조하는 곳</p>
           <ul>
             {usedBy.slice(0, 10).map((l, i) => (
               <li key={i}>

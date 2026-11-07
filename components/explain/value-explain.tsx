@@ -167,6 +167,22 @@ function ExplainBody({ e, self }: { e: Explanation; self: boolean }) {
           {e.matches > 1 ? ` · 같은 값의 행 ${e.matches.toLocaleString()}개 중 첫 행` : ""}
         </p>
       </div>
+      {e.languages && e.languages.length > 0 && (
+        <div className="border-t border-zinc-100 pt-1.5 dark:border-zinc-800">
+          <p className="text-zinc-500">
+            언어별 글{e.languageKey ? ` (${e.languageKey})` : ""}
+            {e.languages.some((l) => l.value === null) && <span className="ml-1 text-red-600 dark:text-red-400">· 번역이 빈 언어 {e.languages.filter((l) => l.value === null).length}개</span>}
+          </p>
+          <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5">
+            {e.languages.map((l) => (
+              <div key={l.column} className="contents">
+                <dt className="font-mono text-[11px] text-zinc-500">{l.column}</dt>
+                <dd className={`break-all ${l.value === null ? "text-red-600 dark:text-red-400" : ""}`}>{l.value ?? "(비어 있음, 번역 빠짐)"}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
       {e.fields.length > 0 && (
         <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5">
           {e.fields.map((f) => (
@@ -197,7 +213,7 @@ function ExplainBody({ e, self }: { e: Explanation; self: boolean }) {
       ))}
       {e.usedBy.length > 0 && (
         <p className="border-t border-zinc-100 pt-1.5 text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
-          쓰이는 곳: {e.usedBy.map((u) => `${u.table} ${u.count.toLocaleString()}행(${u.column})`).join(", ")}
+          참조하는 곳: {e.usedBy.map((u) => `${u.table} ${u.count.toLocaleString()}행(${u.column})`).join(", ")}
         </p>
       )}
     </div>

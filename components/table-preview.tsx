@@ -15,6 +15,10 @@ import { focusKey, focusWhere, parseRowFocus, tableHref, type RowFocus } from "@
 import { columnSeparators, linkedColumns, parseTrail, serializeTrail, toKeyValue, type TrailStep } from "@/lib/client/follow";
 import { quoteIdent, quoteString, type QueryResult } from "@/lib/query-result";
 import { TableDomainLine } from "@/components/map/table-domain-line";
+import { RowFilterBar } from "@/components/row-filter-bar";
+import { LiveRows } from "@/components/live-rows";
+import { isFileSource } from "@/lib/client/opfs";
+import { filtersWhere, parseFilters, type RowFilter } from "@/lib/client/row-filter";
 import { TableLinks } from "@/components/table-links";
 import { useLinkedRelations } from "@/components/use-auto-links";
 
@@ -46,9 +50,18 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
   // 기획서에서 ID를 눌러 왔으면 그 행만 보여준다(row 쿼리).
   const rowParam = searchParams.get("row");
   const focus = parseRowFocus(rowParam);
+  // 여러 조건 거르기(30단계). 주소의 f 쿼리에 둔다.
+  const filterParam = searchParams.get("f");
+  const filters = parseFilters(filterParam);
+  function setFilters(next: RowFilter[]) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next.length) params.set("f", JSON.stringify(next));
+    else params.delete("f");
+    window.history.pushState(null, "", `${pathname}?${params}`);
+  }
 
   // 다른 테이블로 옮겨 갔거나 검색이 바뀌었을 때 이전 결과를 잠깐이라도 보여주지 않도록 키로 거른다.
-  const previewKey = JSON.stringify([id, table, activeSearch.text, activeSearch.column, focus]);
+  const previewKey = JSON.stringify([id, table, activeSearch.text, activeSearch.column, focus, filters]);
   const preview = loaded?.key === previewKey ? loaded : null;
   // 열 목록은 검색 전 결과에서 기억해 둔다. 검색 결과가 0행이어도 열은 그대로다.
   const [columns, setColumns] = useState<{ key: string; names: string[] } | null>(null);
@@ -63,6 +76,7 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
     const viewParam = searchParams.get("view");
     if (viewParam) params.set("view", viewParam);
     if (rowParam) params.set("row", rowParam);
+    if (filterParam) params.set("f", filterParam);
     if (next.length || rowParam) params.set("trail", serializeTrail(next));
     const query = params.size ? `?${params}` : "";
     window.history[replace ? "replaceState" : "pushState"](null, "", `${pathname}${query}`);
@@ -77,6 +91,7 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
     const viewParam = searchParams.get("view");
     if (viewParam) params.set("view", viewParam);
     if (rowParam) params.set("row", rowParam);
+    if (filterParam) params.set("f", filterParam);
     if (next) {
       params.set("tree", JSON.stringify(next));
       if (mode === "usedBy") params.set("treeMode", "usedBy");
@@ -102,6 +117,7 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
       // 기획서에서 연 행. 이 테이블에 그 열이 없으면(이름이 바뀐 열) 걸러지지 않은 표와 안내를 보여준다.
       const names = columnNames.length ? columnNames : await tableColumnNames(target);
       if (focus && names.includes(focus.column)) conditions.push(focusWhere(focus));
+      conditions.push(...filtersWhere(filters, names));
       const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
       const result = await runQuery(`SELECT * FROM ${target} ${where}`, PREVIEW_LIMIT);
       const count = await runQuery(`SELECT count(*) FROM ${target} ${where}`, 1);
@@ -163,12 +179,12 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
         <h1 className="text-lg font-semibold break-all">{table}</h1>
         {preview && (
           <p className="text-zinc-500">
-            {activeSearch.text || (focus && !focusColumnMissing)
+            {activeSearch.text || (focus && !focusColumnMissing) || filters.length
               ? `찾은 행 ${preview.total.toLocaleString()}개`
               : inactiveCount > 0
                 ? `쓰는 행 ${(preview.total - inactiveCount).toLocaleString()}행(비활성 ${inactiveCount.toLocaleString()}행 빼고)`
                 : `전체 ${preview.total.toLocaleString()}행`}
-            , 열{" "}
+            , 컬럼{" "}
             {preview.result.columns.length}개
             {preview.result.truncated &&
               ` (앞의 ${PREVIEW_LIMIT.toLocaleString()}행만 표시)`}
@@ -182,12 +198,12 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
           }}
         >
           <select
-            aria-label="찾을 열"
+            aria-label="찾을 컬럼"
             value={draft.column}
             onChange={(e) => setDraft((d) => ({ ...d, column: e.target.value }))}
             className="rounded border border-zinc-300 bg-white px-1.5 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-950"
           >
-            <option value="">모든 열</option>
+            <option value="">모든 컬럼</option>
             {columnNames.map((c) => (
               <option key={c} value={c}>
                 {c}
@@ -215,6 +231,10 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
           )}
         </form>
       </div>
+      {columnNames.length > 0 && <RowFilterBar columns={columnNames} filters={filters} onChange={setFilters} />}
+      {source && !isFileSource(source.meta) && (
+        <LiveRows key={`${id}/${table}`} connectionId={source.meta.connectionId} table={table} filters={filters} loadedAt={source.meta.loadedAt} />
+      )}
 
       <TableDomainLine sourceId={id} table={table} />
       <TableLinks
@@ -236,7 +256,7 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
         />
       )}
       {linked.size > 0 && trail.length === 0 && !focus && (
-        <p className="-mt-1 text-xs text-zinc-500">표에서 파란 밑줄 값을 누르면 이어진 테이블의 행을 오른쪽에 열어 따라갈 수 있습니다. 행 번호를 누르면 그 행이 쓰는 것과 그 행을 쓰는 곳을 트리로 봅니다.</p>
+        <p className="-mt-1 text-xs text-zinc-500">표에서 파란 밑줄 값을 누르면 이어진 테이블의 행을 오른쪽에 열어 따라갈 수 있습니다. 행 번호를 누르면 그 행의 참조 대상과 그 행을 참조하는 곳을 트리로 봅니다.</p>
       )}
 
       {error && (
@@ -316,12 +336,12 @@ function FocusBanner({ focus, rows, missingColumn, noLinks, allHref }: FocusProp
         고른 행: <span className="font-medium">{focus.column} = {focus.value}</span>
       </span>
       {missingColumn ? (
-        <span>이 테이블에 {focus.column} 열이 없습니다. 열 이름이 바뀌었을 수 있어 표 전체를 보여줍니다.</span>
+        <span>이 테이블에 {focus.column} 컬럼이 없습니다. 컬럼 이름이 바뀌었을 수 있어 표 전체를 보여줍니다.</span>
       ) : rows === 0 ? (
         <span>이 값의 행이 테이블에 없습니다. 기획서나 다른 테이블이 지워진 ID를 쓰고 있거나 데이터가 빠졌을 수 있습니다.</span>
       ) : rows !== null ? (
         <span className="opacity-80">
-          {rows.toLocaleString()}행{noLinks ? `. ${focus.column}을 쓰는 테이블은 없습니다. 행의 파란 밑줄 값을 누르면 이어진 테이블을 따라갑니다.` : ""}
+          {rows.toLocaleString()}행{noLinks ? `. ${focus.column}을 참조하는 테이블은 없습니다. 행의 파란 밑줄 값을 누르면 이어진 테이블을 따라갑니다.` : ""}
         </span>
       ) : null}
       <Link href={allHref} className="ml-auto underline underline-offset-2">

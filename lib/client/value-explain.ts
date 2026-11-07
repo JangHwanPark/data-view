@@ -4,7 +4,7 @@ import { runQuery } from "@/lib/client/duckdb";
 import { fromMatchWhere } from "@/lib/client/relations";
 import { qualifiedTable } from "@/lib/client/file-import";
 import { quoteIdent, quoteString } from "@/lib/query-result";
-import { stringKeyColumn, textColumn } from "@/lib/client/string-table";
+import { languageColumns, stringKeyColumn, textColumn } from "@/lib/client/string-table";
 
 export { stringKeyColumn, textColumn };
 
@@ -30,6 +30,8 @@ export interface Explanation {
   title: string | null; // 사람이 읽는 이름
   titleFrom: string | null; // 이름을 가져온 열(name_key 등)
   isText: boolean; // 대상이 다국어 글 테이블
+  languages?: { column: string; value: string | null }[]; // 문자열 키를 언어별로 펼친 것(30단계). 빈 언어는 null
+  languageKey?: string; // 펼친 문자열 키(Str_Fruit_6)
   fields: ExplainField[];
   children: { table: string; key: string; count: number; samples: string[] }[]; // 이 행의 세부 행
   usedBy: { table: string; column: string; count: number }[]; // 이 ID를 쓰는 곳
@@ -51,6 +53,7 @@ export async function columnsOf(model: DomainModel, key: string) {
   return names;
 }
 
+const blankToNull = (v: unknown) => (v === null || v === undefined || String(v).trim() === "" ? null : String(v));
 const split = (key: string) => ({ sourceId: key.slice(0, key.indexOf("/")), table: key.slice(key.indexOf("/") + 1) });
 
 // 마우스를 올린 칸이 무엇을 가리키는지. 그 테이블의 첫 열(ID 열)이면 자기 행, 다른 테이블을 쓰는 열이면 그 테이블의 행이다.
@@ -97,13 +100,15 @@ async function compute(model: DomainModel, target: { key: string; column: string
   // 다국어 글 테이블이면 그 글이 곧 이름이다.
   const text = textColumn(columns);
   if (text) {
-    const others = columns.filter((c) => c !== stringKeyColumn(columns) && c !== text);
-    return { ...base, found: true, isText: true, title: cell(text), titleFrom: text, fields: others.map((c) => ({ column: c, value: cell(c) ?? "(비어 있음)" })).slice(0, MAX_FIELDS) };
+    const languages = languageColumns(columns).map((c) => ({ column: c, value: blankToNull(cell(c)) }));
+    return { ...base, found: true, isText: true, title: cell(text), titleFrom: text, fields: [], languages, languageKey: value };
   }
 
   // 이름: 이 행에서 다국어 글 테이블을 쓰는 열(name_key)을 찾아 그 글을 가져온다. 없으면 name, 이름 같은 열을 쓴다.
   let title: string | null = null;
   let titleFrom: string | null = null;
+  let languages: Explanation["languages"];
+  let languageKey: string | undefined;
   for (const l of info?.out ?? []) {
     const v = cell(l.column);
     if (v === null) continue;
@@ -111,10 +116,17 @@ async function compute(model: DomainModel, target: { key: string; column: string
     const tc = textColumn(targetColumns);
     if (!tc) continue;
     const t = split(l.key);
-    const r = await runQuery(`SELECT ${quoteIdent(tc)} FROM ${qualifiedTable(t.sourceId, t.table)} WHERE CAST(${quoteIdent(l.otherColumn)} AS VARCHAR) = ${quoteString(v)} LIMIT 1`, 1);
+    // 이름 글은 모든 언어를 같이 읽어 언어별로 펼쳐 보여준다(빈 언어는 번역 빠짐).
+    const langs = languageColumns(targetColumns);
+    const r = await runQuery(
+      `SELECT ${[tc, ...langs].map(quoteIdent).join(", ")} FROM ${qualifiedTable(t.sourceId, t.table)} WHERE CAST(${quoteIdent(l.otherColumn)} AS VARCHAR) = ${quoteString(v)} LIMIT 1`,
+      1,
+    );
     if (r.rows[0]?.[0] !== undefined && r.rows[0]?.[0] !== null) {
       title = String(r.rows[0][0]);
       titleFrom = l.column;
+      languages = langs.map((c, i) => ({ column: c, value: blankToNull(r.rows[0][i + 1]) }));
+      languageKey = v;
       break;
     }
   }
@@ -190,7 +202,7 @@ async function compute(model: DomainModel, target: { key: string; column: string
     if (usedBy.length >= MAX_USED_BY) break;
   }
 
-  return { ...base, found: true, title, titleFrom, fields, children, usedBy };
+  return { ...base, found: true, title, titleFrom, fields, children, usedBy, languages, languageKey };
 }
 
 // 타입+ID 열(reward_type ITEM, reward_id 101821)에서 ID의 이름을 찾는다. 타입 값과 이름이 같은 테이블(ITEM → Item)의 첫 열에서 찾는다.

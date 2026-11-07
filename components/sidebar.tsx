@@ -10,14 +10,18 @@ import { setNameMode, useKoreanNames, useNameMode } from "@/components/use-korea
 import { displayName, firstWord, type KoreanName, type NameMode } from "@/lib/client/korean-name";
 import { ROLE_LABEL, type TableRole } from "@/lib/client/domain-model";
 import {
+  BarChart3,
+  Boxes,
   BookOpen,
   ChevronDown,
+  ClipboardList,
   ChevronRight,
   Database,
   FileSpreadsheet,
   FileText,
   FolderOpen,
   House,
+  LayoutDashboard,
   GitFork,
   Loader2,
   Network,
@@ -40,8 +44,12 @@ const NAV = [
   { href: "/search", label: "ID·값 찾기", icon: Search },
   { href: "/check/missing", label: "없는 ID 찾기", icon: SearchX },
   { href: "/compare", label: "패치 전후 비교", icon: GitCompareArrows },
-  { href: "/relations", label: "연결 목록", icon: GitFork },
+  { href: "/relations", label: "참조 관계 목록", icon: GitFork },
   { href: "/join", label: "여러 테이블 붙여 보기", icon: TableProperties },
+  { href: "/charts", label: "차트", icon: BarChart3 },
+  { href: "/dashboard", label: "대시보드", icon: LayoutDashboard },
+  { href: "/tc", label: "TC 시트", icon: ClipboardList },
+  { href: "/vectors", label: "벡터 DB", icon: Boxes },
 ];
 
 // 접힘 상태는 브라우저에 기억한다. 서버 렌더링 때는 펼친 상태로 그린다.
@@ -165,9 +173,12 @@ function SidebarNav() {
   );
 }
 
+// 벡터 DB(33단계)에서 payload를 표로 불러온 것은 qdrant_로 시작하는 CSV라 따로 묶는다.
+const isVector = (s: WorkspaceSource) => s.meta.kind === "csv" && s.meta.name.startsWith("qdrant_");
 const GROUPS = [
-  { label: "파일", match: (kind: string) => kind === "excel" || kind === "csv" },
-  { label: "개발 DB", match: (kind: string) => kind === "mysql" },
+  { label: "파일", match: (s: WorkspaceSource) => (s.meta.kind === "excel" || s.meta.kind === "csv") && !isVector(s) },
+  { label: "개발 DB", match: (s: WorkspaceSource) => s.meta.kind === "mysql" },
+  { label: "벡터 DB", match: isVector },
 ];
 
 // 지금 보고 있는 테이블. 경로가 /sources/[id]/tables/[table] 일 때만 있다.
@@ -313,7 +324,7 @@ function TableTree() {
             )}
             {/* 소스 종류별로 묶는다. 소스가 없는 묶음은 숨긴다. 벡터 DB 묶음은 해당 단계에서 같은 모양으로 붙인다. */}
             {groupBy === "file" && GROUPS.map((group) => {
-              const members = visible.filter(({ source }) => group.match(source.meta.kind));
+              const members = visible.filter(({ source }) => group.match(source));
               if (members.length === 0) return null;
               return (
                 <div key={group.label} className="pb-1">
@@ -450,7 +461,7 @@ function TableItem({ sourceId, table, active: isActive, counts, relationCount, r
         {rels ? (
           <span
             className={`inline-flex shrink-0 items-center gap-0.5 text-[11px] ${isActive ? "" : "text-blue-600 dark:text-blue-400"}`}
-            title={`이어진 테이블 ${rels}개 (쓰는 테이블과 이 테이블을 쓰는 테이블)`}
+            title={`참조 관계로 이어진 테이블 ${rels}개 (참조 대상과 참조하는 곳)`}
           >
             <GitFork className="size-3" aria-hidden />
             {rels}

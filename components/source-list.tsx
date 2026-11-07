@@ -86,7 +86,7 @@ export function SourceList() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (confirm(`${meta.name}을(를) 목록에서 지울까요? 이 파일에 확인해 둔 연결도 함께 지워집니다.`))
+                    if (confirm(`${meta.name}을(를) 목록에서 지울까요? 이 파일에 확인해 둔 참조 관계도 함께 지워집니다.`))
                       void removeSource(meta.id);
                   }}
                   className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-red-600 dark:hover:bg-zinc-800"

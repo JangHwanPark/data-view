@@ -110,6 +110,51 @@ const WORDS = "words.json";
 export const readWordsFile = () => readJson<string>(WORDS, "");
 export const writeWordsFile = (text: string) => writeJson(WORDS, text);
 
+// TC 시트(30단계). 읽은 표만 저장한다(파일은 두지 않는다).
+export interface TcSheet {
+  name: string;
+  headerRow: number; // 머리글 줄(1부터)
+  header: string[];
+  rows: string[][];
+}
+export interface TcFile {
+  id: string;
+  name: string;
+  addedAt: string;
+  sheets: TcSheet[];
+}
+const TC = "tc.json";
+export const readTcFiles = () => readJson<TcFile[]>(TC, []);
+export const writeTcFiles = (list: TcFile[]) => writeJson(TC, list);
+
+// 저장한 차트와 대시보드(34단계). 소스는 id로 찾고, 없으면(다른 PC, 다시 불러온 파일) 소스 이름과 테이블로 찾는다.
+export interface SavedChart {
+  id: string;
+  title: string;
+  sourceId: string;
+  sourceName: string;
+  table: string;
+  spec: import("@/lib/chart-spec").ChartSpec;
+  live: boolean; // 개발 DB에서 바로 묻는 차트
+  customTitle?: boolean; // 사용자가 이름을 바꿨으면 고쳐 저장해도 이름을 그대로 둔다
+  createdAt: string;
+  updatedAt?: string;
+}
+export interface DashboardItem {
+  chartId: string;
+  wide: boolean; // 한 줄 전체를 쓰는지
+}
+export interface Dashboard {
+  items: DashboardItem[];
+  refreshMinutes: number; // 0이면 저절로 새로고침하지 않는다
+}
+const CHARTS = "charts.json";
+const DASHBOARD = "dashboard.json";
+export const readCharts = () => readJson<SavedChart[]>(CHARTS, []);
+export const writeCharts = (list: SavedChart[]) => writeJson(CHARTS, list);
+export const readDashboard = () => readJson<Dashboard>(DASHBOARD, { items: [], refreshMinutes: 0 });
+export const writeDashboard = (d: Dashboard) => writeJson(DASHBOARD, d);
+
 async function docsDir() {
   const root = await navigator.storage.getDirectory();
   return root.getDirectoryHandle(DOCS_DIR, { create: true });

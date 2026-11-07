@@ -50,7 +50,7 @@ export function TableDiff({ meta, summary }: { meta: FileSourceMeta; summary: Ta
     <section className="flex flex-col gap-3 rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/50">
       <h2 className="font-semibold">
         {summary.table}
-        <span className="ml-2 text-xs font-normal text-zinc-500">{summary.key ? `ID 열 ${summary.key} 기준으로 비교` : "ID 열이 없어 줄 단위로 비교"}</span>
+        <span className="ml-2 text-xs font-normal text-zinc-500">{summary.key ? `ID 컬럼 ${summary.key} 기준으로 비교` : "ID 컬럼이 없어 줄 단위로 비교"}</span>
       </h2>
 
       {summary.removed > 0 && summary.key && (
@@ -66,10 +66,10 @@ export function TableDiff({ meta, summary }: { meta: FileSourceMeta; summary: Ta
           ) : broken === null || broken.key !== usersKey ? (
             <p className="mt-1 inline-flex items-center gap-1 opacity-80">
               <Loader2 className="size-3 animate-spin" aria-hidden />
-              사라진 ID를 쓰는 곳을 세는 중입니다.
+              사라진 ID를 참조하는 곳을 세는 중입니다.
             </p>
           ) : broken.value.length === 0 ? (
-            <p className="mt-1 opacity-80">사라진 ID {summary.removed.toLocaleString()}개를 쓰는 다른 테이블은 없습니다.</p>
+            <p className="mt-1 opacity-80">사라진 ID {summary.removed.toLocaleString()}개를 참조하는 다른 테이블은 없습니다.</p>
           ) : (
             <ul className="mt-1 flex flex-col gap-1">
               {broken.value.map((b) => (
@@ -147,7 +147,7 @@ export function TableDiff({ meta, summary }: { meta: FileSourceMeta; summary: Ta
           <IdList title={summary.key ? "새로 생긴 ID" : "새로 생긴 줄"} total={summary.added} items={detail.added} link={rowLink} />
           <IdList title={summary.key ? "사라진 ID" : "사라진 줄"} total={summary.removed} items={detail.removed} />
           {detail.changed.length === 0 && summary.added === 0 && summary.removed === 0 && (
-            <p className="text-zinc-500">행 내용은 같고 열만 바뀌었습니다.</p>
+            <p className="text-zinc-500">행 내용은 같고 컬럼만 바뀌었습니다.</p>
           )}
         </>
       )}

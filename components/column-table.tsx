@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, KeyRound, Loader2 } from "lucide-react";
 import { useColumnProfiles } from "@/components/column-info";
+import { CopyEvidence } from "@/components/copy-evidence";
+import { useKoreanNames } from "@/components/use-korean-names";
+import { columnEvidence } from "@/lib/client/evidence";
 import { useDomainModel } from "@/components/use-domain-model";
 import { sourceVersion, useWorkspace } from "@/components/workspace-provider";
 import { isDesignRelation } from "@/lib/client/auto-links";
@@ -59,6 +62,7 @@ export function groupRows(columns: QueryColumn[]): Row[] {
 export function ColumnTable({ id, table }: { id: string; table: string }) {
   const { model, reasons } = useDomainModel();
   const { sources } = useWorkspace();
+  const korean = useKoreanNames().get(`${id}/${table}`);
   const source = sources.find((s) => s.meta.id === id);
   // 페이지를 새로 열면 소스를 다시 읽는 동안 테이블이 없다. 다 읽은 뒤에 컬럼을 묻는다.
   const loadedVersion = source?.status === "ready" ? sourceVersion(source) : null;
@@ -103,6 +107,7 @@ export function ColumnTable({ id, table }: { id: string; table: string }) {
   }
 
   const rules = tableRules(id, table);
+  const label = { table, korean: korean?.text ?? null, sourceName: source?.meta.name ?? null };
   const info = model?.tables.get(`${id}/${table}`);
   const exampleMap = examples?.key === exampleKey ? examples.map : null;
   const rows = groupRows(columns);
@@ -118,12 +123,12 @@ export function ColumnTable({ id, table }: { id: string; table: string }) {
           </span>
         )}
         <span className="text-sm text-zinc-500">
-          컬럼 {columns.length}개{rows.length !== columns.length ? `(번호 붙은 열을 묶어 ${rows.length}줄)` : ""}
+          컬럼 {columns.length}개{rows.length !== columns.length ? `(번호 붙은 컬럼을 묶어 ${rows.length}줄)` : ""}
           {rules ? `, 설명 있는 줄 ${describedCount}개` : ""}
         </span>
       </div>
       <p className="text-xs text-zinc-500">
-        설명은 엑셀의 #Design 시트에서 읽고, 없으면 #Definition 시트의 정의를 「정의」 표시와 함께 보여줍니다. 참조 대상의 실선 테두리는 기획 설명에 적힌 연결, 점선은 앱이 이름과 값으로 찾은 연결입니다.
+        설명은 엑셀의 #Design 시트에서 읽고, 없으면 #Definition 시트의 정의를 「정의」 표시와 함께 보여줍니다. 참조 대상의 실선 테두리는 기획 설명에 적힌 참조 관계, 점선은 앱이 이름과 값으로 찾은 참조 관계입니다.
         {!rules && " 이 테이블은 엑셀이 아니라서 설명 시트가 없습니다."}
       </p>
       <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
@@ -151,9 +156,24 @@ export function ColumnTable({ id, table }: { id: string; table: string }) {
               return (
                 <tr key={row.label} className="border-t border-zinc-100 align-top dark:border-zinc-800">
                   <td className="px-2 py-1.5">
-                    <span className="font-mono">{row.label}</span>
+                    <span className="inline-flex items-center gap-1">
+                      <span className="font-mono">{row.label}</span>
+                      <CopyEvidence
+                        compact
+                        label="컬럼 근거 복사"
+                        text={() =>
+                          columnEvidence(label, row.label, {
+                            type: TYPE_LABEL[first.type],
+                            description: desc ? { text: desc.text, from: desc.from } : null,
+                            targets: outs.map((l) => `${tableOf(l.key)}.${l.otherColumn}${isDesignRelation(l.relationId) ? "(기획 설명)" : l.relationId.startsWith("auto:") ? "(앱이 찾음)" : "(확인함)"}`),
+                            referrers: ins.map((l) => `${tableOf(l.key)}.${l.otherColumn}`),
+                            examples: values,
+                          })
+                        }
+                      />
+                    </span>
                     {rule?.group && <div className="text-[11px] text-zinc-500">두 줄 머리글 윗줄: {rule.group}</div>}
-                    {rule?.memo && <div className="text-[11px] text-amber-700 dark:text-amber-400">메모 열(DB에 없음)</div>}
+                    {rule?.memo && <div className="text-[11px] text-amber-700 dark:text-amber-400">메모 컬럼(DB에 없음)</div>}
                   </td>
                   <td className="px-2 py-1.5 whitespace-nowrap text-zinc-600 dark:text-zinc-400">
                     {TYPE_LABEL[first.type]}
@@ -214,7 +234,7 @@ function Ends({ ends, reasons, dir }: { ends: LinkEnd[]; reasons: Map<string, st
           <li key={`${l.relationId}|${l.otherColumn}`}>
             <Link
               href={dataHref(l.key)}
-              title={auto ? reasons.get(l.relationId) : "확인한 연결"}
+              title={auto ? reasons.get(l.relationId) : "확인한 참조 관계"}
               className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
                 auto && !design ? "border-dashed border-zinc-400" : "border-zinc-300 dark:border-zinc-600"
               }`}
