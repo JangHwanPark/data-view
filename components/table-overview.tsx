@@ -8,7 +8,7 @@ import { sourceVersion, useWorkspace } from "@/components/workspace-provider";
 import { ROLE_LABEL } from "@/lib/client/domain-model";
 import { pickSentences, type TableWords } from "@/lib/client/doc-notes";
 import { runQuery } from "@/lib/client/duckdb";
-import { inactiveIds, qualifiedTable, tableRules } from "@/lib/client/file-import";
+import { inactiveIds, qualifiedTable, tableRules, twinInactive } from "@/lib/client/file-import";
 import { quoteIdent } from "@/lib/query-result";
 
 // 테이블 개요(PLAN.md 26단계, 3-3). 이 테이블이 무엇인지 줄마다 어디서 알아냈는지(출처)와 함께 적는다.
@@ -114,7 +114,8 @@ function useExamples(sourceId: string, table: string) {
       const nameCol = cols.find((c) => /^#?(name|이름|title|명칭)$/i.test(c));
       const select = [quoteIdent(cols[0]), ...(nameCol ? [quoteIdent(nameCol)] : [])].join(", ");
       const r = await runQuery(`SELECT ${select} FROM ${qualifiedTable(sourceId, table)} LIMIT 10`, 10);
-      const off = inactiveIds(sourceId, table);
+      // DB, CSV로 연 같은 테이블은 엑셀에서 ;로 막아 둔 Id도 뺀다.
+      const off = twinInactive(sourceId, table)?.ids ?? inactiveIds(sourceId, table);
       return r.rows
         .filter((row) => !off.has(String(row[0])))
         .slice(0, 3)

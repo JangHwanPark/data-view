@@ -5,7 +5,7 @@ import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-tab
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { formatValue, LinkValue, SplitValues } from "@/components/cell-value";
 import { ExplainCell, rowRecord, useExplainable } from "@/components/explain/value-explain";
-import { inactiveIds, tableRules } from "@/lib/client/file-import";
+import { inactiveIds, tableRules, twinInactive } from "@/lib/client/file-import";
 import type { QueryColumn } from "@/lib/query-result";
 
 type Row = unknown[];
@@ -54,7 +54,9 @@ export function DataTable({ columns, tableColumns, rows, linked, onLinkClick, so
   const split = sourceKey ? { sourceId: sourceKey.slice(0, sourceKey.indexOf("/")), table: sourceKey.slice(sourceKey.indexOf("/") + 1) } : null;
   const rules = split ? tableRules(split.sourceId, split.table) : undefined;
   const ruleOf = (name: string) => rules?.columns.find((c) => c.name === name);
-  const inactive = split ? inactiveIds(split.sourceId, split.table) : new Set<string>();
+  // 엑셀이 아닌 소스(DB, CSV)는 같은 이름의 엑셀 테이블에서 ;로 막은 Id에 줄을 긋는다(27단계).
+  const twin = split ? twinInactive(split.sourceId, split.table) : null;
+  const inactive = twin ? twin.ids : split ? inactiveIds(split.sourceId, split.table) : new Set<string>();
   const explainable = useExplainable(sourceKey, firstColumn);
   const table = useTable({ features, columns: tableColumns, data: rows });
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -119,7 +121,13 @@ export function DataTable({ columns, tableColumns, rows, linked, onLinkClick, so
               <div
                 key={row.id}
                 role="row"
-                title={off ? "비활성 행(첫 칸이 ;로 시작). 게임에서 쓰지 않는 행이라 행 수에서 뺍니다" : undefined}
+                title={
+                  off
+                    ? twin
+                      ? "엑셀에서는 ;로 막아 둔 비활성 행입니다. 이 소스에는 행이 남아 있습니다"
+                      : "비활성 행(첫 칸이 ;로 시작). 게임에서 쓰지 않는 행이라 행 수에서 뺍니다"
+                    : undefined
+                }
                 className={`absolute left-0 grid w-full border-t border-zinc-100 dark:border-zinc-800 ${off ? "bg-zinc-50 text-zinc-400 line-through opacity-60 dark:bg-zinc-900/60" : ""}`}
                 style={{ gridTemplateColumns, height: ROW_HEIGHT, transform: `translateY(${item.start}px)` }}
               >

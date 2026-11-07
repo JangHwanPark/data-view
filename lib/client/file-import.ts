@@ -85,6 +85,19 @@ export function tableRules(sourceId: string, table: string): TableRules | undefi
   return rulesBySource.get(sourceId)?.get(table);
 }
 
+// 같은 이름의 테이블을 다른 소스(DB, CSV)로도 열었을 때, 엑셀 쪽에서 ;로 막아 둔 Id(27단계, 3-9).
+// 이 테이블에 엑셀 규칙이 없을 때만 찾는다. 엑셀 소스 이름도 같이 돌려준다.
+export function twinInactive(sourceId: string, table: string): { ids: Set<string>; from: string } | null {
+  if (tableRules(sourceId, table)) return null;
+  for (const [id, rules] of rulesBySource) {
+    if (id === sourceId) continue;
+    for (const [t, r] of rules) {
+      if (t.toLowerCase() === table.toLowerCase() && r.inactive.length) return { ids: new Set(r.inactive), from: id };
+    }
+  }
+  return null;
+}
+
 // 비활성 행 Id 모음. 데이터 표에서 줄을 긋고, 행 수에서 뺄 때 쓴다.
 export function inactiveIds(sourceId: string, table: string): Set<string> {
   return new Set(tableRules(sourceId, table)?.inactive ?? []);

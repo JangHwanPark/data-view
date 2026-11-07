@@ -7,6 +7,7 @@ import { ColumnTable } from "@/components/column-table";
 import { TableRelationView } from "@/components/relation-view/table-relation-view";
 import { TablePreview } from "@/components/table-preview";
 import { InferredMark } from "@/components/table-name";
+import { RowSourceSwitch } from "@/components/row-source-switch";
 import { useKoreanNames } from "@/components/use-korean-names";
 import { parseView, readLastView, rememberView, subscribeLastView, type TableView } from "@/lib/client/table-view";
 
@@ -37,6 +38,7 @@ export function TablePage({ id, table }: { id: string; table: string }) {
           <InferredMark name={korean} />
         </p>
       )}
+      <RowSourceSwitch id={id} table={table} />
       <nav className="flex gap-1 border-b border-zinc-200 text-sm dark:border-zinc-800" aria-label="테이블 보기">
         {(
           [
