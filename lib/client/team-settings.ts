@@ -1,5 +1,6 @@
 import { parseGlossary } from "@/lib/client/doc-infer";
 import { parseWordCsv } from "@/lib/client/korean-name";
+import type { Dashboard, SavedChart } from "@/lib/client/opfs";
 import { buildExport, parseExport, remapRelations, type Relation, type RelationsExport } from "@/lib/client/relations";
 
 // 팀 공유 설정(PLAN.md 30단계, 5-9). 한 사람이 다듬은 설정을 한 파일로 내보내 QA실이 같이 쓴다.
@@ -16,6 +17,8 @@ export interface TeamSettings {
   glossary: string; // 한글=English 줄
   domains: { source: string; table: string; domain: string }[];
   tableNames: { source: string; table: string; korean: string; inferred: boolean }[]; // 참고용, 가져올 때 쓰지 않는다
+  charts?: SavedChart[]; // 저장한 차트(34단계). 소스는 이름으로 다시 맞춘다
+  dashboard?: Dashboard;
 }
 
 export function buildTeamSettings(input: {
@@ -25,6 +28,8 @@ export function buildTeamSettings(input: {
   glossary: string;
   domains: Record<string, string>; // 테이블 키 → 시스템
   names: Map<string, { text: string; inferred: boolean }>;
+  charts?: SavedChart[];
+  dashboard?: Dashboard;
 }): TeamSettings {
   const nameOf = new Map(input.sources.map((s) => [s.id, s.name]));
   const split = (key: string) => ({ sourceId: key.slice(0, key.indexOf("/")), table: key.slice(key.indexOf("/") + 1) });
@@ -41,6 +46,8 @@ export function buildTeamSettings(input: {
       const source = nameOf.get(sourceId);
       return source ? [{ source, table, domain }] : [];
     }),
+    charts: input.charts ?? [],
+    dashboard: input.dashboard,
     tableNames: input.sources.flatMap((s) =>
       s.tables.flatMap((table) => {
         const n = input.names.get(`${s.id}/${table}`);
@@ -110,4 +117,26 @@ export function importDomains(data: TeamSettings, current: { id: string; name: s
     else skipped++;
   }
   return { out, skipped };
+}
+
+// 저장한 차트 합치기: 같은 이름의 차트가 있으면 가져온 것으로 바꾸고, 없으면 더한다. 대시보드에 있던 차트는 대시보드에도 넣는다.
+export function mergeCharts(current: SavedChart[], dash: Dashboard, data: TeamSettings) {
+  const incoming = data.charts ?? [];
+  const byTitle = new Map(current.map((c) => [c.title, c]));
+  const charts = [...current];
+  const items = [...dash.items];
+  let added = 0;
+  for (const c of incoming) {
+    const old = byTitle.get(c.title);
+    const next = { ...c, id: old?.id ?? c.id };
+    if (old) charts[charts.indexOf(old)] = next;
+    else {
+      charts.push(next);
+      added++;
+    }
+    if (data.dashboard?.items.some((i) => i.chartId === c.id) && !items.some((i) => i.chartId === next.id)) {
+      items.push({ chartId: next.id, wide: data.dashboard.items.find((i) => i.chartId === c.id)!.wide });
+    }
+  }
+  return { charts, dashboard: { ...dash, items }, added, replaced: incoming.length - added };
 }

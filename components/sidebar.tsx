@@ -21,6 +21,7 @@ import {
   FileText,
   FolderOpen,
   House,
+  LayoutDashboard,
   GitFork,
   Loader2,
   Network,
@@ -46,6 +47,7 @@ const NAV = [
   { href: "/relations", label: "참조 관계 목록", icon: GitFork },
   { href: "/join", label: "여러 테이블 붙여 보기", icon: TableProperties },
   { href: "/charts", label: "차트", icon: BarChart3 },
+  { href: "/dashboard", label: "대시보드", icon: LayoutDashboard },
   { href: "/tc", label: "TC 시트", icon: ClipboardList },
   { href: "/vectors", label: "벡터 DB", icon: Boxes },
 ];
