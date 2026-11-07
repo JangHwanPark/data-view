@@ -1,4 +1,7 @@
-import * as duckdb from "@duckdb/duckdb-wasm";
+// duckdb-wasm은 서버에서 평가되면 Node용 빌드가 worker_threads의 workerData를 읽다가 터진다.
+// (개발 서버의 instant 검증이 레이아웃을 서버에서 렌더하며 이 모듈을 평가한다.)
+// 그래서 타입만 정적으로 가져오고, 실제 모듈은 브라우저에서 처음 쓸 때 동적으로 불러온다.
+import type * as duckdb from "@duckdb/duckdb-wasm";
 import { DataType, type Table } from "apache-arrow";
 import type { ColumnType, QueryResult } from "@/lib/query-result";
 
@@ -13,12 +16,17 @@ const BUNDLES: duckdb.DuckDBBundles = {
   },
 };
 
+export function loadDuckDBModule() {
+  return import("@duckdb/duckdb-wasm");
+}
+
 let dbPromise: Promise<duckdb.AsyncDuckDB> | null = null;
 
 // 앱 전체에서 DuckDB 인스턴스 하나만 쓴다.
 export function getDuckDB() {
   if (!dbPromise) {
     dbPromise = (async () => {
+      const duckdb = await loadDuckDBModule();
       const bundle = await duckdb.selectBundle(BUNDLES);
       const worker = new Worker(bundle.mainWorker!);
       const db = new duckdb.AsyncDuckDB(new duckdb.VoidLogger(), worker);
