@@ -16,6 +16,8 @@ export function RelationsView() {
   const { sources, relations, initialized, removeRelation } = useWorkspace();
   const [columns, setColumns] = useState<Map<string, QueryColumn[]> | null>(null);
   const [stats, setStats] = useState<Record<string, RelationStats | "error">>({});
+  // 목록 거르기(31단계). 시트가 많으면 참조 관계도 수백 개라 테이블, 컬럼, 파일 이름으로 거른다.
+  const [filter, setFilter] = useState("");
 
   const loading = !initialized || sources.some((s) => s.status === "loading");
   // 파일 교체나 헤더 변경으로 컬럼이 바뀌면 다시 읽도록 상태를 문자열로 묶는다.
@@ -60,6 +62,14 @@ export function RelationsView() {
 
   const ready = sources.filter((s) => s.status === "ready");
 
+  const q = filter.trim().toLowerCase();
+  const sourceName = (id: string) => sources.find((s) => s.meta.id === id)?.meta.name ?? "";
+  const shown = q
+    ? relations.filter((r) =>
+        [r.from.table, r.from.column, ...(r.from.columns ?? []), r.to.table, r.to.column, sourceName(r.from.sourceId), sourceName(r.to.sourceId)].some((w) => w.toLowerCase().includes(q)),
+      )
+    : relations;
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-3">
@@ -74,6 +84,22 @@ export function RelationsView() {
         <p className="-mt-2 text-sm text-zinc-500">
           테이블이 다른 테이블의 ID를 참조하는 곳입니다. 예를 들어 퀘스트의 reward_group_id가 보상 그룹의 ID를 참조하면, 퀘스트에서 보상 그룹으로 이어집니다. 앱이 찾은 참조 관계는 테이블 화면에 바로 보이고, 여기에는 사람이 맞다고 확인한 참조 관계가 모입니다.
         </p>
+        {relations.length > 5 && (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <input
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="테이블, 컬럼, 파일 이름으로 거르기"
+              aria-label="참조 관계 거르기"
+              className="w-72 max-w-full rounded-md border border-zinc-300 bg-white px-2.5 py-1 dark:border-zinc-700 dark:bg-zinc-900"
+            />
+            {filter.trim() && (
+              <span className="text-xs text-zinc-500">
+                {relations.length.toLocaleString()}개 중 {shown.length.toLocaleString()}개
+              </span>
+            )}
+          </div>
+        )}
         {!initialized ? (
           <p className="text-sm text-zinc-500">불러오는 중...</p>
         ) : relations.length === 0 ? (
@@ -82,7 +108,7 @@ export function RelationsView() {
           </p>
         ) : (
           <ul className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900">
-            {relations.map((rel) => {
+            {shown.map((rel) => {
               const missing =
                 columns && !loading && (!endpointExists(rel.from, columns) || !endpointExists(rel.to, columns));
               const s = stats[rel.id];
