@@ -12,6 +12,7 @@ import { pickSentences, type TableWords } from "@/lib/client/doc-notes";
 import { runQuery } from "@/lib/client/duckdb";
 import { inactiveIds, qualifiedTable, tableRules, twinInactive } from "@/lib/client/file-import";
 import { quoteIdent } from "@/lib/query-result";
+import { languageColumns, stringKeyColumn, textColumn } from "@/lib/client/string-table";
 
 // 테이블 개요(PLAN.md 26단계, 3-3). 이 테이블이 무엇인지 줄마다 어디서 알아냈는지(출처)와 함께 적는다.
 // 한글 이름(#Design 머리말 또는 사전 추론), 시스템과 역할, 기획서 설명 문장 2개(점수 규칙), 가리키는 쪽 설명(다른 테이블의 #Design),
@@ -32,6 +33,7 @@ export function TableOverview({ sourceId, table, words }: { sourceId: string; ta
   const korean = names.get(key);
   const info = model?.tables.get(key);
   const examples = useExamples(sourceId, table);
+  const missingLanguages = useMissingLanguages(sourceId, table);
 
   const parsedDocs = docs.filter((d) => d.parsed).map((d) => ({ id: d.meta.id, name: d.meta.name, parsed: d.parsed! }));
   const picked = pickSentences(parsedDocs, words);
@@ -77,6 +79,14 @@ export function TableOverview({ sourceId, table, words }: { sourceId: string; ta
   }
   for (const p of pointing.slice(0, 5)) {
     lines.push({ label: "가리키는 쪽 설명", content: `${p.from}.${p.column}: ${p.text}`, source: `${p.from} #Design` });
+  }
+  // 문자열 테이블이면 언어마다 빈 칸(번역 빠짐)을 센다(30단계, 5-7).
+  for (const m of missingLanguages ?? []) {
+    lines.push({
+      label: "빈 언어",
+      content: `${m.column} ${m.count.toLocaleString()}칸${m.keys.length ? ` (${m.keys.join(", ")}${m.count > m.keys.length ? " …" : ""})` : ""}`,
+      source: "데이터(번역이 빠진 문자열 키)",
+    });
   }
   if (examples && examples.length) {
     lines.push({ label: "값 예시", content: examples.join(", "), source: "데이터 앞 3행(비활성 행 제외)" });
@@ -135,4 +145,37 @@ function useExamples(sourceId: string, table: string) {
     };
   }, [requestKey, sourceId, table]);
   return loaded?.key === requestKey ? loaded.values : null;
+}
+
+// 다국어 문자열 테이블의 언어별 빈 칸. 문자열 테이블이 아니면 빈 목록.
+function useMissingLanguages(sourceId: string, table: string) {
+  const { sources } = useWorkspace();
+  const source = sources.find((s) => s.meta.id === sourceId);
+  const version = source?.status === "ready" ? sourceVersion(source) : null;
+  const requestKey = version ? `${version}|${table}` : null;
+  const [loaded, setLoaded] = useState<{ key: string; list: { column: string; count: number; keys: string[] }[] } | null>(null);
+  useEffect(() => {
+    if (!requestKey) return;
+    let active = true;
+    (async () => {
+      const from = qualifiedTable(sourceId, table);
+      const head = await runQuery(`SELECT * FROM ${from} LIMIT 0`, 0);
+      const cols = head.columns.map((c) => c.name);
+      const key = stringKeyColumn(cols);
+      if (!key || !textColumn(cols)) return [];
+      const list: { column: string; count: number; keys: string[] }[] = [];
+      for (const c of languageColumns(cols)) {
+        const blank = `(${quoteIdent(c)} IS NULL OR trim(CAST(${quoteIdent(c)} AS VARCHAR)) = '')`;
+        const r = await runQuery(`SELECT CAST(${quoteIdent(key)} AS VARCHAR), CAST(count(*) OVER () AS BIGINT) FROM ${from} WHERE ${blank} LIMIT 5`, 5);
+        if (r.rows.length) list.push({ column: c, count: Number(r.rows[0][1]), keys: r.rows.map((row) => String(row[0])) });
+      }
+      return list;
+    })()
+      .then((list) => active && setLoaded({ key: requestKey, list }))
+      .catch(() => active && setLoaded({ key: requestKey, list: [] }));
+    return () => {
+      active = false;
+    };
+  }, [requestKey, sourceId, table]);
+  return loaded?.key === requestKey ? loaded.list : null;
 }

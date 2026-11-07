@@ -11,6 +11,7 @@ export interface ColumnProfile {
   filled: number; // 값이 있는 칸 수(빈 글자 제외)
   distinct: number; // 값 종류 수
   isId: boolean; // 값이 모두 다르고 빈 칸이 없음(98% 기준). ID 열로 볼 수 있다
+  zeros: number; // 값이 0인 칸 수(30단계, 경계값). 숫자로 읽히는 값만 센다
 }
 
 export interface ColumnDetail {
@@ -36,6 +37,7 @@ export function profileColumns(sourceId: string, table: string, columns: string[
           return [
             `CAST(count(CASE WHEN ${q} IS NOT NULL AND trim(CAST(${q} AS VARCHAR)) <> '' THEN 1 END) AS BIGINT)`,
             `CAST(count(DISTINCT ${q}) AS BIGINT)`,
+            `CAST(count(CASE WHEN TRY_CAST(${q} AS DOUBLE) = 0 THEN 1 END) AS BIGINT)`,
           ];
         });
         const r = await runQuery(`SELECT CAST(count(*) AS BIGINT), ${parts.join(", ")} FROM ${from}`, 1);
@@ -43,10 +45,11 @@ export function profileColumns(sourceId: string, table: string, columns: string[
         const rows = row[0] ?? 0;
         const map = new Map<string, ColumnProfile>();
         columns.forEach((c, i) => {
-          const filled = row[1 + i * 2] ?? 0;
-          const distinct = row[2 + i * 2] ?? 0;
+          const filled = row[1 + i * 3] ?? 0;
+          const distinct = row[2 + i * 3] ?? 0;
+          const zeros = row[3 + i * 3] ?? 0;
           // # 메모 열(#이름)은 값이 모두 달라도 ID가 아니다.
-          map.set(c, { column: c, rows, filled, distinct, isId: !isMemoColumn(sourceId, table, c) && mostlyUnique(rows, distinct, filled) });
+          map.set(c, { column: c, rows, filled, distinct, zeros, isId: !isMemoColumn(sourceId, table, c) && mostlyUnique(rows, distinct, filled) });
         });
         return map;
       })(),

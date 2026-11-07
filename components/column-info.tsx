@@ -86,6 +86,11 @@ export function ColumnHeaderInfo({ sourceId, table, column, profile, version }: 
           <span className={empty >= 0.5 ? "text-amber-700 dark:text-amber-400" : ""}>빈 칸 {formatPercent(empty)}</span>
         )}
         {profile && !profile.isId && <span>값 {profile.distinct.toLocaleString()}종</span>}
+        {profile && profile.zeros > 0 && column.type === "number" && (
+          <span className="text-violet-700 dark:text-violet-400" title="값이 0인 칸 수. 경계값을 확인할 때 조건 거르기에서 「같음 0」으로 행을 볼 수 있습니다">
+            0인 칸 {profile.zeros.toLocaleString()}
+          </span>
+        )}
       </div>
       {(usesTables.length > 0 || usedBy.length > 0) && (
         <div className="flex flex-wrap items-center gap-x-1.5 text-[11px] font-normal">
@@ -156,6 +161,12 @@ function DetailPopover({ rect, sourceId, table, column, profile, version, uses, 
             {profile.rows.toLocaleString()}행 중 {profile.filled.toLocaleString()}행
             {profile.rows > profile.filled && ` (빈 칸 ${(profile.rows - profile.filled).toLocaleString()})`}
           </dd>
+          {profile.zeros > 0 && (
+            <>
+              <dt className="text-zinc-500">0인 칸</dt>
+              <dd>{profile.zeros.toLocaleString()}행</dd>
+            </>
+          )}
           <dt className="text-zinc-500">값 종류</dt>
           <dd>
             {profile.distinct.toLocaleString()}종

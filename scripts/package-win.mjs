@@ -11,7 +11,7 @@
 //     사용법.txt
 //     node/node.exe        Windows용 Node(설치하지 않아도 됨)
 //     server.js, .next/, node_modules/, public/   Next standalone 빌드(필요한 파일만)
-//     fixtures/            가짜 테스트 데이터(npm run fixtures로 새로 만든 game, docs, shape, shape-docs만)
+//     fixtures/            가짜 테스트 데이터(npm run fixtures로 새로 만든 game, docs, shape, shape-docs, shape-tc만)
 //     .env.example         설정 예시. 복사해 .env.local로 쓴다
 //
 // 넣지 않는 것: data/(접속 정보, 사용자 설정), 개발용 .next/, .next-package/cache, 그 밖의 fixtures 폴더(시험용 복사본 등).
@@ -59,7 +59,7 @@ for (const p of ["data", "fixtures", ".env", ".env.local", ".env.development.loc
 // 3. 가짜 테스트 데이터. 개발 PC의 fixtures에는 시험용 복사본이 섞일 수 있어 새로 만들고 정한 폴더만 넣는다.
 log("가짜 테스트 데이터 만들기: npm run fixtures");
 execFileSync(npm, ["run", "fixtures"], { cwd: root, stdio: "inherit", shell: process.platform === "win32" });
-for (const dir of ["game", "docs", "shape", "shape-docs"]) cpSync(join(root, "fixtures", dir), join(out, "fixtures", dir), { recursive: true });
+for (const dir of ["game", "docs", "shape", "shape-docs", "shape-tc"]) cpSync(join(root, "fixtures", dir), join(out, "fixtures", dir), { recursive: true });
 
 // 4. Windows용 node.exe
 mkdirSync(join(out, "node"), { recursive: true });

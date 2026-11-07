@@ -22,9 +22,10 @@ export async function ensureSampleData() {
     created = true;
   }
   // 회사 테이블과 같은 모양의 과일 농장 데이터(22단계). 예전에 만든 fixtures에는 없으므로 따로 확인한다.
-  if (!existsSync(join(root, "fixtures", "shape"))) {
+  // TC 시트(30단계)는 나중에 더해서, 예전에 만든 fixtures에 없으면 다시 만든다.
+  if (!existsSync(join(root, "fixtures", "shape")) || !existsSync(join(root, "fixtures", "shape-tc"))) {
     await run(process.execPath, [join(root, "scripts", "generate-shape-fixtures.mjs")], { cwd: root, timeout: 300_000 });
     created = true;
   }
-  return { game, docs, shape: join(root, "fixtures", "shape"), shapeDocs: join(root, "fixtures", "shape-docs"), created };
+  return { game, docs, shape: join(root, "fixtures", "shape"), shapeDocs: join(root, "fixtures", "shape-docs"), shapeTc: join(root, "fixtures", "shape-tc"), created };
 }
