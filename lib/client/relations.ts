@@ -147,6 +147,9 @@ interface ColumnProfile {
   nonNull: number;
   distinct: number;
   sequence: boolean; // 1, 2, 3...처럼 빈틈없이 이어지는 정수인지
+  min: number | null; // 숫자 컬럼의 범위. 범위가 겹치지 않는 짝은 값을 세지 않고 건너뛴다(31단계)
+  max: number | null;
+  numericShare: number; // 숫자로 읽히는 값의 비율. 숫자 컬럼은 1
 }
 
 const KEYABLE = new Set<QueryColumn["type"]>(["string", "number"]);
@@ -155,13 +158,16 @@ const MIN_COVERAGE = 0.9;
 // 이름이 달라도 찾을 수 있도록 값으로 추천한다.
 // 1) 값이 유일하고 null이 없는 컬럼을 키 후보로 잡는다.
 // 2) 다른 테이블의 컬럼 중 고유값의 90% 이상이 키 후보에 있는 것을 고른다.
+// onProgress: 시트가 많으면 오래 걸려서(31단계) 「테이블 읽는 중 12/300」, 「비교 중 340/9000」을 알린다.
 export async function suggestRelations(
   tables: TableRef[],
   columns: Map<string, QueryColumn[]>,
   existing: Relation[],
+  onProgress?: (p: { phase: "read" | "compare"; done: number; total: number }) => void,
 ): Promise<Suggestion[]> {
   const profiles: ColumnProfile[] = [];
-  for (const table of tables) {
+  for (const [ti, table] of tables.entries()) {
+    if (onProgress && ti % 5 === 0) onProgress({ phase: "read", done: ti, total: tables.length });
     const cols = (columns.get(tableKey(table.sourceId, table.table)) ?? []).filter((c) => KEYABLE.has(c.type));
     if (cols.length === 0) continue;
     const select = cols
@@ -170,8 +176,8 @@ export async function suggestRelations(
         // 숫자 열은 정수 연번인지 보려고 최소, 최대, 소수 여부를 같이 구한다.
         const range =
           c.type === "number"
-            ? `min(${q}), max(${q}), bool_and(${q} = floor(${q}))`
-            : "NULL, NULL, NULL";
+            ? `min(${q}), max(${q}), bool_and(${q} = floor(${q})), count(${q})`
+            : `NULL, NULL, NULL, count(TRY_CAST(${q} AS DOUBLE))`;
         return `count(${q}), count(DISTINCT ${q}), ${range}`;
       })
       .join(", ");
@@ -181,23 +187,30 @@ export async function suggestRelations(
     );
     const row = result.rows[0] ?? [];
     cols.forEach((c, i) => {
-      const base = 1 + i * 5;
-      const [nonNull, distinct, min, max, integral] = row.slice(base, base + 5);
+      const base = 1 + i * 6;
+      const [nonNull, distinct, min, max, integral, numeric] = row.slice(base, base + 6);
       profiles.push({
         ref: { ...table, column: c.name },
         rows: Number(row[0]),
         nonNull: Number(nonNull),
         distinct: Number(distinct),
         sequence: integral === true && Number(max) - Number(min) + 1 === Number(distinct),
+        min: min === null || min === undefined ? null : Number(min),
+        max: max === null || max === undefined ? null : Number(max),
+        numericShare: Number(nonNull) ? Number(numeric) / Number(nonNull) : 0,
       });
     });
   }
 
   const keys = profiles.filter((p) => p.rows > 0 && p.nonNull === p.rows && p.distinct === p.rows);
   const suggestions: Suggestion[] = [];
+  const total = keys.length * profiles.length;
+  let done = 0;
 
   for (const key of keys) {
+    onProgress?.({ phase: "compare", done, total });
     for (const col of profiles) {
+      done++;
       if (col.ref.sourceId === key.ref.sourceId && col.ref.table === key.ref.table) continue;
       // 같은 데이터를 파일과 DB로 둘 다 열면 같은 이름의 테이블끼리 값이 100% 겹친다. 복사본끼리는 비교하지 않는다.
       if (col.ref.table === key.ref.table) continue;
@@ -205,6 +218,11 @@ export async function suggestRelations(
       // 키 후보에 있는 값 수보다 고유값이 훨씬 많으면 90%를 넘을 수 없다.
       if (key.distinct < col.distinct * MIN_COVERAGE) continue;
       if (existing.some((r) => sameEndpoints(r, { from: col.ref, to: key.ref }))) continue;
+
+      // 둘 다 숫자인데 범위가 전혀 겹치지 않으면 맞는 값이 하나도 없다. 시트가 많을 때 비교 쿼리를 크게 줄인다.
+      if (col.min !== null && col.max !== null && key.min !== null && key.max !== null && (col.max < key.min || col.min > key.max)) continue;
+      // 한쪽은 거의 다 숫자이고 다른 쪽은 거의 숫자가 없으면(Name 키와 숫자 값) 90%가 맞을 수 없다.
+      if ((col.numericShare >= 0.9 && key.numericShare < 0.5) || (col.numericShare <= 0.1 && key.numericShare > 0.5)) continue;
 
       const nameMatch = namesMatch(col.ref, key.ref);
       // 양쪽 다 1부터 매긴 행 번호 같은 컬럼이면 우연히 겹친다.
