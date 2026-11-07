@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useDomainModel } from "@/components/use-domain-model";
+import { CopyEvidence } from "@/components/copy-evidence";
+import { docEvidence } from "@/lib/client/evidence";
 import { useKoreanNames } from "@/components/use-korean-names";
 import { sourceVersion, useWorkspace } from "@/components/workspace-provider";
 import { ROLE_LABEL } from "@/lib/client/domain-model";
@@ -59,7 +61,12 @@ export function TableOverview({ sourceId, table, words }: { sourceId: string; ta
   for (const s of picked) {
     lines.push({
       label: "기획서 설명",
-      content: s.text,
+      content: (
+        <>
+          {s.text}{" "}
+          <CopyEvidence compact label="기획서 문장 근거 복사" text={() => docEvidence(s.docName, s.path, s.text, korean ? `${korean.text}(${table})` : table)} />
+        </>
+      ),
       title: `점수 ${s.score}: ${s.reasons.join(", ")}`,
       source: (
         <Link href={`/docs/${s.docId}?view=original#${s.sectionId}`} className="hover:underline">

@@ -244,13 +244,22 @@ writeBook("FruitPrise", {
 expected.typoPair.push({ tables: ["FruitPrice", "FruitPrise"], korean: "과일 가격", expected: ["과일 가격 (Price)", "과일 가격 (Prise)"] });
 expected.designRefs.push({ table: "FruitPrice", column: "FruitId", target: "Fruit", targetColumn: "Id" }, { table: "FruitPrise", column: "FruitId", target: "Fruit", targetColumn: null });
 
-writeFileSync(join(outDir, "expected.json"), JSON.stringify(expected, null, 2));
 
 // ---- 서식 있는 기획서(2-9) ----
 const body = (text) => new Paragraph({ children: [new TextRun(text)] });
 const tocLine = (level, text, page) =>
   new Paragraph({ style: `TOC${level}`, children: [new TextRun(`${text}\t${page}`)] });
 const cell = (text, opts = {}) => new TableCell({ children: [new Paragraph({ children: [new TextRun({ text, bold: opts.bold })] })], columnSpan: opts.span });
+
+// 기획서 문장의 「이름: 수치」. 같은 문장의 ID로 데이터 행을 찾아 비교한다.
+const priceOf = (fruitId) => priceRows.find((r) => r[1] === fruitId)[2];
+const daysOf = (id) => growth.find((g) => g[0] === id)[2];
+const sentenceValues = [
+  { text: `사과(FruitId 1001) 판매 가격: ${priceOf(1001).toLocaleString("en-US")}골드`, table: "FruitPrice", column: "Price", key: 1001, doc: priceOf(1001), data: priceOf(1001) },
+  { text: `배(FruitId 1002) 판매 가격: ${(priceOf(1002) + 100).toLocaleString("en-US")}골드`, table: "FruitPrice", column: "Price", key: 1002, doc: priceOf(1002) + 100, data: priceOf(1002) },
+  { text: `꽃 단계(Growth 104) Days: ${daysOf(104)}`, table: "Growth", column: "Days", key: 104, doc: daysOf(104), data: daysOf(104) },
+];
+expected.sentenceValues = sentenceValues.map(({ text, ...rest }) => ({ text, ...rest, same: rest.doc === rest.data }));
 
 const doc = new Document({
   styles: {
@@ -320,11 +329,15 @@ const doc = new Document({
             "과일 가격은 시즌과 이벤트에 따라 바뀔 수 있으며, 바뀐 가격은 FruitPrice 테이블에만 반영하고 FruitPrise 테이블에는 반영하지 않는다. ".repeat(3) +
             "가격을 바꿀 때는 보상으로 주는 과일 상자(Asset 테이블의 FRUIT 종류)의 가치도 함께 확인한다.",
         ),
+        // 문장 속 수치(29단계 5-4 시험용). 사과는 데이터와 같고, 배는 일부러 100 더 적었다.
+        ...sentenceValues.map((s) => body(s.text)),
       ],
     },
   ],
 });
 writeFileSync(join(docDir, "과일_농장_기획서.docx"), await Packer.toBuffer(doc));
+// 기획서 문장 수치까지 넣은 뒤에 정답 목록을 쓴다.
+writeFileSync(join(outDir, "expected.json"), JSON.stringify(expected, null, 2));
 
 const files = Object.keys(expected.headerRows).length;
 console.log(`shape fixtures: tables ${files}, docs 1`);

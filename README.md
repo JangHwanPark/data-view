@@ -68,6 +68,35 @@ npm run start
 
 개발할 때는 `npm run dev`를 씁니다. 서버는 다른 PC에서 접속하지 못하도록 `127.0.0.1`에만 열립니다.
 
+## 다른 PC에 나눠 주기(설치본, 배포 압축)
+
+### Node 없이 쓰는 설치본(권장)
+
+QA PC에 Node를 깔지 않아도 되도록, Windows용 Node를 함께 넣은 압축을 만든다. 개발 PC에서:
+
+```
+npm run package:win
+```
+
+- 결과: `dist/data-view-win-x64-<버전>.zip`(약 70MB). 받는 사람은 압축을 풀고 `data-view.bat`을 더블클릭하면 된다. 안내는 압축 안의 `사용법.txt`에 있다.
+- Node는 nodejs.org의 공식 Windows 압축을 받아 SHASUMS256으로 확인한 뒤 넣는다. 인터넷이 막혀 있으면 받아 둔 파일을 준다: `npm run package:win -- --node C:\path\node.exe` 또는 `-- --node node-v22.x-win-x64.zip`
+- 들어가는 것: 실행에 필요한 파일만 고른 Next 빌드(standalone), `node\node.exe`, 새로 만든 가짜 테스트 데이터(`fixtures\game`, `docs`, `shape`, `shape-docs`), `.env.example`
+- 들어가지 않는 것: `data\`(접속 정보, 설정), `.env.local`, 개발용 `.next\`, 개발 PC `fixtures\`의 다른 폴더(시험용 복사본 등)
+
+### 소스 폴더를 그대로 압축할 때
+
+Node가 깔린 PC에서 `start.bat`으로 쓸 사람에게 소스 폴더를 줄 때는 아래를 **빼고** 압축한다.
+
+| 뺄 것 | 까닭 |
+| :--- | :--- |
+| `.next\`, `.next-package\`, `dist\` | 빌드 결과. 받은 PC에서 `start.bat`이 다시 만든다 |
+| `node_modules\` | 받은 PC에서 `start.bat`이 설치한다(크다) |
+| `data\` | 저장한 DB 접속 정보와 사용자 설정이 들어 있다 |
+| `fixtures\` | 가짜 테스트 데이터. 받은 PC에서 `sample.bat`으로 만든다 |
+| `.env.local` | 내 PC의 DB 접속 정보, 열 수 있는 폴더 설정 |
+
+Windows 탐색기에서는 폴더를 연 뒤 위 항목을 뺀 나머지를 모두 골라 「압축(ZIP) 폴더로 보내기」를 쓴다. 회사로 옮기는 것은 정보보안실이 정한 방법으로만 한다(`docs/BRANCHING.md`).
+
 ## 보안 설정
 
 회사 PC에서 실행할 수 있게 아래처럼 막아 두었습니다. 설정은 저장소 폴더의 `.env.local`에 적습니다(`.env.example`을 복사해서 씁니다). 고친 뒤에는 앱을 다시 켜야 합니다.

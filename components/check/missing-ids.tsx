@@ -9,7 +9,7 @@ import { useDomainModel } from "@/components/use-domain-model";
 import { sourceVersion, useWorkspace } from "@/components/workspace-provider";
 import { tableHref } from "@/lib/client/doc-links";
 import type { DomainModel } from "@/lib/client/domain-model";
-import { findDuplicates, findMissing, TOP_LIMIT, type DuplicateResult, type MissingResult } from "@/lib/client/integrity";
+import { findDuplicates, findInactiveRefs, findMissing, TOP_LIMIT, type DuplicateResult, type MissingResult } from "@/lib/client/integrity";
 import type { ColumnRef, FromSide } from "@/lib/client/relations";
 
 // 없는 ID 찾기(설계 4.9 참조 무결성 검사). 앱이 찾은 연결과 확인한 연결을 모두 돌려,
@@ -26,6 +26,7 @@ interface CheckLink {
 
 interface CheckResult {
   missing: Map<string, MissingResult>; // 연결 id → 결과
+  inactive: Map<string, MissingResult>; // 연결 id → 비활성 행을 참조하는 결과(29단계). 0행이면 넣지 않는다
   duplicates: { ref: ColumnRef; key: string; result: DuplicateResult }[];
 }
 
@@ -59,7 +60,7 @@ export function MissingIds() {
   const { model, progress, error } = useDomainModel();
   const searchParams = useSearchParams();
   const focusLink = searchParams.get("link");
-  const [tab, setTab] = useState<"missing" | "dup">("missing");
+  const [tab, setTab] = useState<"missing" | "inactive" | "dup">("missing");
   const [open, setOpen] = useState<Set<string>>(() => new Set(focusLink ? [focusLink] : []));
 
   const links = model ? collectLinks(model) : [];
@@ -76,7 +77,7 @@ export function MissingIds() {
       // 대상 ID 열은 같은 테이블을 여러 연결이 쓰므로 한 번씩만 센다.
       const targets = new Map<string, ColumnRef>();
       for (const l of links) targets.set(`${l.toKey}/${l.to.column}`, l.to);
-      const total = links.length + targets.size;
+      const total = links.length * 2 + targets.size;
       let done = 0;
       const tick = () => {
         done++;
@@ -89,6 +90,13 @@ export function MissingIds() {
         missing.set(l.id, await findMissing(l.from, l.to).catch(() => ({ rows: 0, ids: 0, top: [] })));
         tick();
       }
+      const inactive = new Map<string, MissingResult>();
+      for (const l of links) {
+        if (!active) return;
+        const r = await findInactiveRefs(l.from, l.to).catch(() => null);
+        if (r && r.rows > 0) inactive.set(l.id, r);
+        tick();
+      }
       const duplicates: CheckResult["duplicates"] = [];
       for (const [k, ref] of targets) {
         if (!active) return;
@@ -97,7 +105,7 @@ export function MissingIds() {
         tick();
       }
       duplicates.sort((a, b) => b.result.values - a.result.values);
-      cache.set(key, { missing, duplicates });
+      cache.set(key, { missing, inactive, duplicates });
       if (active) setRunning(null);
     })().catch((e) => active && setFailed({ key, message: e instanceof Error ? e.message : String(e) }));
     return () => {
@@ -185,6 +193,10 @@ export function MissingIds() {
     .filter((x) => x.result && x.result.rows > 0)
     .sort((a, b) => b.result.rows - a.result.rows);
   const okCount = links.length - problems.length;
+  const inactiveProblems = links
+    .map((link) => ({ link, result: cached.inactive.get(link.id) }))
+    .filter((x): x is { link: CheckLink; result: MissingResult } => !!x.result)
+    .sort((a, b) => b.result.rows - a.result.rows);
   const missingRows = problems.reduce((n, p) => n + p.result.rows, 0);
   const focusOk = focusLink && links.some((l) => l.relationId === focusLink) && !problems.some((p) => p.link.relationId === focusLink);
   const tabCls = (active: boolean) =>
@@ -196,6 +208,9 @@ export function MissingIds() {
       <nav className="flex gap-1 border-b border-zinc-200 text-sm dark:border-zinc-800" aria-label="확인 종류">
         <button type="button" className={tabCls(tab === "missing")} onClick={() => setTab("missing")} aria-current={tab === "missing" ? "page" : undefined}>
           없는 ID {problems.length}곳
+        </button>
+        <button type="button" className={tabCls(tab === "inactive")} onClick={() => setTab("inactive")} aria-current={tab === "inactive" ? "page" : undefined}>
+          비활성 행 참조 {inactiveProblems.length}곳
         </button>
         <button type="button" className={tabCls(tab === "dup")} onClick={() => setTab("dup")} aria-current={tab === "dup" ? "page" : undefined}>
           중복 ID {cached.duplicates.length}곳
@@ -256,6 +271,42 @@ export function MissingIds() {
                 </tbody>
               </table>
             </div>
+          )}
+        </>
+      ) : tab === "inactive" ? (
+        <>
+          <p className="text-zinc-600 dark:text-zinc-400">
+            엑셀에서 Id 앞에 ;를 붙여 막아 둔(비활성) 행을 다른 테이블이 아직 참조하는 곳입니다. 게임에서 쓰지 않는 행이라 없는 ID처럼 문제가 되기 쉽습니다. 참조하는 행이 비활성이면(막아 둔 행끼리) 세지 않습니다.
+            DB나 CSV로 연 테이블은 같은 이름의 엑셀 테이블에서 막아 둔 Id로 확인합니다.
+          </p>
+          {inactiveProblems.length === 0 ? (
+            <p className="text-zinc-500">비활성 행을 참조하는 곳이 없습니다.</p>
+          ) : (
+            <ul className="flex flex-col divide-y divide-zinc-100 rounded-md border border-zinc-200 bg-white text-xs dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900">
+              {inactiveProblems.map(({ link, result }) => {
+                const id = `off:${link.id}`;
+                const isOpen = open.has(id);
+                const Chevron = isOpen ? ChevronDown : ChevronRight;
+                return (
+                  <li key={link.id}>
+                    <button type="button" onClick={() => toggle(id)} className="flex w-full flex-wrap items-center gap-2 px-3 py-1.5 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800/60">
+                      <Chevron className="size-3.5 shrink-0 text-zinc-400" aria-hidden />
+                      <span>{label(link.fromKey, link.from.column)}</span>
+                      <span className="text-zinc-400">→</span>
+                      <span className="min-w-0 flex-1">{label(link.toKey, link.to.column)}</span>
+                      <span className="tabular-nums text-amber-700 dark:text-amber-400">
+                        비활성 ID {result.ids.toLocaleString()}개, {result.rows.toLocaleString()}행
+                      </span>
+                    </button>
+                    {isOpen && (
+                      <div className="bg-zinc-50/60 px-3 py-2 dark:bg-zinc-800/30">
+                        <ValueList values={result.top} total={result.ids} href={(v) => rowHref(link.from, v)} unit="행" />
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </>
       ) : (

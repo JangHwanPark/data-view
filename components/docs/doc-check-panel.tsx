@@ -23,14 +23,15 @@ export function DocCheckPanel({ check }: { check: DocCheckResult | "error" | nul
 
   const values = check.issues.filter((i) => i.kind === "value");
   const missing = check.issues.filter((i) => i.kind === "missing-row");
+  const sentenceIssues = check.issues.filter((i) => i.kind === "sentence");
   const rows = check.compared.reduce((n, t) => n + t.rows, 0);
   const expanded = open ?? check.issues.length <= SHOW_OPEN;
   const Chevron = expanded ? ChevronDown : ChevronRight;
 
-  if (check.compared.length === 0) {
+  if (check.compared.length === 0 && check.sentences.length === 0) {
     return (
       <p className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-400">
-        이 기획서에는 데이터와 값을 비교할 수 있는 표가 없습니다. 표의 머리글에 quest_id, item_id처럼 테이블의 ID 컬럼 이름이 있어야 그 ID의 행을 찾아 비교합니다.
+        이 기획서에는 데이터와 값을 비교할 수 있는 표나 문장이 없습니다. 표의 머리글에 quest_id, item_id처럼 테이블의 ID 컬럼 이름이 있거나, 「배(FruitId 1002) 판매 가격: 3290」처럼 ID와 「이름: 수치」를 같이 쓴 문장이 있어야 비교합니다.
       </p>
     );
   }
@@ -44,10 +45,10 @@ export function DocCheckPanel({ check }: { check: DocCheckResult | "error" | nul
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         {ok ? <CheckCircle2 className="size-4 text-emerald-700 dark:text-emerald-400" aria-hidden /> : <TriangleAlert className="size-4 text-red-700 dark:text-red-400" aria-hidden />}
         <span className="font-medium">
-          {ok ? "기획서 표의 값이 모두 데이터와 같습니다." : `데이터와 다른 값 ${values.length}개, 데이터에 없는 ID ${missing.length}개`}
+          {ok ? "기획서의 값이 모두 데이터와 같습니다." : `데이터와 다른 값 ${values.length + sentenceIssues.length}개, 데이터에 없는 ID ${missing.length}개`}
         </span>
         <span className="text-zinc-500">
-          기획서 표 {check.compared.length}개, {rows.toLocaleString()}행을 데이터와 비교했습니다
+          기획서 표 {check.compared.length}개, {rows.toLocaleString()}행과 「이름: 수치」 문장 {check.sentences.length}개를 데이터와 비교했습니다
           {check.skipped ? `. ID 컬럼이 없어 비교하지 못한 표 ${check.skipped}개` : ""}.
         </span>
         {!ok && (
@@ -59,13 +60,13 @@ export function DocCheckPanel({ check }: { check: DocCheckResult | "error" | nul
       </div>
       {!ok && expanded && (
         <ul className="mt-2 flex flex-col divide-y divide-red-100 rounded border border-red-100 bg-white dark:divide-red-950 dark:border-red-950 dark:bg-zinc-900">
-          {[...values, ...missing].map((issue, i) => (
+          {[...values, ...sentenceIssues, ...missing].map((issue, i) => (
             <IssueRow key={i} issue={issue} />
           ))}
         </ul>
       )}
       <p className="mt-1.5 text-[11px] text-zinc-500">
-        표의 칸 값만 비교합니다. &ldquo;보상 골드: 500&rdquo;처럼 문장 속에 쓴 수치는 아직 비교하지 않습니다.
+        표의 칸 값과, 같은 문장에 ID가 있는 &ldquo;이름: 수치&rdquo; 문장(예: 배(FruitId 1002) 판매 가격: 3290골드)을 비교합니다. 이름은 컬럼 이름이나 엑셀 #Design 설명의 한글 이름으로 찾습니다.
       </p>
     </section>
   );
@@ -76,9 +77,9 @@ function IssueRow({ issue }: { issue: DocCheckIssue }) {
   return (
     <li className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-2.5 py-1.5">
       <span
-        className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] ${issue.kind === "value" ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300" : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"}`}
+        className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] ${issue.kind !== "missing-row" ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300" : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"}`}
       >
-        {issue.kind === "value" ? "다른 값" : "데이터에 없는 ID"}
+        {issue.kind === "value" ? "다른 값" : issue.kind === "sentence" ? "문장 수치가 다름" : "데이터에 없는 ID"}
       </span>
       <a href={`#${issue.sectionId}`} className="text-zinc-500 hover:underline">
         {issue.sectionTitle}
@@ -86,7 +87,13 @@ function IssueRow({ issue }: { issue: DocCheckIssue }) {
       <span>
         {issue.table} {issue.keyColumn} <strong className="tabular-nums">{issue.key}</strong>
       </span>
-      {issue.kind === "value" ? (
+      {issue.kind === "sentence" ? (
+        <span>
+          · {issue.column}: 기획서 <strong className="tabular-nums text-red-700 dark:text-red-400">{issue.docValue}</strong>, 데이터{" "}
+          <strong className="tabular-nums">{issue.dataValue ?? "(비어 있음)"}</strong>
+          <span className="block text-zinc-500">문장: {issue.line}</span>
+        </span>
+      ) : issue.kind === "value" ? (
         <span>
           · {issue.column}: 기획서 <strong className="tabular-nums text-red-700 dark:text-red-400">{issue.docValue}</strong>, 데이터{" "}
           <strong className="tabular-nums">{issue.dataValue ?? "(비어 있음)"}</strong>
@@ -94,7 +101,7 @@ function IssueRow({ issue }: { issue: DocCheckIssue }) {
       ) : (
         <span className="text-zinc-600 dark:text-zinc-400">· 기획서에는 있지만 데이터에는 이 ID의 행이 없습니다. 옛 기획이거나 데이터가 빠졌을 수 있습니다.</span>
       )}
-      {issue.kind === "value" && (
+      {issue.kind !== "missing-row" && (
         <Link href={href} className="ml-auto shrink-0 text-blue-700 hover:underline dark:text-blue-400">
           데이터에서 보기
         </Link>
