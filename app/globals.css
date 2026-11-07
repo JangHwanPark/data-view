@@ -12,6 +12,12 @@
   --role-child: #1baf7a;
   --role-shared: #eda100;
   --role-isolated: #a1a1aa;
+  /* 차트(32단계). 계열이 하나라 범주형 1번(파랑)만 쓴다. 글자는 계열 색이 아니라 글자 색을 쓴다. 검사기로 흰 바탕 3:1 이상 확인. */
+  --viz-series-1: #2a78d6;
+  --viz-text-primary: #0b0b0b;
+  --viz-text-secondary: #52514e;
+  --viz-grid: #e4e4e7;
+  --viz-axis: #a1a1aa;
 }
 
 @theme inline {
@@ -29,6 +35,11 @@
   --role-child: #199e70;
   --role-shared: #c98500;
   --role-isolated: #71717a;
+  --viz-series-1: #3987e5;
+  --viz-text-primary: #f0efec;
+  --viz-text-secondary: #c3c2b7;
+  --viz-grid: #27272a;
+  --viz-axis: #52525b;
   color-scheme: dark;
 }
 

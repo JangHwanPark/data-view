@@ -10,6 +10,7 @@ import { setNameMode, useKoreanNames, useNameMode } from "@/components/use-korea
 import { displayName, firstWord, type KoreanName, type NameMode } from "@/lib/client/korean-name";
 import { ROLE_LABEL, type TableRole } from "@/lib/client/domain-model";
 import {
+  BarChart3,
   BookOpen,
   ChevronDown,
   ClipboardList,
@@ -43,6 +44,7 @@ const NAV = [
   { href: "/compare", label: "패치 전후 비교", icon: GitCompareArrows },
   { href: "/relations", label: "참조 관계 목록", icon: GitFork },
   { href: "/join", label: "여러 테이블 붙여 보기", icon: TableProperties },
+  { href: "/charts", label: "차트", icon: BarChart3 },
   { href: "/tc", label: "TC 시트", icon: ClipboardList },
 ];
 
