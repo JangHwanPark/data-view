@@ -65,9 +65,10 @@ function whenSql(from: FromSide) {
 }
 
 // 쓰는 쪽이 쓰는 값을 한 줄에 하나씩 펼친 표(열 이름 v). 빈 값은 버린다. 일치 확인, 없는 ID 찾기가 이 표로 센다.
-export function fromValuesSql(from: FromSide) {
+// extraWhere: 쓰는 쪽 행을 더 거르는 조건(예: 비활성 행 빼기).
+export function fromValuesSql(from: FromSide, extraWhere?: string) {
   return `SELECT v FROM (
-    SELECT ${normSql("x")} AS v FROM (SELECT UNNEST(${fromListSql(from)}) AS x FROM ${qualifiedTable(from.sourceId, from.table)} WHERE ${whenSql(from)})
+    SELECT ${normSql("x")} AS v FROM (SELECT UNNEST(${fromListSql(from)}) AS x FROM ${qualifiedTable(from.sourceId, from.table)} WHERE ${whenSql(from)}${extraWhere ? ` AND (${extraWhere})` : ""})
   ) WHERE v IS NOT NULL AND v <> ''`;
 }
 

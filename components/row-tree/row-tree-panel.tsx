@@ -5,6 +5,11 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Loader2, X } from "lucide-react";
 import { RoleBadge, ScanProgress } from "@/components/map/map-parts";
 import { useDomainModel } from "@/components/use-domain-model";
+import { CopyEvidence } from "@/components/copy-evidence";
+import { useKoreanNames } from "@/components/use-korean-names";
+import { useWorkspace } from "@/components/workspace-provider";
+import { rowEvidence } from "@/lib/client/evidence";
+import { inactiveIds, twinInactive } from "@/lib/client/file-import";
 import { tableHref } from "@/lib/client/doc-links";
 import type { DomainModel } from "@/lib/client/domain-model";
 import { loadRow, usedByGroups, usesGroups, type RowGroup, type RowNode } from "@/lib/client/row-tree";
@@ -42,6 +47,11 @@ export function RowTreePanel({ here, column, value, mode, onMode, onClose }: Pro
   }, [id, !!model]);
 
   const node = root?.id === id ? root.node : null;
+  const korean = useKoreanNames().get(here);
+  const { sources } = useWorkspace();
+  const sourceId = here.slice(0, here.indexOf("/"));
+  const tableName = here.slice(here.indexOf("/") + 1);
+  const off = twinInactive(sourceId, tableName)?.ids ?? inactiveIds(sourceId, tableName);
   const tab = (m: Mode, label: string) => (
     <button
       type="button"
@@ -58,7 +68,23 @@ export function RowTreePanel({ here, column, value, mode, onMode, onClose }: Pro
       <div className="flex items-center gap-2 border-b border-zinc-200 px-3 py-2 text-xs dark:border-zinc-800">
         {tab("uses", "이 행의 참조 대상")}
         {tab("usedBy", "이 행을 참조하는 곳")}
-        <button type="button" onClick={onClose} className="ml-auto rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100" aria-label="행 트리 닫기">
+        {node && node !== "error" && (
+          <span className="ml-auto">
+            <CopyEvidence
+              label="행 근거 복사"
+              text={() =>
+                rowEvidence(
+                  { table: tableName, korean: korean?.text ?? null, sourceName: sources.find((s) => s.meta.id === sourceId)?.meta.name ?? null },
+                  node.idColumn,
+                  node.idValue,
+                  node.values,
+                  { inactive: off.has(node.idValue), title: node.title },
+                )
+              }
+            />
+          </span>
+        )}
+        <button type="button" onClick={onClose} className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100" aria-label="행 트리 닫기">
           <X className="size-4" aria-hidden />
         </button>
       </div>

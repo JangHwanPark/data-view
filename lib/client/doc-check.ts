@@ -1,7 +1,7 @@
 import type { Catalog } from "@/lib/client/doc-infer";
 import type { ParsedDoc } from "@/lib/client/doc-import";
 import { runQuery } from "@/lib/client/duckdb";
-import { qualifiedTable } from "@/lib/client/file-import";
+import { qualifiedTable, tableRules } from "@/lib/client/file-import";
 import { quoteIdent, quoteString } from "@/lib/query-result";
 
 // 기획서와 데이터의 불일치 검출(설계 4.11). 기획서의 표 가운데 머리글에 어떤 테이블의 ID 열이 있는 표를 골라,
@@ -9,7 +9,7 @@ import { quoteIdent, quoteString } from "@/lib/query-result";
 // 데이터는 51207이면 "데이터와 다른 값", 기획서에 있는 79999가 데이터에 없으면 "데이터에 없는 ID"다.
 
 export interface DocCheckIssue {
-  kind: "value" | "missing-row";
+  kind: "value" | "missing-row" | "sentence"; // sentence: 「이름: 값」 문장의 수치가 데이터와 다름(29단계)
   sectionId: string;
   sectionTitle: string;
   tableIndex: number; // 절 안의 몇 번째 표인지
@@ -22,6 +22,19 @@ export interface DocCheckIssue {
   column: string | null; // 다른 값이면 그 열
   docValue: string;
   dataValue: string | null;
+  line?: string; // sentence일 때 그 문장
+}
+
+export interface SentenceCheck {
+  sectionId: string;
+  line: string;
+  table: string;
+  keyColumn: string;
+  key: string;
+  column: string;
+  docValue: string;
+  dataValue: string | null;
+  same: boolean;
 }
 
 export interface DocCheckTable {
@@ -38,6 +51,7 @@ export interface DocCheckResult {
   issues: DocCheckIssue[];
   compared: DocCheckTable[]; // 비교한 표
   skipped: number; // 데이터 테이블과 이어지지 않아 비교하지 못한 표 수
+  sentences: SentenceCheck[]; // 비교한 「이름: 값」 문장(같은 것 포함)
 }
 
 // 숫자는 쉼표와 공백을 떼고, %는 100으로 나눈 값도 같은 값으로 본다(10%와 0.1).
@@ -126,5 +140,84 @@ export async function checkDoc(doc: ParsedDoc, catalog: Catalog): Promise<DocChe
       }
     }
   }
-  return { issues, compared, skipped };
+  const sentences = await checkSentences(doc, catalog);
+  for (const s of sentences) {
+    if (s.same) continue;
+    const section = doc.sections.find((x) => x.id === s.sectionId);
+    const t = catalog.tables.find((x) => x.table === s.table)!;
+    issues.push({
+      kind: "sentence",
+      sectionId: s.sectionId,
+      sectionTitle: section?.title ?? "",
+      tableIndex: -1,
+      rowIndex: -1,
+      columnIndex: -1,
+      sourceId: t.sourceId,
+      table: s.table,
+      keyColumn: s.keyColumn,
+      key: s.key,
+      column: s.column,
+      docValue: s.docValue,
+      dataValue: s.dataValue,
+      line: s.line,
+    });
+  }
+  return { issues, compared, skipped, sentences };
+}
+
+// 문장 속 수치 비교(PLAN.md 29단계, 5-4). 「배(FruitId 1002) 판매 가격: 3290골드」처럼 「이름: 수치」를 쓴 문장에서
+// 1) 이름이 어느 테이블의 어느 컬럼인지 고른다: 이름 안의 영문 단어가 컬럼 이름과 같거나, 엑셀 #Design 설명이 그 한글 이름으로 시작하는 컬럼
+// 2) 같은 문장에 나온 ID(세 자리 이상 숫자)로 그 테이블의 행을 찾는다: ID 컬럼이나 이름이 Id로 끝나는 컬럼. 이름 안에 「FruitId 1002」처럼 컬럼을 적었으면 그 컬럼
+// 3) 그 행의 값과 수치를 비교한다(쉼표, 단위, %는 표 비교와 같은 기준)
+const SENTENCE = /([^:：.!?]{1,40})[:：]\s*(-?[\d,]+(?:\.\d+)?%?)\s*([가-힣A-Za-z]{0,3})/g;
+
+export async function checkSentences(doc: ParsedDoc, catalog: Catalog): Promise<SentenceCheck[]> {
+  const out: SentenceCheck[] = [];
+  for (const section of doc.sections) {
+    for (const line of section.lines) {
+      for (const m of line.matchAll(SENTENCE)) {
+        const label = m[1].trim();
+        const docValue = m[2];
+        const ids = [...label.matchAll(/(?<![\d.])(\d{3,})(?![\d.])/g)].map((x) => x[1]);
+        if (!ids.length) continue;
+        const words = [...label.matchAll(/[A-Za-z_][\w#]*/g)].map((x) => x[0].toLowerCase());
+        const korean = label.replace(/\([^)]*\)/g, " ").replace(/[\dA-Za-z_#]+/g, " ").replace(/\s+/g, " ").trim();
+        const hit = await findSentenceRow(catalog, words, korean, ids);
+        if (!hit) continue;
+        out.push({ sectionId: section.id, line: line.trim(), ...hit, docValue, same: sameValue(docValue, hit.dataValue) });
+      }
+    }
+  }
+  return out;
+}
+
+const descHead = (text: string) => text.split(/[(.,]/)[0].trim();
+
+async function findSentenceRow(catalog: Catalog, words: string[], korean: string, ids: string[]) {
+  for (const t of catalog.tables) {
+    const descs = tableRules(t.sourceId, t.table)?.descriptions ?? [];
+    const lookups = t.columns.filter((c) => c === t.keyColumn || /id$/i.test(c));
+    // 이름 안에 적은 조회 컬럼(FruitId 1002)은 값 컬럼 후보에서 뺀다.
+    const named = lookups.filter((c) => words.includes(c.toLowerCase()));
+    const valueColumn =
+      t.columns.find((c) => words.includes(c.toLowerCase()) && !named.includes(c) && !lookups.includes(c)) ??
+      // #Design 설명의 앞머리(「판매 가격(골드)」의 「판매 가격」)로 한글 이름이 끝나면 그 컬럼(「사과 판매 가격」).
+      (korean.length >= 2 ? descs.find((d) => d.columns.length === 1 && descHead(d.text).length >= 2 && korean.endsWith(descHead(d.text)))?.columns[0] : undefined) ??
+      (korean.length >= 2 ? t.columns.find((c) => c.toLowerCase() === korean.toLowerCase()) : undefined);
+    if (!valueColumn) continue;
+    for (const column of named.length ? named : lookups) {
+      for (const id of ids) {
+        const c = quoteIdent(column);
+        const r = await runQuery(
+          `SELECT CAST(${quoteIdent(valueColumn)} AS VARCHAR) FROM ${qualifiedTable(t.sourceId, t.table)} WHERE CAST(${c} AS VARCHAR) = ${quoteString(id)} OR TRY_CAST(${c} AS DOUBLE) = ${Number(id)} LIMIT 1`,
+          1,
+        );
+        if (r.rows.length) {
+          const v = r.rows[0][0];
+          return { table: t.table, keyColumn: column, key: id, column: valueColumn, dataValue: v === null || v === undefined ? null : String(v).replace(/^(-?\d+)\.0+$/, "$1") };
+        }
+      }
+    }
+  }
+  return null;
 }

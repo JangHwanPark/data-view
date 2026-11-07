@@ -165,7 +165,7 @@ export function RelationForm({ sources, columns }: Props) {
               <span className="text-amber-700 dark:text-amber-400">{fromColumn}와 번호만 다른 컬럼이 없습니다. 이름 끝이 숫자인 컬럼을 골라 주세요.</span>
             ) : (
               <>
-                <span className="text-zinc-500">함께 볼 열</span>
+                <span className="text-zinc-500">함께 볼 컬럼</span>
                 {siblings.map((c) => (
                   <label key={c} className="inline-flex items-center gap-1 font-mono">
                     <input

@@ -187,7 +187,7 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
             onChange={(e) => setDraft((d) => ({ ...d, column: e.target.value }))}
             className="rounded border border-zinc-300 bg-white px-1.5 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-950"
           >
-            <option value="">모든 열</option>
+            <option value="">모든 컬럼</option>
             {columnNames.map((c) => (
               <option key={c} value={c}>
                 {c}

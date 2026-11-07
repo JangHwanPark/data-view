@@ -36,7 +36,7 @@ export function HomeStart() {
           icon={<BookOpen className="size-5" aria-hidden />}
           title="기획서와 맞춰 보기"
           text="기획서 표의 ID와 값(보상 그룹, 판매가, 가격)이 실제 데이터와 같은지 비교하고, 다른 값과 데이터에 없는 ID를 모아 보여줍니다. 기획서에만 있는 옛 이름도 찾아 줍니다."
-          note="문장 속에 쓴 수치(예: 보상 골드: 500)는 아직 비교하지 않습니다."
+          note="표의 칸 값과, ID와 같이 쓴 「이름: 수치」 문장(예: 배(1002) 판매 가격: 3290)을 비교합니다."
         />
         <Card
           href="/map"

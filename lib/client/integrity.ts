@@ -1,7 +1,7 @@
 import { runQuery } from "@/lib/client/duckdb";
-import { qualifiedTable } from "@/lib/client/file-import";
+import { inactiveIds, qualifiedTable, tableRules, twinInactive } from "@/lib/client/file-import";
 import { fromValuesSql, normSql, type ColumnRef, type FromSide } from "@/lib/client/relations";
-import { quoteIdent } from "@/lib/query-result";
+import { quoteIdent, quoteString } from "@/lib/query-result";
 
 // 참조 무결성 검사(설계 4.9). QA 화면 이름은 "없는 ID 찾기"다.
 // - 없는 ID: 쓰는 쪽 열의 값이 대상 테이블의 ID 열에 없는 행(예: 지워진 아이템을 주는 보상)
@@ -39,6 +39,39 @@ export async function findMissing(from: FromSide, to: ColumnRef): Promise<Missin
      ), m AS (
        SELECT v, n FROM f WHERE v NOT IN (SELECT v FROM t)
      )
+     SELECT v, CAST(n AS BIGINT), CAST(sum(n) OVER () AS BIGINT), CAST(count(*) OVER () AS BIGINT)
+     FROM m ORDER BY n DESC, v LIMIT ${TOP_LIMIT}`,
+    TOP_LIMIT,
+  );
+  const first = result.rows[0];
+  return {
+    rows: first ? Number(first[2]) : 0,
+    ids: first ? Number(first[3]) : 0,
+    top: result.rows.map((r) => ({ value: cleanValue(r[0]), rows: Number(r[1]) })),
+  };
+}
+
+// 비활성 행 참조(PLAN.md 29단계, 5-3). 쓰는 쪽 값이 대상 테이블에서 ;로 막아 둔(비활성) 행의 Id인 곳.
+// 게임에서 쓰지 않는 행을 다른 테이블이 아직 쓰고 있다는 뜻이라, 없는 ID처럼 버그가 나기 쉽다.
+// 대상이 DB나 CSV면 같은 이름의 엑셀 테이블에서 막아 둔 Id를 쓴다. 쓰는 쪽 행이 비활성이면(막아 둔 행끼리) 세지 않는다.
+export function targetInactive(to: ColumnRef): string[] {
+  const own = tableRules(to.sourceId, to.table) ? [...inactiveIds(to.sourceId, to.table)] : [...(twinInactive(to.sourceId, to.table)?.ids ?? [])];
+  return own;
+}
+
+export async function findInactiveRefs(from: FromSide, to: ColumnRef): Promise<MissingResult | null> {
+  const ids = targetInactive(to);
+  if (!ids.length) return null;
+  // 대상 ID 컬럼이 첫 컬럼일 때만 본다. ;는 첫 컬럼(Id)에 붙기 때문이다.
+  const head = await runQuery(`SELECT * FROM ${qualifiedTable(to.sourceId, to.table)} LIMIT 0`, 0);
+  if (head.columns[0]?.name !== to.column) return null;
+  const fromHead = await runQuery(`SELECT * FROM ${qualifiedTable(from.sourceId, from.table)} LIMIT 0`, 0);
+  const fromFirst = fromHead.columns[0]?.name;
+  const fromOff = [...inactiveIds(from.sourceId, from.table)];
+  const skip = fromFirst && fromOff.length ? `${normSql(quoteIdent(fromFirst))} NOT IN (${fromOff.map(quoteString).join(", ")})` : undefined;
+  const result = await runQuery(
+    `WITH f AS (SELECT v, count(*) AS n FROM (${fromValuesSql(from, skip)}) GROUP BY 1),
+     m AS (SELECT v, n FROM f WHERE v IN (${ids.map(quoteString).join(", ")}))
      SELECT v, CAST(n AS BIGINT), CAST(sum(n) OVER () AS BIGINT), CAST(count(*) OVER () AS BIGINT)
      FROM m ORDER BY n DESC, v LIMIT ${TOP_LIMIT}`,
     TOP_LIMIT,

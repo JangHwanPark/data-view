@@ -107,7 +107,7 @@ function RelNodeView({ data }: NodeProps<RelNodeType>) {
           <li key={c} className="relative flex items-center px-2.5 font-mono text-[11px]" style={{ height: ROW }}>
             <Handle type="target" id={`in:${c}`} position={Position.Left} className="!size-1.5 !min-h-0 !min-w-0 !border-0 !bg-zinc-400" />
             <span className={`truncate ${center && i === 0 ? "font-semibold text-zinc-900 dark:text-zinc-100" : "text-zinc-600 dark:text-zinc-400"}`}>{c}</span>
-            {center && i === 0 && <span className="ml-1 shrink-0 font-sans text-[10px] text-zinc-400">ID 열</span>}
+            {center && i === 0 && <span className="ml-1 shrink-0 font-sans text-[10px] text-zinc-400">ID 컬럼</span>}
             <Handle type="source" id={`out:${c}`} position={Position.Right} className="!size-1.5 !min-h-0 !min-w-0 !border-0 !bg-zinc-400" />
           </li>
         ))}
