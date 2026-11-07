@@ -43,7 +43,8 @@ export function ChartBuilder({ initial, onSave }: { initial?: BuilderState; onSa
   const ready = sources.filter((s) => s.status === "ready");
   const version = ready.map(sourceVersion).join("|");
   const [columns, setColumns] = useState<Map<string, QueryColumn[]> | null>(null);
-  const [state, setState] = useState<BuilderState | null>(initial ?? null);
+  // 고치는 차트(initial)는 소스를 다 읽은 뒤에 정해질 수 있어서, 사용자가 바꾸기 전까지는 initial을 그대로 쓴다.
+  const [state, setState] = useState<BuilderState | null>(null);
   const [data, setData] = useState<{ key: string; result: ChartData | { error: string } } | null>(null);
   const [showTable, setShowTable] = useState(false);
 
@@ -58,7 +59,7 @@ export function ChartBuilder({ initial, onSave }: { initial?: BuilderState; onSa
 
   // 처음에는 첫 테이블로 시작한다.
   const first = ready[0] && ready[0].tables[0] ? { sourceId: ready[0].meta.id, table: ready[0].tables[0] } : null;
-  const current: BuilderState | null = state ?? (first && columns ? { ...first, spec: defaultSpec(columns.get(`${first.sourceId}/${first.table}`) ?? []), live: false } : null);
+  const current: BuilderState | null = state ?? initial ?? (first && columns ? { ...first, spec: defaultSpec(columns.get(`${first.sourceId}/${first.table}`) ?? []), live: false } : null);
   const source = current ? ready.find((s) => s.meta.id === current.sourceId) : undefined;
   const cols = current ? (columns?.get(`${current.sourceId}/${current.table}`) ?? []) : [];
   const numeric = cols.filter((c) => c.type === "number");
