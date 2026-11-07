@@ -219,7 +219,7 @@ function DocIds({ sourceId, table, focus }: { sourceId: string; table: string; f
   if (!keyColumn || found.length === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-1">
-      <span className="inline-flex shrink-0 items-center gap-1 text-zinc-500" title={`기획서에 적힌 숫자 중 이 테이블의 ID 열(${keyColumn})에 있는 ID`}>
+      <span className="inline-flex shrink-0 items-center gap-1 text-zinc-500" title={`기획서에 적힌 숫자 중 이 테이블의 ID 컬럼(${keyColumn})에 있는 ID`}>
         <Hash className="size-3.5" aria-hidden />
         기획서에 나온 ID {found.length}개
       </span>

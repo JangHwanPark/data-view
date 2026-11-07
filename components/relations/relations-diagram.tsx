@@ -180,7 +180,7 @@ export function RelationsDiagram() {
       <div className="flex flex-wrap items-center gap-4 text-sm">
         <label className="flex items-center gap-1.5">
           <input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} />
-          모든 열 보기
+          모든 컬럼 보기
         </label>
         <button
           type="button"
@@ -190,7 +190,7 @@ export function RelationsDiagram() {
           자동 배치로 되돌리기
         </button>
         <p className="text-xs text-zinc-500">
-          새로 이으려면 모든 열 보기를 켜고, ID를 쓰는 열의 오른쪽 점에서 그 ID가 있는 열의 왼쪽 점으로 끌어다 놓습니다.
+          새로 이으려면 모든 컬럼 보기를 켜고, ID를 참조하는 컬럼의 오른쪽 점에서 그 ID가 있는 컬럼의 왼쪽 점으로 끌어다 놓습니다.
         </p>
       </div>
 
@@ -227,7 +227,7 @@ export function RelationsDiagram() {
 function Header() {
   return (
     <div className="flex flex-col gap-3">
-      <h1 className="text-xl font-semibold">연결 목록</h1>
+      <h1 className="text-xl font-semibold">참조 관계 목록</h1>
       <RelationsTabs active="diagram" />
     </div>
   );
@@ -279,7 +279,7 @@ function PendingRelation({ pending, onCancel, onSave }: PendingProps) {
           <ColumnLabel refValue={pending.to} sources={sources} />
         </div>
         {duplicate ? (
-          <p className="text-xs text-zinc-500">이미 있는 연결입니다.</p>
+          <p className="text-xs text-zinc-500">이미 있는 참조 관계입니다.</p>
         ) : stats === "error" ? (
           <p className="text-xs text-red-600">값이 얼마나 맞는지 세지 못했습니다.</p>
         ) : stats ? (
@@ -305,7 +305,7 @@ function PendingRelation({ pending, onCancel, onSave }: PendingProps) {
         className="inline-flex items-center gap-1 rounded-md bg-zinc-900 px-3 py-1.5 font-medium text-white hover:bg-zinc-700 disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900"
       >
         <Plus className="size-4" aria-hidden />
-        연결 저장
+        참조 관계 저장
       </button>
     </div>
   );

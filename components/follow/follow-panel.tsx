@@ -91,7 +91,7 @@ export function FollowPanel({ step, onFollow, onClose }: Props) {
 
       <div className="flex flex-col gap-4 p-3">
         {links.length === 0 && (
-          <p className="text-sm text-zinc-500">이 열은 다른 테이블과 이어져 있지 않습니다. 확인한 연결을 지웠을 수 있습니다.</p>
+          <p className="text-sm text-zinc-500">이 컬럼은 다른 테이블과 이어져 있지 않습니다. 확인한 참조 관계를 지웠을 수 있습니다.</p>
         )}
         {links.length > 0 && !sections && (
           <p className="inline-flex items-center gap-2 text-sm text-zinc-500">
@@ -109,7 +109,7 @@ export function FollowPanel({ step, onFollow, onClose }: Props) {
                 <Icon className="size-4 shrink-0 text-zinc-400" aria-hidden />
                 <span className="min-w-0 truncate font-medium">{sourceTableLabel(target, link.target.table)}</span>
                 <span className="shrink-0 text-xs text-zinc-500">
-                  {link.direction === "out" ? "이 값이 가리키는 행" : "이 값을 쓰는 행"}
+                  {link.direction === "out" ? "이 값이 가리키는 행" : "이 값을 참조하는 행"}
                   {result && `, ${result.rowCount}${result.truncated ? "+" : ""}행`}
                 </span>
               </div>
@@ -121,7 +121,7 @@ export function FollowPanel({ step, onFollow, onClose }: Props) {
                     {link.target.column}에 이 ID가 없습니다. 없는 ID를 쓰고 있거나 데이터가 빠졌을 수 있습니다.
                   </p>
                 ) : (
-                  <p className="text-xs text-zinc-500">이 값을 쓰는 행이 없습니다.</p>
+                  <p className="text-xs text-zinc-500">이 값을 참조하는 행이 없습니다.</p>
                 ))}
               {result && result.rowCount > 0 && (
                 <div className="rounded border border-zinc-200 dark:border-zinc-800">

@@ -42,7 +42,7 @@ export function isExtended(from: FromSide) {
 // 화면에 쓰는 쓰는 쪽 이름. "material_id_1~5", "skill_ids(|로 나눔)", "reward_id(reward_type이 ITEM일 때)"
 export function fromLabel(from: FromSide) {
   const cols = fromColumns(from);
-  let label = cols.length > 1 ? `${cols[0]} 외 ${cols.length - 1}개 열` : cols[0];
+  let label = cols.length > 1 ? `${cols[0]} 외 ${cols.length - 1}개 컬럼` : cols[0];
   if (from.separator) label += `(${from.separator}로 나눔)`;
   if (from.when) label += `(${from.when.column}이 ${from.when.value}일 때)`;
   return label;
@@ -264,7 +264,7 @@ export function buildExport(relations: Relation[], sources: { id: string; name: 
 export function parseExport(text: string): RelationsExport {
   const data = JSON.parse(text) as Partial<RelationsExport>;
   if (data.app !== "data-view" || data.version !== 1 || !Array.isArray(data.relations) || !Array.isArray(data.sources)) {
-    throw new Error("data-view에서 내보낸 연결 파일이 아닙니다.");
+    throw new Error("data-view에서 내보낸 참조 관계 파일이 아닙니다.");
   }
   return data as RelationsExport;
 }

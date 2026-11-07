@@ -33,7 +33,7 @@ export function RoleLegend({ counts }: { counts?: Map<TableRole, number> }) {
 
 const TABS = [
   { key: "domains", href: "/map", label: "시스템 지도" },
-  { key: "tables", href: "/map/tables", label: "테이블별 연결" },
+  { key: "tables", href: "/map/tables", label: "테이블별 참조 관계" },
 ] as const;
 
 export function MapTabs({ active }: { active: (typeof TABS)[number]["key"] }) {

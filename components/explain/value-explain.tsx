@@ -197,7 +197,7 @@ function ExplainBody({ e, self }: { e: Explanation; self: boolean }) {
       ))}
       {e.usedBy.length > 0 && (
         <p className="border-t border-zinc-100 pt-1.5 text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
-          쓰이는 곳: {e.usedBy.map((u) => `${u.table} ${u.count.toLocaleString()}행(${u.column})`).join(", ")}
+          참조하는 곳: {e.usedBy.map((u) => `${u.table} ${u.count.toLocaleString()}행(${u.column})`).join(", ")}
         </p>
       )}
     </div>

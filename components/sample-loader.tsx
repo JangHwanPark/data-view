@@ -83,7 +83,7 @@ export function SampleLoader({ kind = "game", compact = false, onBusy, onNote }:
       {progress && <p className="text-xs text-zinc-500">{progress}</p>}
       {error && <p className="text-xs text-red-600">{error}</p>}
       {!compact && !progress && !error && kind === "shape" && (
-        <p className="text-xs text-zinc-500">머리글 위 설명 줄, 두 줄 머리글, ;로 막은 행, # 메모 열, Level#1~3 번호 열처럼 회사 시트와 같은 모양으로 만든 가짜 데이터입니다.</p>
+        <p className="text-xs text-zinc-500">머리글 위 설명 줄, 두 줄 머리글, ;로 막은 행, # 메모 컬럼, Level#1~3 번호 컬럼처럼 회사 시트와 같은 모양으로 만든 가짜 데이터입니다.</p>
       )}
       {!compact && !progress && !error && kind === "game" && (
         <p className="text-xs text-zinc-500">퀘스트, 아이템, 보상 같은 게임 테이블 15개와 일부러 데이터와 어긋나게 쓴 기획서를 불러옵니다. 사내 데이터 없이 기능을 둘러볼 때 씁니다.</p>

@@ -107,7 +107,7 @@ async function compute(
   const candidates: Candidate[] = [];
   const handled = new Set<string>();
   // 기획 설명(#Design, #Definition)의 <테이블>[컬럼]으로 찾는 연결을 가장 먼저 본다.
-  const designFrom = new Set<string>(); // 다른 테이블에서 이 테이블을 가리킨다고 적힌 열(테이블.열)
+  const designFrom = new Set<string>(); // 다른 테이블에서 이 테이블을 가리킨다고 적힌 컬럼(테이블.열)
   candidates.push(...designCandidates(me, others, prefer, handled, designFrom));
   // 번호 붙은 열 묶음, 한 칸 여러 ID, 종류+ID(17단계)를 먼저 찾는다. 여기서 다룬 열은 아래 단일 열 찾기에서 뺀다.
   candidates.push(...(await extendedCandidates(me, others, target, prefer, handled)));
@@ -124,9 +124,9 @@ async function compute(
         to: { sourceId: t.sourceId, table: t.table, column: t.keyColumn! },
         reason: byKey.length
           ? column === t.keyColumn
-            ? `열 이름이 ${t.table}의 ID 열(${t.keyColumn})과 같음`
-            : `열 이름에 ${t.table}의 ID 열 이름(${t.keyColumn})이 들어 있음`
-          : `열 이름이 ${t.table} 테이블 이름과 같음`,
+            ? `컬럼 이름이 ${t.table}의 ID 컬럼(${t.keyColumn})과 같음`
+            : `컬럼 이름에 ${t.table}의 ID 컬럼 이름(${t.keyColumn})이 들어 있음`
+          : `컬럼 이름이 ${t.table} 테이블 이름과 같음`,
       });
     }
   }
@@ -146,7 +146,7 @@ async function compute(
       candidates.push({
         from: { sourceId: t.sourceId, table: t.table, column: c },
         to: { ...target, column: me.keyColumn },
-        reason: namesKey(c, me.keyColumn) ? `${t.table}의 ${c} 열 이름에 이 테이블의 ID 열 이름(${me.keyColumn})이 들어 있음` : `${t.table}의 ${c} 열 이름이 이 테이블 이름과 같음`,
+        reason: namesKey(c, me.keyColumn) ? `${t.table}의 ${c} 컬럼 이름에 이 테이블의 ID 컬럼 이름(${me.keyColumn})이 들어 있음` : `${t.table}의 ${c} 컬럼 이름이 이 테이블 이름과 같음`,
       });
     }
   }
@@ -322,12 +322,12 @@ async function extendedCandidates(
   }
   for (const [base, cols] of groups) {
     if (cols.some((c) => handled.has(c))) continue; // 기획 설명으로 이미 찾은 묶음
-    if (cols.length < 2 || !isIdGroup(base, hashed.has(base))) continue; // 수량, 값 열(item_count_1, Count#1)은 ID가 아니다
+    if (cols.length < 2 || !isIdGroup(base, hashed.has(base))) continue; // 수량, 값 컬럼(item_count_1, Count#1)은 ID가 아니다
     const from: FromSide = { ...target, column: cols[0], columns: cols };
     const byName = prefer(tablesByName(base, others));
     const label = `${cols[0]}~${cols[cols.length - 1].match(/\d+$/)![0]}`;
-    if (byName.length) push(from, byName.slice(0, 3), (t) => `번호 붙은 열 ${label}의 이름이 ${t.table}의 ID 열(${t.keyColumn})을 가리킴`, `n:${base}`);
-    else push(from, keyedOthers, (t) => `번호 붙은 열 ${label}의 값이 ${t.table}의 ID와 맞음`, `n:${base}`, true);
+    if (byName.length) push(from, byName.slice(0, 3), (t) => `번호 붙은 컬럼 ${label}의 이름이 ${t.table}의 ID 컬럼(${t.keyColumn})을 가리킴`, `n:${base}`);
+    else push(from, keyedOthers, (t) => `번호 붙은 컬럼 ${label}의 값이 ${t.table}의 ID와 맞음`, `n:${base}`, true);
     cols.forEach((c) => handled.add(c));
   }
 
@@ -344,8 +344,8 @@ async function extendedCandidates(
     const base = col.name.replace(/(_?ids|_?list|s)$/i, "");
     const from: FromSide = { ...target, column: col.name, separator: sep };
     const byName = prefer(tablesByName(base, others));
-    if (byName.length) push(from, byName.slice(0, 3), (t) => `${col.name}은 ID를 ${sep}로 나눠 적은 열이고, 이름이 ${t.table}의 ID 열(${t.keyColumn})을 가리킴`, `s:${col.name}`);
-    else push(from, keyedOthers, (t) => `${col.name}은 ID를 ${sep}로 나눠 적은 열이고, 값이 ${t.table}의 ID와 맞음`, `s:${col.name}`, true);
+    if (byName.length) push(from, byName.slice(0, 3), (t) => `${col.name}은 ID를 ${sep}로 나눠 적은 컬럼이고, 이름이 ${t.table}의 ID 컬럼(${t.keyColumn})을 가리킴`, `s:${col.name}`);
+    else push(from, keyedOthers, (t) => `${col.name}은 ID를 ${sep}로 나눠 적은 컬럼이고, 값이 ${t.table}의 ID와 맞음`, `s:${col.name}`, true);
     handled.add(col.name);
   }
 

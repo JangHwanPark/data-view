@@ -42,9 +42,9 @@ export function RelationSuggestions({ sources, columns }: Props) {
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="font-medium">앱이 찾은 연결</h2>
+      <h2 className="font-medium">앱이 찾은 참조 관계</h2>
       <p className="text-sm text-zinc-500">
-        값이 겹치지 않는 열을 ID 열로 보고, 다른 시트의 열 중 값의 90% 이상이 그 ID 열에 있는 것을 찾습니다. 열 이름이 달라도 찾을 수 있습니다. 맞는 것만 골라 추가하세요.
+        값이 겹치지 않는 컬럼을 ID 컬럼으로 보고, 다른 시트의 컬럼 중 값의 90% 이상이 그 ID 컬럼에 있는 것을 찾습니다. 컬럼 이름이 달라도 찾을 수 있습니다. 맞는 것만 골라 추가하세요.
       </p>
       <div className="flex flex-wrap items-center gap-3">
         <button
@@ -54,7 +54,7 @@ export function RelationSuggestions({ sources, columns }: Props) {
           className="inline-flex items-center gap-2 rounded-md border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
         >
           {running ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Sparkles className="size-4" aria-hidden />}
-          {running ? "찾는 중" : "연결 찾기"}
+          {running ? "찾는 중" : "참조 관계 찾기"}
         </button>
         {strong.length > 1 && (
           <button
@@ -68,18 +68,18 @@ export function RelationSuggestions({ sources, columns }: Props) {
         )}
       </div>
 
-      {error && <p className="text-sm text-red-600">연결을 찾지 못했습니다. ({error})</p>}
+      {error && <p className="text-sm text-red-600">참조 관계를 찾지 못했습니다. ({error})</p>}
       {suggestions && pending.length === 0 && !running && (
-        <p className="text-sm text-zinc-500">새로 찾은 연결이 없습니다.</p>
+        <p className="text-sm text-zinc-500">새로 찾은 참조 관계가 없습니다.</p>
       )}
 
       {strong.length > 0 && <SuggestionList items={strong} sources={sources} onAdd={add} />}
 
       {weak.length > 0 && (
         <details className="text-sm">
-          <summary className="cursor-pointer text-zinc-500">맞을 가능성이 낮은 연결 {weak.length}개</summary>
+          <summary className="cursor-pointer text-zinc-500">맞을 가능성이 낮은 참조 관계 {weak.length}개</summary>
           <p className="my-2 text-xs text-zinc-500">
-            1, 2, 3처럼 번호를 매긴 ID 열에 수량 같은 작은 숫자가 우연히 겹친 경우일 수 있습니다. 실제로 이어지는지 확인하고 추가해 주세요.
+            1, 2, 3처럼 번호를 매긴 ID 컬럼에 수량 같은 작은 숫자가 우연히 겹친 경우일 수 있습니다. 실제로 이어지는지 확인하고 추가해 주세요.
           </p>
           <SuggestionList items={weak} sources={sources} onAdd={add} />
         </details>

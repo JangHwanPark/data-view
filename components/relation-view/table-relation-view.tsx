@@ -113,7 +113,7 @@ function RelNodeView({ data }: NodeProps<RelNodeType>) {
         ))}
         {node.hidden > 0 && (
           <li className="flex items-center px-2.5 text-[11px] text-zinc-400" style={{ height: ROW }}>
-            외 {node.hidden}개 열
+            외 {node.hidden}개 컬럼
           </li>
         )}
       </ul>
@@ -241,7 +241,7 @@ export function TableRelationView({ id, table }: { id: string; table: string }) 
               onClick={() => setDepth(d)}
               aria-pressed={depth === d}
               className={`rounded px-2 py-0.5 disabled:opacity-40 ${depth === d ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900" : "hover:bg-zinc-100 dark:hover:bg-zinc-800"}`}
-              title={partial && d === 2 ? "모든 테이블의 연결을 찾은 뒤에 볼 수 있습니다" : undefined}
+              title={partial && d === 2 ? "모든 테이블의 참조 관계를 찾은 뒤에 볼 수 있습니다" : undefined}
             >
               {d === 1 ? "바로 이어진 것" : "한 단계 더"}
             </button>
@@ -253,7 +253,7 @@ export function TableRelationView({ id, table }: { id: string; table: string }) 
         <div className="flex min-w-0 flex-col gap-2">
           <div className="relative rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900" style={{ height }}>
             {!layout ? (
-              <div className="p-4">{domain.progress ? <ScanProgress progress={domain.progress} /> : <Loading text="연결을 찾는 중입니다." />}</div>
+              <div className="p-4">{domain.progress ? <ScanProgress progress={domain.progress} /> : <Loading text="참조 관계를 찾는 중입니다." />}</div>
             ) : (
               <>
                 <ColumnHeads empty={layout.empty} />
@@ -295,7 +295,7 @@ export function TableRelationView({ id, table }: { id: string; table: string }) 
             <EdgeDetail edge={picked} reason={reasons.get(picked.relationId)} onDone={() => setSelected(null)} />
           ) : (
             <p className="text-xs text-zinc-500">
-              상자를 누르면 그 테이블이 가운데로 옵니다. 선에 마우스를 올리면 왜 이어졌다고 보는지 나오고, 선을 누르면 앱이 찾은 연결을 맞는 연결로 확인할 수 있습니다. 실선은 기획 설명(#Design)에 적혀 있거나 확인한 연결, 점선은 앱이 이름과 값으로 찾은 연결입니다.
+              상자를 누르면 그 테이블이 가운데로 옵니다. 선에 마우스를 올리면 왜 이어졌다고 보는지 나오고, 선을 누르면 앱이 찾은 참조 관계를 맞는 참조 관계로 확인할 수 있습니다. 실선은 기획 설명(#Design)에 적혀 있거나 확인한 참조 관계, 점선은 앱이 이름과 값으로 찾은 참조 관계입니다.
             </p>
           )}
         </div>
@@ -311,7 +311,7 @@ export function TableRelationView({ id, table }: { id: string; table: string }) 
           <p className="font-medium">
             {hover.edge.from.table}.{hover.edge.from.column} → {hover.edge.to.table}.{hover.edge.to.column}
           </p>
-          <p className="opacity-80">{isAuto(hover.edge.relationId) ? reasons.get(hover.edge.relationId) ?? "앱이 찾은 연결" : "확인한 연결"}</p>
+          <p className="opacity-80">{isAuto(hover.edge.relationId) ? reasons.get(hover.edge.relationId) ?? "앱이 찾은 참조 관계" : "확인한 참조 관계"}</p>
         </div>
       )}
     </div>
@@ -321,8 +321,8 @@ export function TableRelationView({ id, table }: { id: string; table: string }) 
 function ColumnHeads({ empty }: { empty: { left: boolean; right: boolean } }) {
   return (
     <div className="pointer-events-none absolute inset-x-3 top-2 z-10 flex justify-between text-[11px] text-zinc-400">
-      <span>← 이 테이블을 쓰는 테이블{empty.left ? " (없음)" : ""}</span>
-      <span>이 테이블이 쓰는 테이블{empty.right ? " (없음)" : ""} →</span>
+      <span>← 참조하는 곳{empty.left ? " (없음)" : ""}</span>
+      <span>참조 대상{empty.right ? " (없음)" : ""} →</span>
     </div>
   );
 }
@@ -331,7 +331,7 @@ function ScanProgressInline({ progress }: { progress: { done: number; total: num
   return (
     <>
       <Loader2 className="size-3 animate-spin" aria-hidden />
-      모든 연결을 찾는 중{progress.total ? ` (${progress.done}/${progress.total})` : ""}. 다 찾으면 역할과 &lsquo;한 단계 더&rsquo;를 볼 수 있습니다.
+      모든 참조 관계를 찾는 중{progress.total ? ` (${progress.done}/${progress.total})` : ""}. 다 찾으면 역할과 &lsquo;한 단계 더&rsquo;를 볼 수 있습니다.
     </>
   );
 }
@@ -346,7 +346,7 @@ function EdgeDetail({ edge, reason, onDone }: { edge: LayoutEdge; reason?: strin
       <span className="font-mono">
         {edge.from.table}.{edge.from.column} → {edge.to.table}.{edge.to.column}
       </span>
-      <span className="text-zinc-500">{auto ? reason ?? "앱이 찾은 연결" : "확인한 연결"}</span>
+      <span className="text-zinc-500">{auto ? reason ?? "앱이 찾은 참조 관계" : "확인한 참조 관계"}</span>
       {/* 근거에 "없는 ID"가 있으면 그 목록으로 바로 간다. 확인한 연결은 근거 글이 없으므로 늘 링크를 둔다. */}
       {(!auto || reason?.includes("없는 ID")) && (
         <Link href={`/check/missing?link=${encodeURIComponent(edge.relationId)}`} className="text-blue-700 hover:underline dark:text-blue-400">
@@ -364,7 +364,7 @@ function EdgeDetail({ edge, reason, onDone }: { edge: LayoutEdge; reason?: strin
           className="ml-auto inline-flex items-center gap-1 rounded bg-zinc-900 px-2 py-0.5 text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
         >
           <Save className="size-3" aria-hidden />
-          맞는 연결로 확인
+          맞는 참조 관계로 확인
         </button>
       )}
     </div>
@@ -400,13 +400,13 @@ function InfoPanel({ id, table, model, partial, columns }: { id: string; table: 
               </dd>
             </>
           )}
-          <dt className="text-zinc-500">열</dt>
+          <dt className="text-zinc-500">컬럼</dt>
           <dd className="tabular-nums">{columns.length}개</dd>
-          <dt className="text-zinc-500">쓰는 테이블</dt>
+          <dt className="text-zinc-500">참조 대상</dt>
           <dd className="tabular-nums">
             테이블 {count(info.out)}개{outside(info.out) ? ` (다른 시스템 ${outside(info.out)})` : ""}
           </dd>
-          <dt className="text-zinc-500">쓰이는 곳</dt>
+          <dt className="text-zinc-500">참조하는 곳</dt>
           <dd className="tabular-nums">
             테이블 {count(info.in)}개{outside(info.in) ? ` (다른 시스템 ${outside(info.in)})` : ""}
           </dd>

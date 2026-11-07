@@ -150,7 +150,7 @@ export function DocChecklist({ id }: { id: string }) {
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h1 className="text-lg font-semibold">테스트 항목</h1>
         <p className="text-zinc-500">
-          절 하나를 고르면 그 절에 나온 ID마다 그 행이 쓰는 것(보상, 아이템, 조건 …)을 펼쳐 확인할 항목으로 만듭니다. 기획서와 다른 값이나 없는 ID가 걸린 항목이 위에 옵니다.
+          절 하나를 고르면 그 절에 나온 ID마다 그 행의 참조 대상(보상, 아이템, 조건 …)을 펼쳐 확인할 항목으로 만듭니다. 기획서와 다른 값이나 없는 ID가 걸린 항목이 위에 옵니다.
         </p>
       </div>
 

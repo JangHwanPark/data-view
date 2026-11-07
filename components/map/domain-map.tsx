@@ -211,7 +211,7 @@ function DomainDetail({ domain, model, rowCounts, onSelect }: DetailProps) {
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h2 className="text-base font-semibold">{domain.name}</h2>
         <span className="text-xs text-zinc-500">
-          테이블 {domain.tables.length}개, 이 시스템이 쓰는 시스템 {domain.out.size}개, 이 시스템을 쓰는 시스템 {domain.in.size}개
+          테이블 {domain.tables.length}개, 이 시스템이 참조하는 시스템 {domain.out.size}개, 이 시스템을 참조하는 시스템 {domain.in.size}개
         </span>
         <span className="flex gap-2">
           {roles.map((r) => (
@@ -243,7 +243,7 @@ function DomainDetail({ domain, model, rowCounts, onSelect }: DetailProps) {
           <Background gap={16} size={1} />
         </ReactFlow>
       </div>
-      <p className="text-xs text-zinc-500">가운데 테이블을 누르면 그 테이블의 연결 그림을, 양쪽의 점선 상자를 누르면 그 시스템을 엽니다.</p>
+      <p className="text-xs text-zinc-500">가운데 테이블을 누르면 그 테이블의 참조 관계 그림을, 양쪽의 점선 상자를 누르면 그 시스템을 엽니다.</p>
       <div className="grid grid-cols-1 gap-2 2xl:grid-cols-2">
         {domain.tables.map((k) => (
           <TableCard key={k} info={model.tables.get(k)!} model={model} rows={rowCounts.get(k)} domains={model.domains.map((d) => d.name)} />

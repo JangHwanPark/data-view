@@ -48,19 +48,19 @@ export function HomeStart() {
           href="/check/missing"
           icon={<SearchX className="size-5" aria-hidden />}
           title="없는 ID 찾기"
-          text="다른 테이블에 없는 ID를 쓰는 곳(예: 지워진 아이템을 주는 보상)과, 같은 ID가 두 번 들어간 곳을 모아 보여줍니다."
+          text="다른 테이블에 없는 ID를 참조하는 곳(예: 지워진 아이템을 주는 보상)과, 같은 ID가 두 번 들어간 곳을 모아 보여줍니다."
         />
         <Card
           href="/compare"
           icon={<GitCompareArrows className="size-5" aria-hidden />}
           title="패치 전후 비교"
-          text="테이블 파일을 새 패치로 바꾸면 바로 전 파일과 비교해, 새로 생긴 행, 사라진 행, 값이 바뀐 행과 사라진 ID를 아직 쓰는 곳을 보여줍니다."
+          text="테이블 파일을 새 패치로 바꾸면 바로 전 파일과 비교해, 새로 생긴 행, 사라진 행, 값이 바뀐 행과 사라진 ID를 아직 참조하는 곳을 보여줍니다."
           note="파일 화면에서 '새 패치 파일로 교체'나 '원본 경로에서 다시 읽기'를 한 뒤부터 비교할 수 있습니다."
         />
       </div>
 
       <p className="text-xs text-zinc-500">
-        왼쪽 목록에서 테이블을 누르면 그 테이블이 쓰는 테이블과 그 테이블을 쓰는 테이블을 그림으로 볼 수 있습니다. 값을 보려면 그림 위의 &lsquo;데이터&rsquo;를 누르세요.
+        왼쪽 목록에서 테이블을 누르면 그 테이블의 참조 대상과 그 테이블을 참조하는 곳을 그림으로 볼 수 있습니다. 값을 보려면 그림 위의 &lsquo;데이터&rsquo;를 누르세요.
       </p>
     </div>
   );
@@ -75,7 +75,7 @@ function IdSearchCard() {
         <Search className="size-5" aria-hidden />
         ID로 찾기
       </h2>
-      <p className="text-zinc-600 dark:text-zinc-400">아이템 ID, 퀘스트 ID 같은 값을 넣으면 어느 테이블의 무엇이고 어디에 쓰이는지 보여줍니다.</p>
+      <p className="text-zinc-600 dark:text-zinc-400">아이템 ID, 퀘스트 ID 같은 값을 넣으면 어느 테이블의 무엇이고 어디에서 참조하는지 보여줍니다.</p>
       <form
         className="flex gap-2"
         onSubmit={(e) => {

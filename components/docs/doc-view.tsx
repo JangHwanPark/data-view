@@ -272,7 +272,7 @@ function TermList({ views, selectedKey, onSelect }: ListProps) {
                   </p>
                 )}
                 {v.candidates.length === 0 ? (
-                  <p className="text-zinc-500">{v.term.kind === "id" ? "어느 테이블의 ID 열에도 없는 ID입니다. 데이터에서 빠졌거나 아직 만들지 않은 ID일 수 있습니다." : "맞는 테이블이나 열이 없습니다. 옛 이름이거나 아직 없는 테이블일 수 있습니다."}</p>
+                  <p className="text-zinc-500">{v.term.kind === "id" ? "어느 테이블의 ID 컬럼에도 없는 ID입니다. 데이터에서 빠졌거나 아직 만들지 않은 ID일 수 있습니다." : "맞는 테이블이나 컬럼이 없습니다. 옛 이름이거나 아직 없는 테이블일 수 있습니다."}</p>
                 ) : (
                   <ul className="flex flex-col gap-1">
                     {v.candidates.map((c, i) => (

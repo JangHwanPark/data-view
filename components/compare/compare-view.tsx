@@ -142,7 +142,7 @@ function SourceCompare({ source }: { source: WorkspaceSource & { meta: FileSourc
               <th className="px-2 py-1.5 text-right font-medium">사라진 행</th>
               <th className="px-2 py-1.5 text-right font-medium">값이 바뀐 행</th>
               <th className="px-2 py-1.5 text-right font-medium">행 수 (전 → 후)</th>
-              <th className="px-2 py-1.5 font-medium">열 변화</th>
+              <th className="px-2 py-1.5 font-medium">컬럼 변화</th>
             </tr>
           </thead>
           <tbody>
@@ -162,7 +162,7 @@ function SourceCompare({ source }: { source: WorkspaceSource & { meta: FileSourc
                 </td>
                 <td className="px-2 py-1.5 text-zinc-500">
                   {[...t.addedColumns.map((c) => `+${c}`), ...t.removedColumns.map((c) => `-${c}`)].join(", ")}
-                  {!t.key && t.status === "changed" && <span className="ml-1 text-zinc-400">(ID 열이 없어 줄 단위로 비교)</span>}
+                  {!t.key && t.status === "changed" && <span className="ml-1 text-zinc-400">(ID 컬럼이 없어 줄 단위로 비교)</span>}
                 </td>
               </tr>
             ))}

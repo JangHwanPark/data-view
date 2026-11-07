@@ -16,7 +16,7 @@ import type { ColumnRef, FromSide } from "@/lib/client/relations";
 // 다른 테이블에 없는 ID를 쓰는 행과 ID 열에 같은 값이 겹친 곳을 모은다.
 
 interface CheckLink {
-  id: string; // 연결 id + 쓰는 쪽 열(번호 붙은 열 묶음은 열마다 따로 센다)
+  id: string; // 연결 id + 쓰는 쪽 컬럼(번호 붙은 열 묶음은 열마다 따로 센다)
   relationId: string; // 연결 id. ?link=로 고를 때 쓴다
   from: FromSide;
   to: ColumnRef;
@@ -128,7 +128,7 @@ export function MissingIds() {
     <div className="flex flex-col gap-1">
       <h1 className="text-lg font-semibold">없는 ID 찾기</h1>
       <p className="text-zinc-500">
-        테이블끼리 이어진 곳을 모두 확인해, 다른 테이블에 없는 ID를 쓰는 행과 ID 열에 같은 ID가 겹친 곳을 모읍니다. 예: 지워진 아이템을 주는 보상, 없는 퀘스트를 여는 조건.
+        테이블끼리 이어진 곳을 모두 확인해, 다른 테이블에 없는 ID를 참조하는 행과 ID 컬럼에 같은 ID가 겹친 곳을 모읍니다. 예: 지워진 아이템을 주는 보상, 없는 퀘스트를 여는 조건.
       </p>
     </div>
   );
@@ -206,19 +206,19 @@ export function MissingIds() {
         <>
           <p className="text-zinc-600 dark:text-zinc-400">
             이어진 곳 {links.length.toLocaleString()}개 중 <strong>{problems.length.toLocaleString()}곳</strong>에서 다른 테이블에 없는 ID를 씁니다(모두{" "}
-            {missingRows.toLocaleString()}행). 문제 없는 연결은 {okCount.toLocaleString()}개입니다. 줄을 누르면 없는 ID 목록이 펼쳐지고, ID를 누르면 그 ID를 쓰는 행을 엽니다.
+            {missingRows.toLocaleString()}행). 문제 없는 참조 관계는 {okCount.toLocaleString()}개입니다. 줄을 누르면 없는 ID 목록이 펼쳐지고, ID를 누르면 그 ID를 참조하는 행을 엽니다.
           </p>
-          {focusOk && <p className="rounded-md border border-green-200 bg-green-50 px-3 py-1.5 text-xs text-green-800 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300">고른 연결에는 없는 ID가 없습니다.</p>}
+          {focusOk && <p className="rounded-md border border-green-200 bg-green-50 px-3 py-1.5 text-xs text-green-800 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300">고른 참조 관계에는 없는 ID가 없습니다.</p>}
           {problems.length === 0 ? (
-            <p className="text-zinc-500">없는 ID를 쓰는 곳이 없습니다.</p>
+            <p className="text-zinc-500">없는 ID를 참조하는 곳이 없습니다.</p>
           ) : (
             <div className="overflow-x-auto rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
               <table className="w-full border-collapse text-xs">
                 <thead className="bg-zinc-50 text-left dark:bg-zinc-800">
                   <tr>
-                    <th className="px-3 py-1.5 font-medium">ID를 쓰는 곳</th>
+                    <th className="px-3 py-1.5 font-medium">ID를 참조하는 곳</th>
                     <th className="px-3 py-1.5 font-medium">ID가 있어야 할 곳</th>
-                    <th className="px-3 py-1.5 text-right font-medium">없는 ID를 쓰는 행</th>
+                    <th className="px-3 py-1.5 text-right font-medium">없는 ID를 참조하는 행</th>
                     <th className="px-3 py-1.5 text-right font-medium">없는 ID 종류</th>
                   </tr>
                 </thead>
@@ -261,7 +261,7 @@ export function MissingIds() {
       ) : (
         <>
           <p className="text-zinc-600 dark:text-zinc-400">
-            다른 테이블이 쓰는 ID 열에 같은 ID가 두 번 이상 있는 곳입니다. 어느 줄을 쓰게 될지 알 수 없어 버그가 나기 쉽습니다. 줄을 누르면 겹친 ID 목록이 펼쳐집니다.
+            다른 테이블이 참조하는 ID 컬럼에 같은 ID가 두 번 이상 있는 곳입니다. 어느 줄을 쓰게 될지 알 수 없어 버그가 나기 쉽습니다. 줄을 누르면 겹친 ID 목록이 펼쳐집니다.
           </p>
           {cached.duplicates.length === 0 ? (
             <p className="text-zinc-500">ID가 겹친 곳이 없습니다.</p>
@@ -307,7 +307,7 @@ function ValueList({ values, total, href, unit }: { values: { value: string; row
             <Link
               href={href(v.value)}
               className="inline-flex items-baseline gap-1 rounded border border-zinc-200 bg-white px-1.5 py-0.5 hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900"
-              title="이 ID를 쓰는 행 열기"
+              title="이 ID를 참조하는 행 열기"
             >
               <span className="font-mono">{v.value}</span>
               <span className="tabular-nums text-zinc-400">

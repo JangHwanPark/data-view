@@ -136,7 +136,7 @@ export function JoinBuilder() {
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold">여러 테이블 붙여 보기</h1>
         <p className="text-sm text-zinc-500">
-          시작할 시트를 고르고, 그 시트가 쓰는 ID를 따라 다른 시트를 차례로 붙이면 여러 파일을 하나의 표로 볼 수 있습니다. 예: 퀘스트 → 보상 그룹 → 보상 → 아이템
+          시작할 시트를 고르고, 그 시트가 참조하는 ID를 따라 다른 시트를 차례로 붙이면 여러 파일을 하나의 표로 볼 수 있습니다. 예: 퀘스트 → 보상 그룹 → 보상 → 아이템
         </p>
       </div>
 
@@ -163,7 +163,7 @@ export function JoinBuilder() {
 
         {spec && !tables && (
           <p className="text-sm text-amber-700 dark:text-amber-400">
-            붙일 때 쓴 연결 중 지워진 것이 있습니다. 시작 시트를 다시 골라 주세요.
+            붙일 때 쓴 참조 관계 중 지워진 것이 있습니다. 시작 시트를 다시 골라 주세요.
           </p>
         )}
 
@@ -243,7 +243,7 @@ export function JoinBuilder() {
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
             <span className="text-zinc-500">
-              {current.total.toLocaleString()}행, 열{" "}
+              {current.total.toLocaleString()}행, 컬럼{" "}
               {current.result.columns.filter((c) => c.name !== MISSING_LABEL).length}개
               {current.result.truncated && ` (앞의 ${PREVIEW_LIMIT.toLocaleString()}행만 표시)`}
             </span>

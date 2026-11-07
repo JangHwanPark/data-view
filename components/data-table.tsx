@@ -98,8 +98,8 @@ export function DataTable({ columns, tableColumns, rows, linked, onLinkClick, so
                     <table.FlexRender header={header} />
                   </div>
                   {ruleOf(columns[i]?.name ?? "")?.memo && (
-                    <div className="text-[11px] font-normal text-amber-700 dark:text-amber-400" title="#로 시작하는 열은 기획자가 적어 둔 메모입니다. DB에는 없는 열이라 연결을 찾을 때 쓰지 않습니다">
-                      메모 열(DB에 없음)
+                    <div className="text-[11px] font-normal text-amber-700 dark:text-amber-400" title="#로 시작하는 컬럼은 기획자가 적어 둔 메모입니다. DB에는 없는 컬럼이라 참조 관계를 찾을 때 쓰지 않습니다">
+                      메모 컬럼(DB에 없음)
                     </div>
                   )}
                   {headerInfo && columns[i] ? (
@@ -137,7 +137,7 @@ export function DataTable({ columns, tableColumns, rows, linked, onLinkClick, so
                       type="button"
                       onClick={() => onRowClick(row.original)}
                       className="rounded px-1 tabular-nums text-blue-700 hover:bg-blue-50 hover:underline dark:text-blue-400 dark:hover:bg-blue-950"
-                      title="이 행이 쓰는 것과 이 행을 쓰는 곳을 트리로 보기"
+                      title="이 행의 참조 대상과 이 행을 참조하는 곳을 트리로 보기"
                     >
                       {item.index + 1}
                     </button>

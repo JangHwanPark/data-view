@@ -89,7 +89,7 @@ export function ValueSearch() {
         </button>
       </form>
       <p className="-mt-3 text-xs text-zinc-500">
-        불러온 모든 파일의 모든 열에서 찾습니다. 치는 동안 아래에 맞는 값이 바로 나오고(같은 값 → 앞부분이 같은 값 → 들어 있는 값, 짧은 값 먼저), 하나를 고르면 그 테이블을 그 값으로 거른 화면이 열립니다.
+        불러온 모든 파일의 모든 컬럼에서 찾습니다. 치는 동안 아래에 맞는 값이 바로 나오고(같은 값 → 앞부분이 같은 값 → 들어 있는 값, 짧은 값 먼저), 하나를 고르면 그 테이블을 그 값으로 거른 화면이 열립니다.
         검색을 누르면 그 값이 나오는 모든 행을 테이블마다 보여줍니다. 기본은 값 전체가 같은 경우만 찾고, 포함 검색을 켜면 일부만 맞아도 찾습니다.
       </p>
       <ValueSuggestions input={input} ready={!loading} readyKey={readyKey} sources={ready} />
@@ -122,7 +122,7 @@ export function ValueSearch() {
                   </Link>
                   <span className="text-xs text-zinc-500">
                     {hit.result.rowCount}
-                    {hit.result.truncated ? "+" : ""}행, 맞은 열: {matchedColumns.join(", ")}
+                    {hit.result.truncated ? "+" : ""}행, 맞은 컬럼: {matchedColumns.join(", ")}
                   </span>
                 </div>
                 <div className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">

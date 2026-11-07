@@ -54,7 +54,7 @@ export function TableOverview({ sourceId, table, words }: { sourceId: string; ta
     });
   }
   if (info) {
-    lines.push({ label: "시스템", content: `${info.domain} 시스템 · ${ROLE_LABEL[info.role]}`, source: "앱이 연결을 보고 판단" });
+    lines.push({ label: "시스템", content: `${info.domain} 시스템 · ${ROLE_LABEL[info.role]}`, source: "앱이 참조 관계를 보고 판단" });
   }
   for (const s of picked) {
     lines.push({
