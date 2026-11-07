@@ -336,6 +336,38 @@ const doc = new Document({
   ],
 });
 writeFileSync(join(docDir, "과일_농장_기획서.docx"), await Packer.toBuffer(doc));
+// ---- TC 시트(30단계 5-8 시험용) ----
+// 참조 칸에 「테이블 ID」, 「테이블.컬럼=ID」, 「한글 이름(영어) ID」 꼴을 섞어 쓴다. 1099는 일부러 없는 ID다.
+const tcDir = join(root, "fixtures", "shape-tc");
+mkdirSync(tcDir, { recursive: true });
+const tcRows = [
+  [1, "과일", "사과 이름이 한국어로 보인다", "Fruit 1001", "사과"],
+  [2, "과일", "비활성 포도는 상점에 나오지 않는다", "Fruit.Id=1003, FruitPrice 9016", "나오지 않음"],
+  [3, "보상", "이벤트 보상 4일차 재화", "RewardEvent 7204", "옛 포도 상자"],
+  [4, "가격", "배 판매 가격", "과일 가격(FruitPrice) 9002", "3190"],
+  [5, "성장", "꽃 단계까지 걸리는 날", "Growth 104", "7"],
+  [6, "과일", "없는 과일 Id를 넣으면 오류", "Fruit 1099", "오류 안내"],
+];
+{
+  const book = XLSX.utils.book_new();
+  const aoa = [["과일 농장 확인 항목"], [], ["No", "분류", "확인 내용", "참조", "기대 결과", "결과"], ...tcRows.map((r) => [...r, ""])];
+  XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet(aoa), "TC");
+  XLSX.writeFile(book, join(tcDir, "과일_농장_TC.xlsx"));
+}
+expected.tc = {
+  file: "shape-tc/과일_농장_TC.xlsx",
+  headerRow: 3,
+  refs: [
+    { row: 1, table: "Fruit", value: "1001", exists: true },
+    { row: 2, table: "Fruit", column: "Id", value: "1003", exists: true },
+    { row: 2, table: "FruitPrice", value: "9016", exists: true },
+    { row: 3, table: "RewardEvent", value: "7204", exists: true },
+    { row: 4, table: "FruitPrice", value: "9002", exists: true },
+    { row: 5, table: "Growth", value: "104", exists: true },
+    { row: 6, table: "Fruit", value: "1099", exists: false },
+  ],
+};
+
 // 기획서 문장 수치까지 넣은 뒤에 정답 목록을 쓴다.
 writeFileSync(join(outDir, "expected.json"), JSON.stringify(expected, null, 2));
 

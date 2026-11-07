@@ -12,6 +12,7 @@ import { ROLE_LABEL, type TableRole } from "@/lib/client/domain-model";
 import {
   BookOpen,
   ChevronDown,
+  ClipboardList,
   ChevronRight,
   Database,
   FileSpreadsheet,
@@ -42,6 +43,7 @@ const NAV = [
   { href: "/compare", label: "패치 전후 비교", icon: GitCompareArrows },
   { href: "/relations", label: "참조 관계 목록", icon: GitFork },
   { href: "/join", label: "여러 테이블 붙여 보기", icon: TableProperties },
+  { href: "/tc", label: "TC 시트", icon: ClipboardList },
 ];
 
 // 접힘 상태는 브라우저에 기억한다. 서버 렌더링 때는 펼친 상태로 그린다.

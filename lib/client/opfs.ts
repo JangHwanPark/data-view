@@ -110,6 +110,23 @@ const WORDS = "words.json";
 export const readWordsFile = () => readJson<string>(WORDS, "");
 export const writeWordsFile = (text: string) => writeJson(WORDS, text);
 
+// TC 시트(30단계). 읽은 표만 저장한다(파일은 두지 않는다).
+export interface TcSheet {
+  name: string;
+  headerRow: number; // 머리글 줄(1부터)
+  header: string[];
+  rows: string[][];
+}
+export interface TcFile {
+  id: string;
+  name: string;
+  addedAt: string;
+  sheets: TcSheet[];
+}
+const TC = "tc.json";
+export const readTcFiles = () => readJson<TcFile[]>(TC, []);
+export const writeTcFiles = (list: TcFile[]) => writeJson(TC, list);
+
 async function docsDir() {
   const root = await navigator.storage.getDirectory();
   return root.getDirectoryHandle(DOCS_DIR, { create: true });
