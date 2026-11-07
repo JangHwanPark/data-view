@@ -16,6 +16,8 @@ import { columnSeparators, linkedColumns, parseTrail, serializeTrail, toKeyValue
 import { quoteIdent, quoteString, type QueryResult } from "@/lib/query-result";
 import { TableDomainLine } from "@/components/map/table-domain-line";
 import { RowFilterBar } from "@/components/row-filter-bar";
+import { LiveRows } from "@/components/live-rows";
+import { isFileSource } from "@/lib/client/opfs";
 import { filtersWhere, parseFilters, type RowFilter } from "@/lib/client/row-filter";
 import { TableLinks } from "@/components/table-links";
 import { useLinkedRelations } from "@/components/use-auto-links";
@@ -230,6 +232,9 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
         </form>
       </div>
       {columnNames.length > 0 && <RowFilterBar columns={columnNames} filters={filters} onChange={setFilters} />}
+      {source && !isFileSource(source.meta) && (
+        <LiveRows key={`${id}/${table}`} connectionId={source.meta.connectionId} table={table} filters={filters} loadedAt={source.meta.loadedAt} />
+      )}
 
       <TableDomainLine sourceId={id} table={table} />
       <TableLinks
