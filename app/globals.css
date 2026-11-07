@@ -14,6 +14,10 @@
   --role-isolated: #a1a1aa;
   /* 차트(32단계). 계열이 하나라 범주형 1번(파랑)만 쓴다. 글자는 계열 색이 아니라 글자 색을 쓴다. 검사기로 흰 바탕 3:1 이상 확인. */
   --viz-series-1: #2a78d6;
+  /* 산점도(33단계)의 범주 1~3번. 세 가지까지는 모든 짝이 색약에서도 구분된다(기준 팔레트). 나머지는 「그 밖」 회색 */
+  --viz-series-2: #eb6834;
+  --viz-series-3: #1baf7a;
+  --viz-other: #a1a1aa;
   --viz-text-primary: #0b0b0b;
   --viz-text-secondary: #52514e;
   --viz-grid: #e4e4e7;
@@ -36,6 +40,9 @@
   --role-shared: #c98500;
   --role-isolated: #71717a;
   --viz-series-1: #3987e5;
+  --viz-series-2: #d95926;
+  --viz-series-3: #199e70;
+  --viz-other: #71717a;
   --viz-text-primary: #f0efec;
   --viz-text-secondary: #c3c2b7;
   --viz-grid: #27272a;
