@@ -40,7 +40,7 @@ const NAV = [
   { href: "/search", label: "ID·값 찾기", icon: Search },
   { href: "/check/missing", label: "없는 ID 찾기", icon: SearchX },
   { href: "/compare", label: "패치 전후 비교", icon: GitCompareArrows },
-  { href: "/relations", label: "연결 목록", icon: GitFork },
+  { href: "/relations", label: "참조 관계 목록", icon: GitFork },
   { href: "/join", label: "여러 테이블 붙여 보기", icon: TableProperties },
 ];
 
@@ -450,7 +450,7 @@ function TableItem({ sourceId, table, active: isActive, counts, relationCount, r
         {rels ? (
           <span
             className={`inline-flex shrink-0 items-center gap-0.5 text-[11px] ${isActive ? "" : "text-blue-600 dark:text-blue-400"}`}
-            title={`이어진 테이블 ${rels}개 (쓰는 테이블과 이 테이블을 쓰는 테이블)`}
+            title={`참조 관계로 이어진 테이블 ${rels}개 (참조 대상과 참조하는 곳)`}
           >
             <GitFork className="size-3" aria-hidden />
             {rels}

@@ -214,7 +214,7 @@ function nameCandidates(term: DocTerm, catalog: Catalog, glossary: Map<string, s
       out.push({
         target: { sourceId: t.sourceId, table: t.table, column: term.text },
         score: home ? 0.9 : names === 1 ? 0.9 : 0.6,
-        reason: home ? "이 열이 ID 열인 테이블" : names === 1 ? "같은 이름의 열" : `같은 이름의 열이 ${names}개 테이블에 있음`,
+        reason: home ? "이 컬럼이 ID 열인 테이블" : names === 1 ? "같은 이름의 컬럼" : `같은 이름의 컬럼이 ${names}개 테이블에 있음`,
         exact: true,
       });
     }

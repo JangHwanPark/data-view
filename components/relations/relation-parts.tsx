@@ -39,7 +39,7 @@ export function StatsText({ stats }: { stats: RelationStats }) {
       ) : (
         <span className="text-amber-700 dark:text-amber-400">상대 테이블에 같은 ID가 여러 줄 있어, 한 값이 여러 행으로 이어집니다.</span>
       )}
-      {low && " 맞는 값이 적습니다. ID 열을 잘못 고르지 않았는지 확인해 주세요."}
+      {low && " 맞는 값이 적습니다. ID 컬럼을 잘못 고르지 않았는지 확인해 주세요."}
     </p>
   );
 }

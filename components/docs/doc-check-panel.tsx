@@ -30,7 +30,7 @@ export function DocCheckPanel({ check }: { check: DocCheckResult | "error" | nul
   if (check.compared.length === 0) {
     return (
       <p className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-400">
-        이 기획서에는 데이터와 값을 비교할 수 있는 표가 없습니다. 표의 머리글에 quest_id, item_id처럼 테이블의 ID 열 이름이 있어야 그 ID의 행을 찾아 비교합니다.
+        이 기획서에는 데이터와 값을 비교할 수 있는 표가 없습니다. 표의 머리글에 quest_id, item_id처럼 테이블의 ID 컬럼 이름이 있어야 그 ID의 행을 찾아 비교합니다.
       </p>
     );
   }
@@ -48,7 +48,7 @@ export function DocCheckPanel({ check }: { check: DocCheckResult | "error" | nul
         </span>
         <span className="text-zinc-500">
           기획서 표 {check.compared.length}개, {rows.toLocaleString()}행을 데이터와 비교했습니다
-          {check.skipped ? `. ID 열이 없어 비교하지 못한 표 ${check.skipped}개` : ""}.
+          {check.skipped ? `. ID 컬럼이 없어 비교하지 못한 표 ${check.skipped}개` : ""}.
         </span>
         {!ok && (
           <button type="button" onClick={() => setOpen(!expanded)} className="ml-auto inline-flex items-center gap-0.5 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100" aria-expanded={expanded}>

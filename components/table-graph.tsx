@@ -128,8 +128,8 @@ export function TableGraph({ sourceId, table }: { sourceId: string; table: strin
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-2 text-xs text-zinc-500">
         <span>이어진 테이블</span>
-        <span className="text-zinc-400">왼쪽은 이 테이블을 쓰는 테이블, 오른쪽은 이 테이블이 쓰는 테이블, 실선은 기획 설명에 적혀 있거나 확인한 연결, 점선은 앱이 이름과 값으로 찾은 연결</span>
-        {depth === 2 && !wide.ready && <span className="text-zinc-400">이웃 테이블의 연결을 찾는 중</span>}
+        <span className="text-zinc-400">왼쪽은 이 테이블을 참조하는 곳, 오른쪽은 이 테이블의 참조 대상, 실선은 기획 설명에 적혀 있거나 확인한 참조 관계, 점선은 앱이 이름과 값으로 찾은 참조 관계</span>
+        {depth === 2 && !wide.ready && <span className="text-zinc-400">이웃 테이블의 참조 관계를 찾는 중</span>}
         <span className="ml-auto">보기 범위</span>
         {[1, 2].map((d) => (
           <button

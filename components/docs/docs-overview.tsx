@@ -91,7 +91,7 @@ export function DocsOverview() {
             <h2 className="font-medium">
               기획서에만 있음 <span className="text-zinc-500">{docOnly.length}</span>
             </h2>
-            <p className="text-xs text-zinc-500">기획서에 나오지만 데이터에 같은 이름의 테이블이나 열이 없고, 비슷한 이름도 확실하지 않은 이름입니다. 옛 이름이거나 아직 만들지 않은 테이블일 수 있습니다.</p>
+            <p className="text-xs text-zinc-500">기획서에 나오지만 데이터에 같은 이름의 테이블이나 컬럼이 없고, 비슷한 이름도 확실하지 않은 이름입니다. 옛 이름이거나 아직 만들지 않은 테이블일 수 있습니다.</p>
             <ul className="divide-y divide-zinc-100 rounded-md border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900">
               {docOnly.length === 0 && <li className="px-3 py-2 text-zinc-500">없습니다.</li>}
               {docOnly.map((v) => (

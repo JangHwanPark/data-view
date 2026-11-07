@@ -58,7 +58,7 @@ export function RelationTransfer() {
     await addRelations(added);
     setIncoming(null);
     setMessage({
-      text: `연결 ${added.length}개를 가져왔습니다.${skipped ? ` ${skipped}개는 이미 있거나 연결할 파일이 없어 건너뛰었습니다.` : ""}`,
+      text: `참조 관계 ${added.length}개를 가져왔습니다.${skipped ? ` ${skipped}개는 이미 있거나 연결할 파일이 없어 건너뛰었습니다.` : ""}`,
     });
   }
 

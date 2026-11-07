@@ -87,7 +87,7 @@ export async function buildItems(model: DomainModel, ids: SectionId[], issues: D
     }
     const lines = await treeLines(model, root);
     const broken = lines.filter((l) => l.missing).length;
-    if (broken) flags.push(`없는 ID를 쓰는 곳 ${broken}개`);
+    if (broken) flags.push(`없는 ID를 참조하는 곳 ${broken}개`);
     items.push({ key, sourceId: t.sourceId, table: t.table, keyColumn: t.column, id: t.value, title: root.title, lines, flags, found: true });
   }
   // 문제가 걸린 항목을 위로. 그 안에서는 기획서에 나온 순서를 지킨다.

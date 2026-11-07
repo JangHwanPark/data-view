@@ -45,7 +45,7 @@ export function TableLinks({ focus, sourceId, table, columns, relations, reasons
           </button>
           <Link href={graphHref(`${sourceId}/${table}`)} className="inline-flex items-center gap-1 text-blue-700 hover:underline dark:text-blue-400">
             <Network className="size-3.5" aria-hidden />
-            연결 그림으로 보기
+            참조 관계 그림으로 보기
           </Link>
         </div>
       )}
@@ -53,9 +53,9 @@ export function TableLinks({ focus, sourceId, table, columns, relations, reasons
       {/* 그림 바로 아래에 이 테이블이 어떤 테이블인지 기획서에서 찾아 보여준다. */}
       <TableDocNotes sourceId={sourceId} table={table} columns={columns} focus={focus} />
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="inline-flex w-20 shrink-0 items-center gap-1 text-zinc-500">
+        <span className="inline-flex w-24 shrink-0 items-center gap-1 text-zinc-500">
           <ArrowRight className="size-3.5" aria-hidden />
-          쓰는 테이블
+          참조 대상
         </span>
         {outgoing.length === 0 && <span className="text-zinc-400">{ready ? "없음" : "찾는 중"}</span>}
         {outgoing.map((r) => (
@@ -74,9 +74,9 @@ export function TableLinks({ focus, sourceId, table, columns, relations, reasons
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="inline-flex w-20 shrink-0 items-center gap-1 text-zinc-500">
+        <span className="inline-flex w-24 shrink-0 items-center gap-1 text-zinc-500">
           <ArrowLeft className="size-3.5" aria-hidden />
-          쓰이는 곳
+          참조하는 곳
         </span>
         {incoming.length === 0 && <span className="text-zinc-400">{ready ? "없음" : "찾는 중"}</span>}
         {incoming.map((r) => (
@@ -119,7 +119,7 @@ function RelationChip({ r, other, text, reason }: ChipProps) {
       <Link
         href={`/sources/${other.sourceId}/tables/${encodeURIComponent(other.table)}`}
         className={`${chip} ${auto && !design ? "border-dashed" : ""}`}
-        title={auto ? reason : "확인한 연결"}
+        title={auto ? reason : "확인한 참조 관계"}
       >
         {text}
         {auto && <span className="text-[10px] text-zinc-400">{design ? "기획 설명" : "앱이 찾음"}</span>}
@@ -129,8 +129,8 @@ function RelationChip({ r, other, text, reason }: ChipProps) {
           type="button"
           onClick={() => void addRelations([{ id: newRelationId(), from: r.from, to: r.to }])}
           className="ml-0.5 rounded p-0.5 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
-          title="맞는 연결로 확인"
-          aria-label="맞는 연결로 확인"
+          title="맞는 참조 관계로 확인"
+          aria-label="맞는 참조 관계로 확인"
         >
           <Save className="size-3" aria-hidden />
         </button>

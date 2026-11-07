@@ -62,7 +62,7 @@ export function SourceDetail({ id }: { id: string }) {
             </>
           )}
           {status === "ready" && `, 테이블 ${tables.length}개`}
-          {relationCount > 0 && `, 확인한 연결 ${relationCount}개`}
+          {relationCount > 0 && `, 확인한 참조 관계 ${relationCount}개`}
         </p>
       </div>
 
@@ -180,9 +180,9 @@ function FileActions({ source }: { source: WorkspaceSource }) {
           disabled={status === "loading"}
           onChange={(e) => void setHeader(meta.id, e.target.checked)}
         />
-        첫 행을 열 제목으로 쓰기
+        첫 행을 컬럼 제목으로 쓰기
       </label>
-      <span className="text-xs text-zinc-500">시트와 열 이름이 같으면 확인해 둔 연결이 그대로 이어집니다. 교체하면 바로 전 파일을 한 벌 남겨 패치 전후 비교에 씁니다.</span>
+      <span className="text-xs text-zinc-500">시트와 컬럼 이름이 같으면 확인해 둔 참조 관계가 그대로 이어집니다. 교체하면 바로 전 파일을 한 벌 남겨 패치 전후 비교에 씁니다.</span>
       {replaceError && <p className="w-full text-red-600">{replaceError}</p>}
     </div>
   );
@@ -197,7 +197,7 @@ function DbActions({ source }: { source: WorkspaceSource }) {
         다시 불러오기
       </button>
       <span className="text-xs text-zinc-500">
-        개발 DB의 지금 내용을 다시 읽어 옵니다. 테이블과 열 이름이 같으면 확인해 둔 연결이 그대로 이어집니다.
+        개발 DB의 지금 내용을 다시 읽어 옵니다. 테이블과 컬럼 이름이 같으면 확인해 둔 참조 관계가 그대로 이어집니다.
       </span>
     </div>
   );

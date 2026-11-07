@@ -168,7 +168,7 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
               : inactiveCount > 0
                 ? `쓰는 행 ${(preview.total - inactiveCount).toLocaleString()}행(비활성 ${inactiveCount.toLocaleString()}행 빼고)`
                 : `전체 ${preview.total.toLocaleString()}행`}
-            , 열{" "}
+            , 컬럼{" "}
             {preview.result.columns.length}개
             {preview.result.truncated &&
               ` (앞의 ${PREVIEW_LIMIT.toLocaleString()}행만 표시)`}
@@ -182,7 +182,7 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
           }}
         >
           <select
-            aria-label="찾을 열"
+            aria-label="찾을 컬럼"
             value={draft.column}
             onChange={(e) => setDraft((d) => ({ ...d, column: e.target.value }))}
             className="rounded border border-zinc-300 bg-white px-1.5 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-950"
@@ -236,7 +236,7 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
         />
       )}
       {linked.size > 0 && trail.length === 0 && !focus && (
-        <p className="-mt-1 text-xs text-zinc-500">표에서 파란 밑줄 값을 누르면 이어진 테이블의 행을 오른쪽에 열어 따라갈 수 있습니다. 행 번호를 누르면 그 행이 쓰는 것과 그 행을 쓰는 곳을 트리로 봅니다.</p>
+        <p className="-mt-1 text-xs text-zinc-500">표에서 파란 밑줄 값을 누르면 이어진 테이블의 행을 오른쪽에 열어 따라갈 수 있습니다. 행 번호를 누르면 그 행의 참조 대상과 그 행을 참조하는 곳을 트리로 봅니다.</p>
       )}
 
       {error && (
@@ -316,12 +316,12 @@ function FocusBanner({ focus, rows, missingColumn, noLinks, allHref }: FocusProp
         고른 행: <span className="font-medium">{focus.column} = {focus.value}</span>
       </span>
       {missingColumn ? (
-        <span>이 테이블에 {focus.column} 열이 없습니다. 열 이름이 바뀌었을 수 있어 표 전체를 보여줍니다.</span>
+        <span>이 테이블에 {focus.column} 컬럼이 없습니다. 컬럼 이름이 바뀌었을 수 있어 표 전체를 보여줍니다.</span>
       ) : rows === 0 ? (
         <span>이 값의 행이 테이블에 없습니다. 기획서나 다른 테이블이 지워진 ID를 쓰고 있거나 데이터가 빠졌을 수 있습니다.</span>
       ) : rows !== null ? (
         <span className="opacity-80">
-          {rows.toLocaleString()}행{noLinks ? `. ${focus.column}을 쓰는 테이블은 없습니다. 행의 파란 밑줄 값을 누르면 이어진 테이블을 따라갑니다.` : ""}
+          {rows.toLocaleString()}행{noLinks ? `. ${focus.column}을 참조하는 테이블은 없습니다. 행의 파란 밑줄 값을 누르면 이어진 테이블을 따라갑니다.` : ""}
         </span>
       ) : null}
       <Link href={allHref} className="ml-auto underline underline-offset-2">
