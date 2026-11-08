@@ -70,16 +70,19 @@ export function DocOriginal({ doc, initialQuery }: { doc: WorkspaceDoc; initialQ
             <tbody>
               {b.rows.map((row, r) => (
                 <tr key={r}>
-                  {row.map((cell: DocCell, c) => (
-                    <td
-                      key={c}
-                      colSpan={cell.span > 1 ? cell.span : undefined}
-                      className={`border border-zinc-300 px-2 py-1 align-top dark:border-zinc-700 ${r === 0 ? "bg-zinc-50 dark:bg-zinc-800/60" : ""} ${cell.span > 1 ? "text-center" : ""}`}
-                      title={cell.span > 1 ? `가로로 ${cell.span}칸 합친 칸` : undefined}
-                    >
-                      {runs(cell.runs)}
-                    </td>
-                  ))}
+                  {row.map((cell: DocCell, c) =>
+                    cell.merged ? null : (
+                      <td
+                        key={c}
+                        colSpan={cell.span > 1 ? cell.span : undefined}
+                        rowSpan={cell.rowSpan && cell.rowSpan > 1 ? cell.rowSpan : undefined}
+                        className={`border border-zinc-300 px-2 py-1 align-top dark:border-zinc-700 ${r === 0 ? "bg-zinc-50 dark:bg-zinc-800/60" : ""} ${cell.span > 1 ? "text-center" : ""}`}
+                        title={cell.span > 1 ? `가로로 ${cell.span}칸 합친 칸` : cell.rowSpan && cell.rowSpan > 1 ? `세로로 ${cell.rowSpan}칸 합친 칸` : undefined}
+                      >
+                        {runs(cell.runs)}
+                      </td>
+                    ),
+                  )}
                 </tr>
               ))}
             </tbody>

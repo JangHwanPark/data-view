@@ -2,7 +2,7 @@ import { loadCatalog, normalizeName, type Catalog } from "@/lib/client/doc-infer
 import { runQuery } from "@/lib/client/duckdb";
 import { isMemoColumn, qualifiedTable, tableRules } from "@/lib/client/file-import";
 import { quoteIdent } from "@/lib/query-result";
-import { coverage, fromColumns, isExtended, relationStats, rowCoverage, type FromSide, sameEndpoints, type ColumnRef, type Relation } from "@/lib/client/relations";
+import { coverage, fromColumns, isExtended, normSql, relationStats, rowCoverage, type FromSide, sameEndpoints, type ColumnRef, type Relation } from "@/lib/client/relations";
 
 // 실무 테이블은 이미 이어져 있다. 사용자가 관계 화면에서 하나하나 잇지 않아도,
 // 테이블을 열 때 그 테이블의 열만 검사해서 이어진 테이블을 찾는다.
@@ -366,6 +366,59 @@ async function extendedCandidates(
       found = true;
       const from: FromSide = { ...target, column: idColumn, when: { column: typeColumn, value: String(kind) } };
       push(from, list.slice(0, 1), (t) => `${typeColumn}이 ${String(kind)}인 행의 ${idColumn}은 ${t.table}의 ID`, `t:${idColumn}:${String(kind)}`);
+    }
+    if (found) {
+      handled.add(idColumn);
+      handled.add(typeColumn);
+    }
+  }
+
+  // 4. 종류 + 이름 없는 ID(36단계): cond_type과 target_id처럼 접두어가 다르고, 종류 값도 테이블 이름이 아닌 것(KILL, CLEAR).
+  // 이름으로는 가리키는 테이블을 알 수 없으니, 종류 값마다 그 행들의 ID가 가장 많이 들어 있는 테이블을 값으로 찾는다.
+  // 남은 종류 열과 이름으로 대상을 못 찾는 ID 열이 하나씩일 때만 짝짓는다(여럿이면 어느 것끼리 짝인지 모른다).
+  const typeColumns = me.columns.filter((c) => /type$/i.test(c) && !handled.has(c) && !isMemoColumn(me.sourceId, me.table, c));
+  const namelessIds = me.columns.filter(
+    (c) =>
+      /(^|_|[a-z])(id|Id|ID)$/.test(c) &&
+      c !== me.keyColumn &&
+      !handled.has(c) &&
+      !inNumberedGroup(c, me.columns) &&
+      !others.some((t) => t.keyColumn && namesKey(c, t.keyColumn)) &&
+      !(me.keyColumn && namesKey(c, me.keyColumn)) && // prev_quest_id처럼 자기 테이블을 가리키는 이름
+      strip(c) !== normalizeName(me.table) &&
+      !tablesByName(c, others).length,
+  );
+  // 값으로 찾으므로 같은 파일 밖의 테이블도 모두 본다(조건 테이블은 몬스터, 스테이지, 아이템을 가리킨다).
+  const allKeyed = others.filter((t) => t.keyColumn);
+  if (typeColumns.length === 1 && namelessIds.length === 1 && allKeyed.length) {
+    const [typeColumn] = typeColumns;
+    const [idColumn] = namelessIds;
+    const v = normSql(quoteIdent(idColumn));
+    const counts = allKeyed.map(
+      (t, i) => `CAST(count(*) FILTER (WHERE v IN (SELECT ${normSql(quoteIdent(t.keyColumn!))} FROM ${qualifiedTable(t.sourceId, t.table)})) AS BIGINT) AS m${i}`,
+    );
+    const res = await runQuery(
+      `WITH s AS (SELECT DISTINCT CAST(${quoteIdent(typeColumn)} AS VARCHAR) AS k, ${v} AS v FROM ${qualifiedTable(me.sourceId, me.table)}
+         WHERE ${quoteIdent(typeColumn)} IS NOT NULL AND ${quoteIdent(idColumn)} IS NOT NULL)
+       SELECT k, CAST(count(*) AS BIGINT) AS n, ${counts.join(", ")}
+       FROM s GROUP BY k ORDER BY k LIMIT 30`,
+      30,
+    ).catch(() => null);
+    let found = false;
+    for (const row of res?.rows ?? []) {
+      const kind = String(row[0]);
+      const n = Number(row[1]);
+      if (n < 5) continue; // 값 종류가 적으면 우연히 맞기 쉽다
+      const matched = row.slice(2).map(Number);
+      const top = Math.max(...matched);
+      if (top < n * MIN_COVERAGE) continue;
+      // 여러 테이블에 고루 맞으면(작은 수 ID) 어느 것인지 모른다. 같은 테이블을 파일과 DB로 둘 다 열었으면 같은 소스 쪽을 먼저 본다.
+      const tied = allKeyed.filter((_, i) => matched[i] === top);
+      if (new Set(tied.map((t) => t.table.toLowerCase())).size > 1) continue;
+      const list = prefer(tied).slice(0, 1);
+      found = true;
+      const from: FromSide = { ...target, column: idColumn, when: { column: typeColumn, value: kind } };
+      push(from, list, (t) => `${typeColumn}이 ${kind}인 행의 ${idColumn} 값이 ${t.table}의 ID와 맞음`, `t:${idColumn}:${kind}`, true);
     }
     if (found) handled.add(idColumn);
   }
