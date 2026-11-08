@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+import { DesignRefPanel, SimilarNamePanel, UnusedPanel, useUnused } from "@/components/check/data-checks";
 import { ScanProgress, tablePath } from "@/components/map/map-parts";
 import { useDomainModel } from "@/components/use-domain-model";
 import { sourceVersion, useWorkspace } from "@/components/workspace-provider";
+import { findBrokenDesignRefs, findSimilarNames } from "@/lib/client/data-checks";
 import { tableHref } from "@/lib/client/doc-links";
 import type { DomainModel } from "@/lib/client/domain-model";
 import { findDuplicates, findInactiveRefs, findMissing, TOP_LIMIT, type DuplicateResult, type MissingResult } from "@/lib/client/integrity";
@@ -57,10 +59,10 @@ const rowHref = (ref: ColumnRef, value: string) => `${tableHref(ref.sourceId, re
 
 export function MissingIds() {
   const { sources } = useWorkspace();
-  const { model, progress, error } = useDomainModel();
+  const { model, progress, rowCounts, error } = useDomainModel();
   const searchParams = useSearchParams();
   const focusLink = searchParams.get("link");
-  const [tab, setTab] = useState<"missing" | "inactive" | "dup">("missing");
+  const [tab, setTab] = useState<"missing" | "inactive" | "dup" | "unused" | "design" | "names">("missing");
   const [open, setOpen] = useState<Set<string>>(() => new Set(focusLink ? [focusLink] : []));
 
   const links = model ? collectLinks(model) : [];
@@ -69,6 +71,11 @@ export function MissingIds() {
   const cached = key ? cache.get(key) ?? null : null;
   const [running, setRunning] = useState<{ key: string; done: number; total: number } | null>(null);
   const [failed, setFailed] = useState<{ key: string; message: string } | null>(null);
+  const unused = useUnused(model, version, tab === "unused");
+  const ready = sources.filter((s) => s.status === "ready");
+  const tableList = ready.map((s) => ({ id: s.meta.id, tables: s.tables }));
+  const designRefs = findBrokenDesignRefs(tableList);
+  const similarNames = findSimilarNames(tableList);
 
   useEffect(() => {
     if (!key || cache.has(key)) return;
@@ -136,7 +143,7 @@ export function MissingIds() {
     <div className="flex flex-col gap-1">
       <h1 className="text-lg font-semibold">없는 ID 찾기</h1>
       <p className="text-zinc-500">
-        테이블끼리 이어진 곳을 모두 확인해, 다른 테이블에 없는 ID를 참조하는 행과 ID 컬럼에 같은 ID가 겹친 곳을 모읍니다. 예: 지워진 아이템을 주는 보상, 없는 퀘스트를 여는 조건.
+        테이블끼리 이어진 곳을 모두 확인해, 다른 테이블에 없는 ID를 참조하는 행과 ID 컬럼에 같은 ID가 겹친 곳을 모읍니다. 예: 지워진 아이템을 주는 보상, 없는 퀘스트를 여는 조건. 아무도 쓰지 않는 행, 기획 설명이 가리키는 없는 테이블, 이름이 비슷한 테이블도 확인합니다.
       </p>
     </div>
   );
@@ -205,7 +212,7 @@ export function MissingIds() {
   return (
     <div className="flex flex-col gap-3">
       {header}
-      <nav className="flex gap-1 border-b border-zinc-200 text-sm dark:border-zinc-800" aria-label="확인 종류">
+      <nav className="flex flex-wrap gap-1 border-b border-zinc-200 text-sm dark:border-zinc-800" aria-label="확인 종류">
         <button type="button" className={tabCls(tab === "missing")} onClick={() => setTab("missing")} aria-current={tab === "missing" ? "page" : undefined}>
           없는 ID {problems.length}곳
         </button>
@@ -214,6 +221,15 @@ export function MissingIds() {
         </button>
         <button type="button" className={tabCls(tab === "dup")} onClick={() => setTab("dup")} aria-current={tab === "dup" ? "page" : undefined}>
           중복 ID {cached.duplicates.length}곳
+        </button>
+        <button type="button" className={tabCls(tab === "unused")} onClick={() => setTab("unused")} aria-current={tab === "unused" ? "page" : undefined}>
+          쓰지 않는 행{unused?.list ? ` ${unused.list.length}곳` : ""}
+        </button>
+        <button type="button" className={tabCls(tab === "design")} onClick={() => setTab("design")} aria-current={tab === "design" ? "page" : undefined}>
+          기획 설명 확인 {designRefs.length}곳
+        </button>
+        <button type="button" className={tabCls(tab === "names")} onClick={() => setTab("names")} aria-current={tab === "names" ? "page" : undefined}>
+          비슷한 이름 {similarNames.length}쌍
         </button>
       </nav>
 
@@ -309,6 +325,12 @@ export function MissingIds() {
             </ul>
           )}
         </>
+      ) : tab === "unused" ? (
+        <UnusedPanel result={unused} />
+      ) : tab === "design" ? (
+        <DesignRefPanel list={designRefs} sources={ready} />
+      ) : tab === "names" ? (
+        <SimilarNamePanel list={similarNames} rowCounts={rowCounts} />
       ) : (
         <>
           <p className="text-zinc-600 dark:text-zinc-400">
