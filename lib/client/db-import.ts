@@ -1,6 +1,6 @@
 import { execute, getDuckDB } from "@/lib/client/duckdb";
-import { qualifiedTable, schemaName } from "@/lib/client/file-import";
-import type { DbSourceMeta } from "@/lib/client/opfs";
+import { previousSchemaName, qualifiedTable, schemaName } from "@/lib/client/file-import";
+import { readDbSnapshotPart, saveDbSnapshot, type DbSnapshot, type DbSourceMeta } from "@/lib/client/opfs";
 import { quoteIdent, quoteString } from "@/lib/query-result";
 
 interface DbColumn {
@@ -98,4 +98,42 @@ export async function loadDbIntoDuckDB(meta: DbSourceMeta): Promise<DbLoadResult
     }
   }
   return { tables: tables.map((t) => t.name), truncated };
+}
+
+// 패치 전후 비교(37단계): 다시 불러오기 직전에 DuckDB에 올라가 있는 지금 상태를 parquet로 떠서 OPFS에 남긴다.
+// parquet는 열 종류(정수, 날짜)를 그대로 지키고 JSON보다 훨씬 작다.
+export async function snapshotDb(meta: DbSourceMeta, tables: string[]): Promise<DbSnapshot> {
+  const db = await getDuckDB();
+  const parts: Uint8Array[] = [];
+  for (const [i, table] of tables.entries()) {
+    const path = `snap_${meta.id}_${i}.parquet`;
+    await execute(`COPY (SELECT * FROM ${qualifiedTable(meta.id, table)}) TO ${quoteString(path)} (FORMAT PARQUET)`);
+    try {
+      parts.push(await db.copyFileToBuffer(path));
+    } finally {
+      await db.dropFile(path);
+    }
+  }
+  await saveDbSnapshot(meta.id, parts);
+  return { savedAt: new Date().toISOString(), ...(meta.loadedAt ? { loadedAt: meta.loadedAt } : {}), tables };
+}
+
+// 남겨 둔 이전 상태를 p_<id> 스키마에 올린다. 파일의 이전 파일과 같은 자리라 비교 코드를 같이 쓴다.
+export async function loadDbSnapshot(meta: DbSourceMeta): Promise<string[]> {
+  const snap = meta.previous;
+  if (!snap) return [];
+  const db = await getDuckDB();
+  const schema = quoteIdent(previousSchemaName(meta.id));
+  await execute(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
+  await execute(`CREATE SCHEMA ${schema}`);
+  for (const [i, table] of snap.tables.entries()) {
+    const path = `prev_${meta.id}_${i}.parquet`;
+    await db.registerFileBuffer(path, await readDbSnapshotPart(meta.id, i));
+    try {
+      await execute(`CREATE TABLE ${schema}.${quoteIdent(table)} AS SELECT * FROM read_parquet(${quoteString(path)})`);
+    } finally {
+      await db.dropFile(path);
+    }
+  }
+  return snap.tables;
 }

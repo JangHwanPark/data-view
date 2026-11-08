@@ -6,8 +6,8 @@ import { useEffect, useState } from "react";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { TableDiff } from "@/components/compare/table-diff";
 import { sourceVersion, useWorkspace, type WorkspaceSource } from "@/components/workspace-provider";
-import { compareSource, type TableSummary } from "@/lib/client/compare";
-import { isFileSource, type FileSourceMeta } from "@/lib/client/opfs";
+import { compareSource, previousLabel, type TableSummary } from "@/lib/client/compare";
+import { isFileSource } from "@/lib/client/opfs";
 
 const STATUS_LABEL: Record<TableSummary["status"], string> = {
   changed: "바뀜",
@@ -16,12 +16,12 @@ const STATUS_LABEL: Record<TableSummary["status"], string> = {
   same: "같음",
 };
 
-// 패치 전후 비교 화면(설계 4.9). 교체할 때 남겨 둔 이전 파일과 지금 파일을 시트별로 비교한다.
+// 패치 전후 비교 화면(설계 4.9). 교체할 때 남겨 둔 이전 파일, 또는 다시 불러오기 전에 남겨 둔 개발 DB 상태와 지금을 시트별로 비교한다.
 export function CompareView() {
   const { sources, initialized } = useWorkspace();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const withPrevious = sources.filter((s): s is WorkspaceSource & { meta: FileSourceMeta } => isFileSource(s.meta) && !!s.meta.previous);
+  const withPrevious = sources.filter((s) => !!s.meta.previous);
   const chosen = withPrevious.find((s) => s.meta.id === searchParams.get("source")) ?? withPrevious[0] ?? null;
 
   function choose(id: string) {
@@ -33,7 +33,7 @@ export function CompareView() {
       <div>
         <h1 className="text-lg font-semibold">패치 전후 비교</h1>
         <p className="text-zinc-500">
-          파일을 새 패치로 바꾸면 바로 전 파일을 한 벌 남겨 두고 비교합니다. 시트마다 새로 생긴 행, 사라진 행, 값이 바뀐 행을 세고, 사라진 ID를 다른 테이블이 아직 쓰고 있으면 따로 알려 줍니다.
+          파일을 새 패치로 바꾸거나 개발 DB를 다시 불러오면 바로 전 상태를 한 벌 남겨 두고 비교합니다. 시트마다 새로 생긴 행, 사라진 행, 값이 바뀐 행을 세고, 사라진 ID를 다른 테이블이 아직 쓰고 있으면 따로 알려 줍니다.
         </p>
       </div>
 
@@ -48,7 +48,7 @@ export function CompareView() {
             </Link>
             에서 파일을 열고 &lsquo;새 패치 파일로 교체&rsquo;를 누르거나, 같은 자리에 새 파일을 덮어쓴 뒤 &lsquo;원본 경로에서 다시 읽기&rsquo;를 누르면 그 전 파일이 남아 여기서 비교할 수 있습니다.
           </p>
-          <p className="text-xs text-zinc-500">개발 DB에서 불러온 테이블은 아직 비교하지 않습니다.</p>
+          <p>개발 DB는 소스 화면에서 &lsquo;다시 불러오기&rsquo;를 누르면 그 전 상태가 남습니다. 패치를 올리기 전에 &lsquo;지금 상태를 비교 기준으로 남기기&rsquo;를 눌러 두어도 됩니다.</p>
         </div>
       ) : (
         <>
@@ -65,20 +65,20 @@ export function CompareView() {
               </button>
             ))}
           </div>
-          {chosen && <SourceCompare key={chosen.meta.id} source={chosen} />}
+          {chosen && <SourceCompare key={chosen.meta.id} source={chosen} initialTable={searchParams.get("table")} />}
         </>
       )}
     </div>
   );
 }
 
-function SourceCompare({ source }: { source: WorkspaceSource & { meta: FileSourceMeta } }) {
+function SourceCompare({ source, initialTable }: { source: WorkspaceSource; initialTable: string | null }) {
   const { meta } = source;
   const ready = source.status === "ready";
   const requestKey = ready ? `${sourceVersion(source)}|${meta.previous?.savedAt}` : null;
   const [loaded, setLoaded] = useState<{ key: string; value: TableSummary[] | string } | null>(null);
   const result = loaded?.key === requestKey ? loaded.value : null;
-  const [picked, setPicked] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string | null>(initialTable);
   const [showSame, setShowSame] = useState(false);
 
   useEffect(() => {
@@ -96,7 +96,9 @@ function SourceCompare({ source }: { source: WorkspaceSource & { meta: FileSourc
 
   const head = (
     <p className="text-xs text-zinc-500">
-      이전 파일 {meta.previous?.fileName} ({meta.previous && new Date(meta.previous.savedAt).toLocaleString()}에 교체) → 지금 파일 {meta.fileName}
+      {isFileSource(meta)
+        ? `이전 파일 ${meta.previous?.fileName} (${meta.previous && new Date(meta.previous.savedAt).toLocaleString()}에 교체) → 지금 파일 ${meta.fileName}`
+        : `${previousLabel(meta)} → 지금 DB (${meta.loadedAt ? new Date(meta.loadedAt).toLocaleString() : "?"}에 불러옴)`}
     </p>
   );
 
@@ -106,7 +108,7 @@ function SourceCompare({ source }: { source: WorkspaceSource & { meta: FileSourc
         {head}
         <p className="inline-flex items-center gap-2 text-zinc-500">
           <Loader2 className="size-4 animate-spin" aria-hidden />
-          {ready ? "두 파일을 비교하는 중입니다." : "지금 파일을 읽는 중입니다."}
+          {ready ? "전후를 비교하는 중입니다." : "지금 데이터를 읽는 중입니다."}
         </p>
       </div>
     );
@@ -115,7 +117,7 @@ function SourceCompare({ source }: { source: WorkspaceSource & { meta: FileSourc
     return (
       <div className="flex flex-col gap-2">
         {head}
-        <p className="text-red-600">비교하지 못했습니다. 이전 파일이 지워졌을 수 있습니다. 파일을 다시 교체해 주세요.</p>
+        <p className="text-red-600">{isFileSource(meta) ? "비교하지 못했습니다. 이전 파일이 지워졌을 수 있습니다. 파일을 다시 교체해 주세요." : "비교하지 못했습니다. 남겨 둔 이전 상태가 지워졌을 수 있습니다. 소스 화면에서 비교 기준을 다시 남겨 주세요."}</p>
         <pre className="text-xs whitespace-pre-wrap text-zinc-500">{result}</pre>
       </div>
     );
@@ -175,7 +177,7 @@ function SourceCompare({ source }: { source: WorkspaceSource & { meta: FileSourc
           바뀌지 않은 시트 {same.length}개 {showSame ? "숨기기" : "보기"}
         </button>
       )}
-      {different.length === 0 && <p className="text-zinc-500">두 파일의 내용이 같습니다.</p>}
+      {different.length === 0 && <p className="text-zinc-500">전후 내용이 같습니다.</p>}
       {current && current.status !== "same" && <TableDiff key={current.table} meta={meta} summary={current} />}
     </div>
   );

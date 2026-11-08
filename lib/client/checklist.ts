@@ -24,6 +24,7 @@ export interface CheckItem {
   title: string | null;
   lines: CheckLine[];
   flags: string[]; // 위로 올리는 이유
+  notes?: string[]; // 알아 둘 점. 위로 올리지는 않는다(예: 이번 패치에서 바뀐 값)
   found: boolean; // 데이터에 이 ID의 행이 있는지
 }
 

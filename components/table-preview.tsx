@@ -21,6 +21,9 @@ import { isFileSource } from "@/lib/client/opfs";
 import { filtersWhere, parseFilters, type RowFilter } from "@/lib/client/row-filter";
 import { TableLinks } from "@/components/table-links";
 import { useLinkedRelations } from "@/components/use-auto-links";
+import { PatchBar } from "@/components/compare/patch-bar";
+import { parsePatchFilter, patchFilterIds, usePatchIds, type PatchFilter } from "@/components/compare/use-patch-ids";
+import { norm } from "@/lib/client/compare";
 
 const PREVIEW_LIMIT = 1000;
 
@@ -59,9 +62,22 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
     else params.delete("f");
     window.history.pushState(null, "", `${pathname}?${params}`);
   }
+  // 이번 패치에서 바뀐 행만 보기(37단계). 주소의 patch 쿼리에 둔다(all, added, changed).
+  const patchParam = searchParams.get("patch");
+  const patchFilter = parsePatchFilter(patchParam);
+  const patch = usePatchIds(source, table);
+  const patchReady = patch !== "loading" && patch !== null;
+  const patchList = patchFilter && patchReady && patch.ids ? patchFilterIds(patch.ids, patchFilter) : null;
+  const patchActive = patchFilter !== null && patch !== null;
+  function setPatchFilter(next: PatchFilter | null) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next) params.set("patch", next);
+    else params.delete("patch");
+    window.history.pushState(null, "", `${pathname}?${params}`);
+  }
 
   // 다른 테이블로 옮겨 갔거나 검색이 바뀌었을 때 이전 결과를 잠깐이라도 보여주지 않도록 키로 거른다.
-  const previewKey = JSON.stringify([id, table, activeSearch.text, activeSearch.column, focus, filters]);
+  const previewKey = JSON.stringify([id, table, activeSearch.text, activeSearch.column, focus, filters, patchActive ? (patchList ? [patchFilter, patchList.length] : "wait") : null]);
   const preview = loaded?.key === previewKey ? loaded : null;
   // 열 목록은 검색 전 결과에서 기억해 둔다. 검색 결과가 0행이어도 열은 그대로다.
   const [columns, setColumns] = useState<{ key: string; names: string[] } | null>(null);
@@ -77,6 +93,7 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
     if (viewParam) params.set("view", viewParam);
     if (rowParam) params.set("row", rowParam);
     if (filterParam) params.set("f", filterParam);
+    if (patchParam) params.set("patch", patchParam);
     if (next.length || rowParam) params.set("trail", serializeTrail(next));
     const query = params.size ? `?${params}` : "";
     window.history[replace ? "replaceState" : "pushState"](null, "", `${pathname}${query}`);
@@ -92,6 +109,7 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
     if (viewParam) params.set("view", viewParam);
     if (rowParam) params.set("row", rowParam);
     if (filterParam) params.set("f", filterParam);
+    if (patchParam) params.set("patch", patchParam);
     if (next) {
       params.set("tree", JSON.stringify(next));
       if (mode === "usedBy") params.set("treeMode", "usedBy");
@@ -103,6 +121,8 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
 
   useEffect(() => {
     if (!ready) return;
+    // 바뀐 행만 보기를 골랐으면 Id 목록이 올 때까지 기다린다. ID 열이 없어 목록이 없으면 거르지 않는다.
+    if (patchActive && (patch === "loading" || (patchReady && patch.ids && !patchList))) return;
     let active = true;
     const target = qualifiedTable(id, table);
     const { text, column } = activeSearch;
@@ -118,6 +138,9 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
       const names = columnNames.length ? columnNames : await tableColumnNames(target);
       if (focus && names.includes(focus.column)) conditions.push(focusWhere(focus));
       conditions.push(...filtersWhere(filters, names));
+      if (patchActive && patchReady && patch.ids && patchList) {
+        conditions.push(patchList.length ? `${norm(quoteIdent(patch.ids.key))} IN (${patchList.map(quoteString).join(", ")})` : "false");
+      }
       const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
       const result = await runQuery(`SELECT * FROM ${target} ${where}`, PREVIEW_LIMIT);
       const count = await runQuery(`SELECT count(*) FROM ${target} ${where}`, 1);
@@ -179,7 +202,7 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
         <h1 className="text-lg font-semibold break-all">{table}</h1>
         {preview && (
           <p className="text-zinc-500">
-            {activeSearch.text || (focus && !focusColumnMissing) || filters.length
+            {activeSearch.text || (focus && !focusColumnMissing) || filters.length || patchList
               ? `찾은 행 ${preview.total.toLocaleString()}개`
               : inactiveCount > 0
                 ? `쓰는 행 ${(preview.total - inactiveCount).toLocaleString()}행(비활성 ${inactiveCount.toLocaleString()}행 빼고)`
@@ -232,6 +255,7 @@ export function TablePreview({ id, table }: { id: string; table: string }) {
         </form>
       </div>
       {columnNames.length > 0 && <RowFilterBar columns={columnNames} filters={filters} onChange={setFilters} />}
+      <PatchBar info={patch} sourceId={id} table={table} filter={patchFilter} onFilter={setPatchFilter} />
       {source && !isFileSource(source.meta) && (
         <LiveRows key={`${id}/${table}`} connectionId={source.meta.connectionId} table={table} filters={filters} loadedAt={source.meta.loadedAt} />
       )}
