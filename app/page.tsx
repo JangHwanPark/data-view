@@ -1,4 +1,4 @@
-import { HomeStart } from "@/components/home-start";
+import { HomeStart } from "@/features/home";
 
 export default function Home() {
   return <HomeStart />;

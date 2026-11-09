@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { DocChecklist } from "@/components/docs/doc-checklist";
+import { DocChecklist } from "@/features/docs";
 
 export default function DocChecklistPage({ params }: PageProps<"/docs/[id]/checklist">) {
   return (

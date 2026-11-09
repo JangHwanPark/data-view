@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
-import { ExplainLayer } from "@/components/explain/value-explain";
-import { Sidebar } from "@/components/sidebar";
-import { TopBar } from "@/components/top-bar";
-import { WorkspaceProvider } from "@/components/workspace-provider";
-import { THEME_INIT_SCRIPT } from "@/lib/client/theme";
+import { ExplainLayer } from "@/core/ui/value-explain";
+import { Sidebar } from "@/features/shell";
+import { TopBar } from "@/features/shell";
+import { WorkspaceProvider } from "@/core/ui/workspace-provider";
+import { THEME_INIT_SCRIPT } from "@/shared/lib/theme";
 import "./globals.css";
 
 const geistSans = Geist({

@@ -1,4 +1,4 @@
-import { TcView } from "@/components/tc/tc-view";
+import { TcView } from "@/features/tc";
 
 export default function TcPage() {
   return <TcView />;

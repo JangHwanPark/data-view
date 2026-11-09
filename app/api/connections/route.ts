@@ -1,7 +1,7 @@
-import { listConnections, parseConnectionInput, saveConnection } from "@/lib/server/connections";
-import { errorResponse, rejectCrossOrigin } from "@/lib/server/http";
-import { canSaveDbPasswords } from "@/lib/server/settings";
-import { errorCode, listTables, withConnection } from "@/lib/server/mysql";
+import { listConnections, parseConnectionInput, saveConnection } from "@/server/connections";
+import { errorResponse, rejectCrossOrigin } from "@/server/http";
+import { canSaveDbPasswords } from "@/server/settings";
+import { errorCode, listTables, withConnection } from "@/server/mysql";
 
 // 저장된 연결 목록. 요청 헤더를 읽으므로 빌드 때 미리 만들어지지 않고 요청마다 실행된다.
 export async function GET(request: Request) {

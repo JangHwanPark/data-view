@@ -1,0 +1,400 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useRef, useState } from "react";
+import { ArrowUpRight, Check, Loader2, RefreshCw, Undo2, X, ListChecks, FileText, Tags } from "lucide-react";
+import { DocOriginal } from "./doc-original";
+import { Highlighted, KIND_LABEL, STATE_LABEL, TargetLabel } from "./doc-parts";
+import { useCandidates } from "./use-candidates";
+import { useWorkspace } from "@/core/ui/workspace-provider";
+import { isSelected, viewTerms, type TermState, type TermView } from "./doc-analysis";
+import type { DocSection } from "@/core/doc-import";
+import { targetRowValue, termHref } from "@/core/doc-links";
+import { DocCheckPanel } from "./doc-check-panel";
+import { useDocCheck } from "./use-doc-check";
+import type { DocCheckIssue } from "./doc-check";
+import { extractTerms, type DocTerm } from "@/core/doc-terms";
+import type { DocTarget } from "@/core/doc-infer";
+
+const KIND_NAME = { docx: "워드", pptx: "PPT", pdf: "PDF", xlsx: "엑셀" } as const;
+const FILTERS: (TermState | "all")[] = ["candidate", "unmatched", "confirmed", "ignored", "all"];
+
+// 절 목록, 본문, 용어 패널을 한 화면에 둔다. 본문에서 용어를 누르면 오른쪽에서 바로 후보를 확정한다.
+export function DocView({ id }: { id: string }) {
+  const { docs, mappings, initialized } = useWorkspace();
+  const doc = docs.find((d) => d.meta.id === id);
+  const [filter, setFilter] = useState<TermState | "all">("candidate");
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  // 보기: 용어(데이터와 맞춰 보기)와 원문(26단계). 주소의 view=original로 원문을 연다.
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const view = searchParams.get("view") === "original" ? "original" : "terms";
+  const chooseView = (next: "original" | "terms") => window.history.pushState(null, "", next === "original" ? `${pathname}?view=original` : pathname);
+
+  // 한 문서의 용어는 렌더마다 다시 뽑아도 가볍다. 후보 계산은 키가 같으면 다시 하지 않는다.
+  const terms = doc?.parsed ? extractTerms(doc.parsed) : null;
+  const candidates = useCandidates(terms);
+  // 기획서 표의 값을 데이터와 맞춰 본다(설계 4.11 불일치 검출).
+  const check = useDocCheck(doc);
+
+  if (!initialized) return <p className="text-zinc-500">불러오는 중...</p>;
+  if (!doc) return <p className="text-zinc-500">이 기획서를 찾을 수 없습니다.</p>;
+  if (doc.status === "loading") {
+    return (
+      <p className="inline-flex items-center gap-2 text-zinc-500">
+        <Loader2 className="size-4 animate-spin" aria-hidden />
+        기획서를 읽는 중입니다.
+      </p>
+    );
+  }
+  if (doc.status === "error" || !doc.parsed || !terms) {
+    return (
+      <div className="rounded-md border border-red-200 bg-red-50 p-3 text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+        <p>기획서를 읽지 못했습니다. 파일이 손상되지 않았는지 확인해 주세요.</p>
+        {doc.error && <pre className="mt-2 whitespace-pre-wrap text-xs">{doc.error}</pre>}
+      </div>
+    );
+  }
+
+  // 데이터와 맞춰 보는 동안에는 모든 말이 "데이터에 없음"으로 보이지 않도록, 결과가 나올 때까지 확정한 말만 표시한다.
+  const allViews = viewTerms(terms, candidates && candidates !== "error" ? candidates : new Map(), mappings);
+  const views = candidates === null ? allViews.filter((v) => v.state === "confirmed" || v.state === "ignored") : allViews;
+  const counts = Object.fromEntries(FILTERS.map((f) => [f, f === "all" ? views.length : views.filter((v) => v.state === f).length]));
+  const sections = doc.parsed.sections;
+
+  // 본문에서 용어를 누르면 그 용어가 보이도록 거르기를 풀고 선택한다.
+  function select(key: string) {
+    setSelectedKey(key);
+    const v = views.find((x) => x.term.key === key);
+    if (v && filter !== "all" && v.state !== filter) setFilter("all");
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h1 className="text-lg font-semibold break-all">{doc.meta.name}</h1>
+        <p className="text-zinc-500">
+          {KIND_NAME[doc.meta.kind]} 기획서, 절 {sections.length}개, 용어 {views.length}개 (맞음 {counts.confirmed}, 확인 필요 {counts.candidate}, 데이터에 없음 {counts.unmatched})
+        </p>
+        {!candidates && (
+          <span className="inline-flex items-center gap-1 text-xs text-zinc-500">
+            <Loader2 className="size-3 animate-spin" aria-hidden />
+            데이터와 맞춰 보는 중
+          </span>
+        )}
+        {candidates === "error" && <span className="text-xs text-red-600">데이터와 맞춰 보지 못했습니다.</span>}
+        <DocReplace id={doc.meta.id} originPath={doc.meta.originPath} />
+        <Link
+          href={`/docs/${doc.meta.id}/checklist`}
+          className="inline-flex items-center gap-1 rounded bg-zinc-900 px-2 py-0.5 text-xs font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900"
+        >
+          <ListChecks className="size-3" aria-hidden />
+          테스트 항목 만들기
+        </Link>
+        <p className="ml-auto text-xs text-zinc-500">
+          <span className="text-blue-700 underline dark:text-blue-400">맞음</span>{" "}
+          <mark className="rounded-sm bg-amber-100 px-0.5 text-inherit dark:bg-amber-900/40">확인 필요</mark>{" "}
+          <span className="text-red-600 underline decoration-wavy dark:text-red-400">데이터에 없음</span>
+        </p>
+      </div>
+
+      <nav className="flex gap-1 border-b border-zinc-200 text-sm dark:border-zinc-800" aria-label="기획서 보기">
+        {(
+          [
+            { key: "terms", label: "용어와 데이터", icon: Tags },
+            { key: "original", label: "원문", icon: FileText },
+          ] as const
+        ).map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => chooseView(key)}
+            aria-current={view === key ? "page" : undefined}
+            className={`-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-1.5 ${
+              view === key ? "border-zinc-900 font-medium dark:border-zinc-100" : "border-transparent text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+            }`}
+          >
+            <Icon className="size-3.5" aria-hidden />
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      {view === "original" && <DocOriginal key={searchParams.get("q") ?? ""} doc={doc} initialQuery={searchParams.get("q") ?? ""} />}
+
+      {view === "terms" && <DocCheckPanel check={check} />}
+
+      <div hidden={view !== "terms"} className="grid grid-cols-1 gap-4 lg:grid-cols-[11rem_minmax(0,1fr)_22rem]">
+        <nav aria-label="절 목록" className="hidden lg:block">
+          <ul className="sticky top-14 flex max-h-[calc(100vh-8rem)] flex-col gap-0.5 overflow-y-auto text-xs">
+            {sections.map((s) => (
+              <li key={s.id}>
+                <a href={`#${s.id}`} className="block truncate rounded px-2 py-1 text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800">
+                  {s.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <DocBody docId={doc.meta.id} sections={sections} views={views} selectedKey={selectedKey} onSelect={select} issues={check && check !== "error" ? check.issues : []} />
+        <aside aria-label="용어 패널" className="lg:sticky lg:top-14 lg:max-h-[calc(100vh-5rem)] lg:self-start lg:overflow-y-auto">
+          <div className="mb-2 flex flex-wrap gap-1">
+            {FILTERS.map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFilter(f)}
+                className={`rounded px-2 py-0.5 text-xs ${filter === f ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400"}`}
+              >
+                {f === "all" ? "전체" : STATE_LABEL[f]} {counts[f]}
+              </button>
+            ))}
+          </div>
+          <TermList
+            views={filter === "all" ? views : views.filter((v) => v.state === filter)}
+            selectedKey={selectedKey}
+            onSelect={setSelectedKey}
+          />
+          <GlossaryEditor />
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+interface BodyProps {
+  docId: string;
+  issues: DocCheckIssue[];
+  sections: DocSection[];
+  views: TermView[];
+  selectedKey: string | null;
+  onSelect: (key: string) => void;
+}
+
+function DocBody({ docId, sections, views, selectedKey, onSelect, issues }: BodyProps) {
+  const hl = (text: string) => <Highlighted text={text} views={views} selectedKey={selectedKey} onSelect={onSelect} />;
+  // 데이터와 다른 칸은 빨갛게, 데이터에 없는 ID 칸은 주황으로 칠하고 마우스를 올리면 데이터 값을 보여준다.
+  const cellIssue = new Map(issues.map((i) => [`${i.sectionId}/${i.tableIndex}/${i.rowIndex}/${i.columnIndex}`, i]));
+  return (
+    <div className="flex min-w-0 flex-col gap-4">
+      {sections.map((s) => (
+        <section key={s.id} id={s.id} className="scroll-mt-14 rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <h2 className="mb-2 flex flex-wrap items-baseline gap-2 font-semibold">
+            <span>{hl(s.title)}</span>
+            <Link href={`/docs/${docId}/checklist?section=${s.id}`} className="text-xs font-normal text-blue-700 hover:underline dark:text-blue-400">
+              이 절로 테스트 항목
+            </Link>
+          </h2>
+          {s.lines.map((line, i) => (
+            <p key={i} className="leading-6">
+              {hl(line)}
+            </p>
+          ))}
+          {s.tables.map((table, ti) => (
+            <div key={ti} className="mt-2 overflow-x-auto">
+              <table className="border-collapse text-xs">
+                <thead>
+                  <tr>
+                    {table.header.map((h, i) => (
+                      <th key={i} className="border border-zinc-200 bg-zinc-50 px-2 py-1 text-left font-medium dark:border-zinc-700 dark:bg-zinc-800">
+                        {hl(h)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {table.rows.map((row, ri) => (
+                    <tr key={ri}>
+                      {row.map((cell, ci) => {
+                        const issue = cellIssue.get(`${s.id}/${ti}/${ri}/${ci}`);
+                        const tone = !issue
+                          ? ""
+                          : issue.kind === "value"
+                            ? "bg-red-50 text-red-800 dark:bg-red-950/50 dark:text-red-300"
+                            : "bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300";
+                        const title = !issue
+                          ? undefined
+                          : issue.kind === "value"
+                            ? `데이터와 다름: 데이터(${issue.table})에는 ${issue.dataValue ?? "(비어 있음)"}`
+                            : `데이터(${issue.table})에 없는 ID입니다`;
+                        return (
+                          <td key={ci} className={`border border-zinc-200 px-2 py-1 dark:border-zinc-700 ${tone}`} title={title}>
+                            {hl(cell)}
+                            {issue?.kind === "value" && <span className="ml-1 text-[10px] whitespace-nowrap">(데이터 {issue.dataValue ?? "비어 있음"})</span>}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </section>
+      ))}
+    </div>
+  );
+}
+
+interface ListProps {
+  views: TermView[];
+  selectedKey: string | null;
+  onSelect: (key: string | null) => void;
+}
+
+function TermList({ views, selectedKey, onSelect }: ListProps) {
+  const { sources, setMapping, clearMapping } = useWorkspace();
+  if (views.length === 0) return <p className="text-xs text-zinc-500">해당하는 용어가 없습니다.</p>;
+  const sorted = [...views].sort((a, b) => (b.candidates[0]?.score ?? 0) - (a.candidates[0]?.score ?? 0) || a.term.text.localeCompare(b.term.text));
+  return (
+    <ul className="divide-y divide-zinc-100 rounded-md border border-zinc-200 bg-white text-xs dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900">
+      {sorted.map((v) => {
+        const open = v.term.key === selectedKey;
+        const top = v.candidates[0];
+        return (
+          <li key={v.term.key} className={open ? "bg-blue-50/60 dark:bg-blue-950/30" : ""}>
+            <button type="button" onClick={() => onSelect(open ? null : v.term.key)} className="flex w-full items-baseline gap-2 px-2.5 py-1.5 text-left">
+              <span className="min-w-0 flex-1 truncate font-medium">{v.term.text}</span>
+              <span className="shrink-0 text-zinc-400">{KIND_LABEL[v.term.kind]}</span>
+              <span
+                className={`shrink-0 ${v.state === "unmatched" ? "text-red-600" : v.state === "candidate" ? "text-amber-700 dark:text-amber-400" : v.state === "confirmed" ? "text-blue-700 dark:text-blue-400" : "text-zinc-500"}`}
+              >
+                {v.state === "candidate" && top ? `${Math.round(top.score * 100)}%` : STATE_LABEL[v.state]}
+              </span>
+            </button>
+            {open && (
+              <div className="flex flex-col gap-1.5 px-2.5 pb-2">
+                {v.state === "confirmed" && v.target && (
+                  <p className="flex items-center gap-1 text-zinc-600 dark:text-zinc-400">
+                    맞음으로 표시함: <TargetLabel target={v.target} sources={sources} value={v.term.kind === "quoted" ? targetRowValue(v.term, v.target) : null} />
+                    <OpenLink term={v.term} target={v.target} />
+                  </p>
+                )}
+                {v.candidates.length === 0 ? (
+                  <p className="text-zinc-500">{v.term.kind === "id" ? "어느 테이블의 ID 컬럼에도 없는 ID입니다. 데이터에서 빠졌거나 아직 만들지 않은 ID일 수 있습니다." : "맞는 테이블이나 컬럼이 없습니다. 옛 이름이거나 아직 없는 테이블일 수 있습니다."}</p>
+                ) : (
+                  <ul className="flex flex-col gap-1">
+                    {v.candidates.map((c, i) => (
+                      <li key={i} className="flex flex-col">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            disabled={isSelected(v, c)}
+                            onClick={() => void setMapping({ key: v.term.key, text: v.term.text, target: c.target })}
+                            className="inline-flex min-w-0 items-center gap-0.5 rounded border border-zinc-300 px-1.5 py-0.5 hover:bg-zinc-100 disabled:border-blue-300 disabled:text-blue-700 dark:border-zinc-700 dark:hover:bg-zinc-800 dark:disabled:text-blue-400"
+                            title="이게 맞음"
+                          >
+                            <Check className="size-3 shrink-0" aria-hidden />
+                            <span className="truncate">
+                              <TargetLabel target={c.target} sources={sources} />
+                            </span>
+                          </button>
+                          <span className="tabular-nums text-zinc-500">{Math.round(c.score * 100)}%</span>
+                          <OpenLink term={v.term} target={c.target} />
+                        </div>
+                        <span className="pl-1 text-zinc-400">{c.reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div>
+                  {v.state === "confirmed" || v.state === "ignored" ? (
+                    <button type="button" onClick={() => void clearMapping(v.term.key)} className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800">
+                      <Undo2 className="size-3" aria-hidden />
+                      되돌리기
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => void setMapping({ key: v.term.key, text: v.term.text, target: null })} className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800" title="데이터와 상관없는 말로 표시">
+                      <X className="size-3" aria-hidden />
+                      무시
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+// 후보나 확정 대상을 데이터에서 바로 열어 본다. ID는 그 행과 따라가기 패널을 연다.
+function OpenLink({ term, target }: { term: DocTerm; target: DocTarget }) {
+  const row = targetRowValue(term, target) !== null;
+  return (
+    <Link
+      href={termHref(term, target)}
+      className="inline-flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950"
+      title={row ? "이 행을 열고 이어진 행을 따라가기 패널로 봅니다." : "이 테이블을 엽니다."}
+    >
+      <ArrowUpRight className="size-3" aria-hidden />
+      {row ? "행 열기" : "열기"}
+    </Link>
+  );
+}
+
+// 기획서 새 판으로 교체. 확정한 용어 매칭은 용어 키에 묶여 있어 그대로 이어진다.
+function DocReplace({ id, originPath }: { id: string; originPath?: string }) {
+  const { replaceDocument, reloadFromOrigin } = useWorkspace();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const run = (p: Promise<void>) => {
+    setError(null);
+    p.catch((e) => setError(e instanceof Error ? e.message : String(e)));
+  };
+  const cls = "inline-flex items-center gap-1 rounded border border-zinc-300 px-2 py-0.5 text-xs hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800";
+  return (
+    <span className="flex items-center gap-1.5">
+      {originPath && (
+        <button type="button" className={cls} title={originPath} onClick={() => run(reloadFromOrigin(id))}>
+          <RefreshCw className="size-3" aria-hidden />
+          원본 경로에서 다시 읽기
+        </button>
+      )}
+      <button type="button" className={cls} onClick={() => inputRef.current?.click()}>
+        <RefreshCw className="size-3" aria-hidden />
+        새 판으로 교체
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".docx,.pptx,.pdf,.xlsx"
+        hidden
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) run(replaceDocument(id, file));
+          e.target.value = "";
+        }}
+      />
+      {error && <span className="text-xs text-red-600">{error}</span>}
+    </span>
+  );
+}
+
+function GlossaryEditor() {
+  const { glossary, setGlossary } = useWorkspace();
+  const [draft, setDraft] = useState<string | null>(null);
+  return (
+    <details className="mt-3 rounded-md border border-zinc-200 bg-white p-2.5 text-xs dark:border-zinc-800 dark:bg-zinc-900">
+      <summary className="cursor-pointer">기획서 이름 짝</summary>
+      <p className="mt-1.5 text-zinc-500">기획서의 한글 이름이 어느 테이블 이름에 해당하는지 적습니다. 한 줄에 하나씩 &lsquo;아이템=Item&rsquo;처럼 적고, 저장하면 기획서에서 다시 찾습니다.</p>
+      <textarea
+        aria-label="기획서 이름 짝"
+        value={draft ?? glossary}
+        onChange={(e) => setDraft(e.target.value)}
+        rows={8}
+        className="mt-2 w-full rounded border border-zinc-300 bg-white p-2 font-mono dark:border-zinc-700 dark:bg-zinc-950"
+      />
+      <button
+        type="button"
+        disabled={draft === null || draft === glossary}
+        onClick={() => void setGlossary(draft ?? glossary).then(() => setDraft(null))}
+        className="mt-1 rounded-md bg-zinc-900 px-3 py-1 font-medium text-white disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900"
+      >
+        저장
+      </button>
+    </details>
+  );
+}

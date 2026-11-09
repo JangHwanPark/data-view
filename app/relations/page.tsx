@@ -1,4 +1,4 @@
-import { RelationsView } from "@/components/relations/relations-view";
+import { RelationsView } from "@/features/relations";
 
 export default function RelationsPage() {
   return <RelationsView />;

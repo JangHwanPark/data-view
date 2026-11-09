@@ -1,6 +1,6 @@
-import { errorResponse, rejectCrossOrigin } from "@/lib/server/http";
-import { errorCode, listTables, withConnection } from "@/lib/server/mysql";
-import { resolveConnection } from "@/lib/server/resolve-connection";
+import { errorResponse, rejectCrossOrigin } from "@/server/http";
+import { errorCode, listTables, withConnection } from "@/server/mysql";
+import { resolveConnection } from "@/server/resolve-connection";
 
 // 테이블 목록과 열 정보
 export async function GET(request: Request, ctx: RouteContext<"/api/connections/[id]/tables">) {

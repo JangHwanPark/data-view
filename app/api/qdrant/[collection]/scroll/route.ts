@@ -1,5 +1,5 @@
-import { errorResponse, rejectCrossOrigin } from "@/lib/server/http";
-import { assertCollection, qdrantConfig, QdrantError, scroll } from "@/lib/server/qdrant";
+import { errorResponse, rejectCrossOrigin } from "@/server/http";
+import { assertCollection, qdrantConfig, QdrantError, scroll } from "@/server/qdrant";
 
 const MAX = 1000;
 

@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { ChartsPage } from "@/components/charts/charts-page";
+import { ChartsPage } from "@/features/charts";
 
 export default function Page() {
   return (

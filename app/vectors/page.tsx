@@ -1,4 +1,4 @@
-import { VectorView } from "@/components/vectors/vector-view";
+import { VectorView } from "@/features/vectors";
 
 export default function VectorsPage() {
   return <VectorView />;

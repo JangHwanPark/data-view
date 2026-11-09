@@ -1,6 +1,6 @@
-import { SourceList } from "@/components/source-list";
-import { WordDictionary } from "@/components/word-dictionary";
-import { TeamSettings } from "@/components/team-settings";
+import { SourceList } from "@/features/sources";
+import { WordDictionary } from "@/features/sources";
+import { TeamSettings } from "@/features/sources";
 
 export default function FilesPage() {
   return (
