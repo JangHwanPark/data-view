@@ -185,11 +185,13 @@ writeBook("Asset", {
   rows: assets,
   design: [
     ["Id", "재화 번호"],
-    ["Type", "재화 종류. GOLD, SEED, FRUIT, GEM"],
+    // 35단계 시험용: 설명이 없는 테이블(AssetType)을 가리킨다
+    ["Type", "재화 종류. GOLD, SEED, FRUIT, GEM. <AssetType> 테이블 참조"],
     ["FruitId", "과일 상자일 때 담긴 과일. <Fruit> 테이블 참조"],
   ],
 });
 expected.designRefs.push({ table: "Asset", column: "FruitId", target: "Fruit", targetColumn: null });
+expected.brokenDesignRefs = [{ table: "Asset", column: "Type", target: "AssetType", note: "설명이 가리키는 테이블이 데이터에 없다(35단계)" }];
 
 // ---- 보상 세 가지(두 줄 머리글, 머리말이 모두 「보상」) ----
 const assetIds = [5001, 5002, 5003, 5005, 5006, 5007];
