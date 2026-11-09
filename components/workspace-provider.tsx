@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { DbRequestError, dbErrorText, loadDbIntoDuckDB, requestJson, snapshotDb } from "@/lib/client/db-import";
 import { detectKind, dropSource, loadIntoDuckDB } from "@/lib/client/file-import";
 import { fetchLocalFile } from "@/lib/client/local-files";
@@ -404,10 +404,22 @@ export function sourceVersion(s: WorkspaceSource) {
   return `${m.id}:${s.status}:${content}:${s.tables.join(",")}`;
 }
 
-export function useWorkspace() {
+// 하이드레이션 중에는 서버가 그린 것과 같은 빈 작업 공간을 돌려준다(38단계).
+// 사이드바와 화면은 Suspense 안에 있어 WorkspaceProvider보다 늦게 하이드레이션될 수 있다. 그 사이에 OPFS 복원이 끝나면
+// 서버 HTML(「불러온 파일 없음」)과 브라우저가 그리려는 것(소스 목록)이 달라 hydration 오류가 났다.
+// useSyncExternalStore는 하이드레이션 때 서버 값(false)을 쓰고 끝나면 곧바로 브라우저 값(true)으로 다시 그린다.
+const noopSubscribe = () => () => {};
+const EMPTY = { sources: [], relations: [], docs: [], mappings: [], initialized: false, initError: null } satisfies Partial<WorkspaceValue>;
+
+export function useWorkspace(): WorkspaceValue {
   const value = useContext(WorkspaceContext);
+  const hydrated = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
   if (!value) throw new Error("WorkspaceProvider 안에서만 쓸 수 있습니다.");
-  return value;
+  return hydrated ? value : { ...value, ...EMPTY, glossary: DEFAULT_GLOSSARY };
 }
 
 function errorMessage(e: unknown) {

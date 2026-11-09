@@ -3,6 +3,7 @@
 // 2. 없으면 단어 사전(영어,한글 csv)으로 테이블 이름의 단어를 옮겨 짓고 「추론」 표시를 붙인다.
 //    - 단어 나누기: RewardDaily → Reward, Daily / reward_group_id → reward, group, id
 //    - A By B → B별 A(ItemByType → 종류별 아이템), A Per B → B당 A(GoldPerLevel → 레벨당 골드)
+//    - 끝에 붙은 꾸밈말(Daily, Weekly, Event …)은 앞으로 옮긴다(RewardDaily → 일일 보상, 38단계).
 //    - 사전에 없는 단어는 영어 그대로 덧붙인다(FruitPrise → 과일 Prise). 아는 단어가 하나도 없으면 한글 이름이 없다.
 // 3. 한글 이름이 같은 테이블이 여럿이면 서로 다른 단어를 괄호에 붙인다(보상(일일), 보상(주간)).
 // 이 파일은 브라우저 없이도 돌 수 있게 순수 함수만 둔다.
@@ -53,12 +54,14 @@ Info,정보
 Item,아이템
 Key,키
 Level,레벨
+Limited,한정
 List,목록
 Mail,우편
 Map,지도
 Material,재료
 Mission,미션
 Monster,몬스터
+Monthly,월간
 Name,이름
 Npc,NPC
 Package,패키지
@@ -81,6 +84,7 @@ Season,계절
 Set,세트
 Shop,상점
 Skill,스킬
+Special,특별
 Stage,스테이지
 Stat,능력치
 String,문자열
@@ -166,9 +170,23 @@ export function inferKorean(table: string, dict: Map<string, string>): { text: s
     const suffix = /^by$/i.test(words[joiner]) ? "별" : "당";
     return { text: `${b.text}${suffix} ${a.text}`, unknown: [...b.unknown, ...a.unknown] };
   }
+  // 영어 테이블 이름은 꾸밈말을 뒤에 붙이곤 한다(RewardDaily, QuestRepeat). 한글은 꾸밈말이 앞이라 순서를 바꾼다.
+  // 끝에서부터 이어진 꾸밈말을 떼어, 사전에 있어 옮겨지는 것만 앞으로 보낸다. 앞에 남는 단어가 있어야 한다.
+  let cut = words.length;
+  while (cut > 1 && TRAILING_MODIFIERS.has(words[cut - 1].toLowerCase()) && dict.has(wordKey(words[cut - 1]))) cut--;
+  if (cut < words.length) {
+    const head = translateWords(words.slice(0, cut), dict);
+    const mods = translateWords(words.slice(cut), dict);
+    if (head.known + mods.known === 0) return null;
+    return { text: `${mods.text} ${head.text}`, unknown: [...mods.unknown, ...head.unknown] };
+  }
   const t = translateWords(words, dict);
   return t.known ? { text: t.text, unknown: t.unknown } : null;
 }
+
+// 테이블 이름 끝에 와도 꾸미는 말로 보는 단어. 사용자 사전에 없는 단어는 옮기지 않으므로 순서도 그대로다.
+// 명사로도 쓰이는 말(Event, Season)은 끝에 올 때만 꾸밈말로 본다(EventShop은 그대로 「이벤트 상점」).
+const TRAILING_MODIFIERS = new Set(["daily", "weekly", "monthly", "event", "repeat", "limited", "special", "season"]);
 
 export interface NameInput {
   key: string; // 테이블 키(소스id/테이블)
