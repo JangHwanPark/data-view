@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, ListChecks, Loader2, Table2 } from "lucide-react";
 import { useDomainModel } from "@/components/use-domain-model";
 import { brokenUses, compareTable, DETAIL_LIMIT, type BrokenUse, type TableDetail, type TableSummary } from "@/lib/client/compare";
 import { tableHref } from "@/lib/client/doc-links";
-import type { FileSourceMeta } from "@/lib/client/opfs";
+import type { SourceMeta } from "@/lib/client/opfs";
 
 // 시트 하나의 자세한 비교. 값이 바뀐 행, 새로 생긴 ID, 사라진 ID, 사라진 ID를 아직 쓰는 곳을 보여준다.
-export function TableDiff({ meta, summary }: { meta: FileSourceMeta; summary: TableSummary }) {
+export function TableDiff({ meta, summary }: { meta: SourceMeta; summary: TableSummary }) {
   const [detail, setDetail] = useState<TableDetail | string | null>(null);
   const { model } = useDomainModel();
   const tableKey = `${meta.id}/${summary.table}`;
@@ -52,6 +52,19 @@ export function TableDiff({ meta, summary }: { meta: FileSourceMeta; summary: Ta
         {summary.table}
         <span className="ml-2 text-xs font-normal text-zinc-500">{summary.key ? `ID 컬럼 ${summary.key} 기준으로 비교` : "ID 컬럼이 없어 줄 단위로 비교"}</span>
       </h2>
+      {summary.key && summary.status === "changed" && summary.added + summary.changed > 0 && (
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+          <span className="text-zinc-500">새로 생긴 행과 값이 바뀐 행을</span>
+          <Link href={`${tableHref(meta.id, summary.table)}?view=data&patch=all`} className="inline-flex items-center gap-1 text-blue-700 hover:underline dark:text-blue-400">
+            <Table2 className="size-3.5" aria-hidden />
+            테이블 화면에서 거르기
+          </Link>
+          <Link href={`/compare/checklist?source=${encodeURIComponent(meta.id)}&table=${encodeURIComponent(summary.table)}`} className="inline-flex items-center gap-1 text-blue-700 hover:underline dark:text-blue-400">
+            <ListChecks className="size-3.5" aria-hidden />
+            테스트 항목으로 만들기
+          </Link>
+        </p>
+      )}
 
       {summary.removed > 0 && summary.key && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">

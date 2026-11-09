@@ -479,6 +479,8 @@ function sqlValue(v) {
   return `'${String(v).replaceAll("\\", "\\\\").replaceAll("'", "''")}'`;
 }
 const sql = [
+  // 클라이언트 기본 문자셋이 latin1이면(일부 리눅스, 예전 Windows 클라이언트) 한글이 깨져 들어간다.
+  "SET NAMES utf8mb4;",
   "CREATE DATABASE IF NOT EXISTS game CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
   "USE game;",
 ];

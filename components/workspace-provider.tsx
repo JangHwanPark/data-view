@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { DbRequestError, dbErrorText, loadDbIntoDuckDB, requestJson } from "@/lib/client/db-import";
+import { DbRequestError, dbErrorText, loadDbIntoDuckDB, requestJson, snapshotDb } from "@/lib/client/db-import";
 import { detectKind, dropSource, loadIntoDuckDB } from "@/lib/client/file-import";
 import { fetchLocalFile } from "@/lib/client/local-files";
 import { detectDocKind, parseDoc, type ParsedDoc } from "@/lib/client/doc-import";
@@ -76,6 +76,7 @@ interface WorkspaceValue {
   addFile: (file: File, originPath?: string) => Promise<string>;
   addDatabase: (input: NewDatabaseSource) => Promise<string>;
   reloadSource: (id: string) => Promise<void>;
+  keepDbBaseline: (id: string) => Promise<void>;
   replaceFile: (id: string, file: File) => Promise<void>;
   removeSource: (id: string) => Promise<void>;
   setHeader: (id: string, header: boolean) => Promise<void>;
@@ -222,9 +223,28 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     return meta.id;
   }
 
+  // DB는 다시 불러오기 직전 상태를 이전 상태로 남겨 패치 전후 비교에 쓴다(37단계). 남기지 못해도 다시 불러온다.
   async function reloadSource(id: string) {
     const target = sources.find((s) => s.meta.id === id);
-    if (target) await load(target.meta);
+    if (!target) return;
+    if (isFileSource(target.meta) || target.status !== "ready") return load(target.meta);
+    const meta = await keepSnapshot(target.meta, target.tables).catch(() => target.meta);
+    await load(meta);
+  }
+
+  // 지금 불러온 DB 상태를 비교 기준으로 남긴다. 패치를 올리기 전에 눌러 두면, 앱을 다시 열어도 그 상태와 비교할 수 있다.
+  async function keepDbBaseline(id: string) {
+    const target = sources.find((s) => s.meta.id === id);
+    if (!target || isFileSource(target.meta) || target.status !== "ready") return;
+    await keepSnapshot(target.meta, target.tables);
+  }
+
+  async function keepSnapshot(current: DbSourceMeta, tables: string[]) {
+    const previous = await snapshotDb(current, tables);
+    const meta: DbSourceMeta = { ...current, previous };
+    await editManifest((list) => list.map((m) => (m.id === current.id ? meta : m)));
+    update(current.id, { meta });
+    return meta;
   }
 
   // 소스 id와 이름은 그대로 두고 원본만 바꾼다. 관계가 소스 id와 테이블 이름으로 대상을 가리키기 때문.
@@ -363,6 +383,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         addFile,
         addDatabase,
         reloadSource,
+        keepDbBaseline,
         replaceFile,
         removeSource,
         setHeader,

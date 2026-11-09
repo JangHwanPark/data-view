@@ -189,16 +189,48 @@ function FileActions({ source }: { source: WorkspaceSource }) {
 }
 
 function DbActions({ source }: { source: WorkspaceSource }) {
-  const { reloadSource } = useWorkspace();
+  const { reloadSource, keepDbBaseline } = useWorkspace();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const meta = source.meta;
+  const previous = !isFileSource(meta) ? meta.previous : undefined;
+  async function run(task: () => Promise<void>) {
+    setBusy(true);
+    setError(null);
+    try {
+      await task();
+    } catch (e) {
+      setError(`이전 상태를 남기지 못했습니다. ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <button type="button" disabled={source.status === "loading"} onClick={() => void reloadSource(source.meta.id)} className={buttonClass}>
+      <button type="button" disabled={source.status === "loading" || busy} onClick={() => void run(() => reloadSource(meta.id))} className={buttonClass}>
         <RefreshCw className="size-3.5" aria-hidden />
         다시 불러오기
       </button>
+      <button
+        type="button"
+        disabled={source.status !== "ready" || busy}
+        onClick={() => void run(() => keepDbBaseline(meta.id))}
+        className={buttonClass}
+        title="패치를 올리기 전에 눌러 두면, 앱을 다시 열어도 이 상태와 비교할 수 있습니다."
+      >
+        {busy ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <GitCompareArrows className="size-3.5" aria-hidden />}
+        지금 상태를 비교 기준으로 남기기
+      </button>
+      {previous && (
+        <Link href={`/compare?source=${encodeURIComponent(meta.id)}`} className="inline-flex items-center gap-1 text-blue-700 hover:underline dark:text-blue-400">
+          <GitCompareArrows className="size-3.5" aria-hidden />
+          전후 비교 ({new Date(previous.loadedAt ?? previous.savedAt).toLocaleString()} 상태와)
+        </Link>
+      )}
       <span className="text-xs text-zinc-500">
-        개발 DB의 지금 내용을 다시 읽어 옵니다. 테이블과 컬럼 이름이 같으면 확인해 둔 참조 관계가 그대로 이어집니다.
+        다시 불러오면 개발 DB의 지금 내용을 다시 읽고, 그 전 상태를 한 벌 남겨 패치 전후 비교에 씁니다. 테이블과 컬럼 이름이 같으면 확인해 둔 참조 관계가 그대로 이어집니다.
       </span>
+      {error && <p className="w-full text-red-600">{error}</p>}
     </div>
   );
 }

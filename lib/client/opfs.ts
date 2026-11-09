@@ -29,6 +29,15 @@ export interface DbSourceMeta {
   database: string;
   createdAt: string;
   loadedAt?: string; // 마지막으로 불러온 시각
+  previous?: DbSnapshot; // 다시 불러오기 바로 전 상태. 패치 전후 비교에 쓴다(설계 4.9, 37단계).
+}
+
+// 개발 DB의 이전 상태. 테이블마다 parquet 파일 하나를 files/<소스 id>/prev/<순번>.parquet에 둔다.
+// 테이블 이름에 파일 이름으로 못 쓰는 글자가 있을 수 있어 순번으로 저장하고, 이름은 tables 순서로 찾는다.
+export interface DbSnapshot {
+  savedAt: string; // 이전 상태로 남긴 시각
+  loadedAt?: string; // 남긴 데이터를 DB에서 불러왔던 시각
+  tables: string[];
 }
 
 export type SourceMeta = FileSourceMeta | DbSourceMeta;
@@ -221,6 +230,23 @@ export async function readPreviousFile(meta: FileSourceMeta): Promise<File> {
   if (!meta.previous) throw new Error("이전 파일이 없습니다.");
   const dir = await (await (await filesDir()).getDirectoryHandle(meta.id)).getDirectoryHandle(PREV_DIR);
   return (await dir.getFileHandle(meta.previous.fileName)).getFile();
+}
+
+// DB 소스의 지금 상태를 이전 상태로 남긴다. 파일과 같이 한 벌만 두고 그 전 것은 지운다.
+export async function saveDbSnapshot(id: string, parts: Uint8Array[]) {
+  const dir = await (await filesDir()).getDirectoryHandle(id, { create: true });
+  await dir.removeEntry(PREV_DIR, { recursive: true }).catch(() => {});
+  const prev = await dir.getDirectoryHandle(PREV_DIR, { create: true });
+  for (const [i, bytes] of parts.entries()) {
+    const writable = await (await prev.getFileHandle(`${i}.parquet`, { create: true })).createWritable();
+    await writable.write(bytes as Uint8Array<ArrayBuffer>);
+    await writable.close();
+  }
+}
+
+export async function readDbSnapshotPart(id: string, index: number): Promise<Uint8Array> {
+  const dir = await (await (await filesDir()).getDirectoryHandle(id)).getDirectoryHandle(PREV_DIR);
+  return new Uint8Array(await (await (await dir.getFileHandle(`${index}.parquet`)).getFile()).arrayBuffer());
 }
 
 export async function readFile(meta: FileSourceMeta): Promise<File> {
