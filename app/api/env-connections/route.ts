@@ -1,8 +1,8 @@
-import { saveEnvConnection } from "@/lib/server/connections";
-import { listEnvConnections, resolveEnvConnection } from "@/lib/server/env-connections";
-import { errorResponse, rejectCrossOrigin } from "@/lib/server/http";
-import { fileErrorCode } from "@/lib/server/local-files";
-import { errorCode, listTables, withConnection } from "@/lib/server/mysql";
+import { saveEnvConnection } from "@/server/connections";
+import { listEnvConnections, resolveEnvConnection } from "@/server/env-connections";
+import { errorResponse, rejectCrossOrigin } from "@/server/http";
+import { fileErrorCode } from "@/server/local-files";
+import { errorCode, listTables, withConnection } from "@/server/mysql";
 
 // body: { file?: string }            → 찾은 접속 정보 목록(비밀번호 제외)
 // body: { file?: string, connect: id } → 그 정보로 접속을 확인하고 연결로 저장

@@ -1,5 +1,5 @@
-import { errorResponse, rejectCrossOrigin } from "@/lib/server/http";
-import { assertCollection, qdrantConfig, query, QdrantError } from "@/lib/server/qdrant";
+import { errorResponse, rejectCrossOrigin } from "@/server/http";
+import { assertCollection, qdrantConfig, query, QdrantError } from "@/server/qdrant";
 
 // 비슷한 점 찾기(33단계). 점 id나 벡터를 받아 가까운 점을 50개까지 돌려준다.
 export async function POST(request: Request, ctx: RouteContext<"/api/qdrant/[collection]/query">) {

@@ -1,4 +1,4 @@
-import { TablesView } from "@/components/map/tables-view";
+import { TablesView } from "@/features/map";
 
 export default function MapTablesPage() {
   return <TablesView />;

@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { JoinBuilder } from "@/components/join-builder";
+import { JoinBuilder } from "@/features/join";
 
 export default function JoinPage() {
   return (

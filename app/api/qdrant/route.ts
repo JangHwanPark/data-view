@@ -1,5 +1,5 @@
-import { errorResponse, rejectCrossOrigin } from "@/lib/server/http";
-import { listCollections, qdrantConfig, QdrantError } from "@/lib/server/qdrant";
+import { errorResponse, rejectCrossOrigin } from "@/server/http";
+import { listCollections, qdrantConfig, QdrantError } from "@/server/qdrant";
 
 // 벡터 DB 연결 상태와 컬렉션 목록(33단계). 주소는 보여주되 키는 있는지만 알린다.
 export async function GET(request: Request) {

@@ -1,6 +1,6 @@
-import { errorResponse, rejectCrossOrigin } from "@/lib/server/http";
-import { errorCode, listTables, readTable, TABLE_ROW_LIMIT, withConnection } from "@/lib/server/mysql";
-import { resolveConnection } from "@/lib/server/resolve-connection";
+import { errorResponse, rejectCrossOrigin } from "@/server/http";
+import { errorCode, listTables, readTable, TABLE_ROW_LIMIT, withConnection } from "@/server/mysql";
+import { resolveConnection } from "@/server/resolve-connection";
 
 // 테이블 하나의 행. 브라우저가 DuckDB에 스냅샷으로 넣을 때 쓴다.
 export async function GET(request: Request, ctx: RouteContext<"/api/connections/[id]/tables/[table]">) {

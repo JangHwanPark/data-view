@@ -1,5 +1,5 @@
-import { errorResponse, rejectCrossOrigin } from "@/lib/server/http";
-import { fileErrorCode, listLocalFiles, readLocalFile } from "@/lib/server/local-files";
+import { errorResponse, rejectCrossOrigin } from "@/server/http";
+import { fileErrorCode, listLocalFiles, readLocalFile } from "@/server/local-files";
 
 // 경로의 파일 목록. 로컬 단일 사용자 도구라 127.0.0.1에서만 열리고, 정해 둔 확장자만 다룬다.
 export async function POST(request: Request) {

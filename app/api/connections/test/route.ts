@@ -1,6 +1,6 @@
-import { parseConnectionInput } from "@/lib/server/connections";
-import { errorResponse, rejectCrossOrigin } from "@/lib/server/http";
-import { errorCode, listTables, withConnection } from "@/lib/server/mysql";
+import { parseConnectionInput } from "@/server/connections";
+import { errorResponse, rejectCrossOrigin } from "@/server/http";
+import { errorCode, listTables, withConnection } from "@/server/mysql";
 
 // 저장하지 않고 접속만 확인한다.
 export async function POST(request: Request) {

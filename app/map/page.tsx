@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { DomainMap } from "@/components/map/domain-map";
+import { DomainMap } from "@/features/map";
 
 export default function MapPage() {
   return (

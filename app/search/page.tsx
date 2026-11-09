@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { ValueSearch } from "@/components/value-search";
+import { ValueSearch } from "@/features/search";
 
 export default function SearchPage() {
   return (

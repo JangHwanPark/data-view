@@ -1,5 +1,5 @@
-import { deleteConnection, getConnection } from "@/lib/server/connections";
-import { errorResponse, rejectCrossOrigin } from "@/lib/server/http";
+import { deleteConnection, getConnection } from "@/server/connections";
+import { errorResponse, rejectCrossOrigin } from "@/server/http";
 
 export async function DELETE(request: Request, ctx: RouteContext<"/api/connections/[id]">) {
   const rejected = rejectCrossOrigin(request);

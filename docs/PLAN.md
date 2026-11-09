@@ -82,7 +82,7 @@
 | 35 | 데이터 점검 넓히기: 아무도 쓰지 않는 행, 기획 설명(#Design)이 가리키는데 없는 테이블, 이름이 한두 글자 다른 테이블 쌍 (완료, 아래 「35단계 결과」) | 5절 |
 | 36 | 자동 참조 관계 넓히기: 타입 열과 대상 ID 열의 앞자리가 다른 조건부 참조, 기획서 docx 표의 세로 병합 칸 (완료, 아래 「36단계 결과」) | 3-2, 3-7 |
 | 37 | 패치 전후 비교 넓히기: 개발 DB의 전후 비교, 바뀐 Id 목록을 다른 화면에서 쓰기 (완료, 아래 「37단계 결과」) | 4.9 |
-| 38 | 다듬기: 사이드바 hydration 경고, 한글 이름의 꾸밈말 순서, 기능별 폴더 구조로 옮기기(`features/<기능>`, `core/`, `shared/`, `server/`, 의존 방향 `app → features → core → shared`를 ESLint로 검사, 기능 하나씩 `git mv`로 옮기고 그때마다 빌드와 화면 시험) | |
+| 38 | 다듬기: 사이드바 hydration 경고, 한글 이름의 꾸밈말 순서, 기능별 폴더 구조로 옮기기(`features/<기능>`, `core/`, `shared/`, `server/`, 의존 방향 `app → features → core → shared`를 ESLint로 검사, 기능 하나씩 `git mv`로 옮기고 그때마다 빌드와 화면 시험) (완료, 아래 「38단계 결과」) | |
 
 ## 3. 정할 것
 
@@ -286,4 +286,40 @@ Python으로 두 Item.xlsx를 따로 세면 바뀐 행이 61개다. 지금 판�
 가짜 DB를 latin1 클라이언트로 넣으면 한글이 깨져 들어가므로 `seed.sql` 맨 앞에 `SET NAMES utf8mb4;`를 넣었다(`scripts/generate-game-fixtures.mjs`).
 
 남은 것: 기준은 소스마다 한 벌이다(파일과 같음). 테이블마다 최대 20만 행까지만 불러오므로, 잘린 테이블은 잘린 범위 안에서만 비교한다. 회사 DB 크기에서 parquet 저장 시간과 OPFS 용량을 재 봐야 한다.
+
+## 38단계 결과
+
+`stage/38-polish` 브랜치에서 했다.
+
+| | 한 일 | 확인 |
+| :--- | :--- | :--- |
+| 사이드바 hydration 경고 | 원인: 사이드바와 화면은 Suspense 안에 있어 `WorkspaceProvider`보다 늦게 하이드레이션될 수 있다. 그 사이 OPFS 복원이 끝나면 서버 HTML(「불러온 파일 없음」)과 브라우저가 그리려는 소스 목록이 달라 오류가 났다. 가끔만 나던 까닭이다. `useWorkspace()`가 하이드레이션 중에는 서버와 같은 빈 작업 공간을 돌려주고, 끝나면 곧바로 실제 값으로 다시 그린다(`useSyncExternalStore`의 서버 값) | 데이터를 올린 뒤 네 화면을 오가며 CPU를 느리게 한 시험: 고치기 전 16번 중 1번(사이드바 TableTree의 `<p>` ↔ `<div>`), 고친 뒤 128번 중 0번. 모든 화면 × 기본, ko-KR/서울 시간대, 어두운 테마, 저장한 사이드바 설정에서 0번 |
+| 한글 이름 꾸밈말 순서 | 테이블 이름 끝의 꾸밈말(Daily, Weekly, Monthly, Event, Repeat, Limited, Special, Season)을 앞으로 옮긴다(RewardDaily → 일일 보상, QuestRepeat → 반복 퀘스트). 사전에 있어 옮겨지는 단어만 옮기고, 앞(EventShop)에 오면 그대로다. 사전에 Monthly(월간), Limited(한정), Special(특별)을 더했다 | 가짜 데이터 362개 테이블에서 바뀐 이름은 RewardDaily, RewardWeekly, RewardEvent 3개뿐(셋 다 #Design 머리말 「보상」이 있어 화면에는 머리말이 나온다) |
+| 기능별 폴더 구조 | `components/`, `lib/`를 `features/<기능>/`, `core/`, `shared/`, `server/`로 옮겼다(파일 130개, `git mv`라 이력이 이어진다). 기능 밖에서는 `features/<기능>/index.ts`로만 가져온다. 의존 방향 `app → features → core → shared`를 `eslint.config.mjs`의 `no-restricted-imports`로 검사한다(규칙은 DESIGN.md 9장). 코드 내용은 바꾸지 않고 위치와 import만 바꿨다. 이름이 겹치는 두 화면 파일만 이름을 바꿨다(`check/data-checks.tsx` → `data-check-panels.tsx`, `team-settings.tsx` → `team-settings-panel.tsx`) | 타입 검사, 린트(규칙을 어기는 파일을 일부러 만들어 오류 3개가 나는 것도 확인), 빌드 통과. 옮기기 전과 같은 시험을 다시 돌림: 게임 51개 테이블과 과일 농장의 자동 참조 관계 목록이 옮기기 전과 한 줄도 다르지 않음(104개, 9개), 데이터 점검 탭 6개의 건수, 기획서 세로 병합 칸, 패치 전후 비교(파일 새 40 · 바뀜 60 · 사라짐 25, DB 새 1 · 사라짐 1 · 바뀜 2, 거르기, Id 복사, 테스트 항목)가 37단계와 같음. 화면 22개를 차례로 열어 오류 없음(아래 하나 빼고) |
+| 시스템 지도 「테이블별 참조 관계」의 key 경고 | 화면을 모두 열어 보다가 찾은 예전부터 있던 경고. 열 여러 개로 된 참조 관계(Level#1~3 → Growth)가 카드에 같은 key로 여러 번 들어갔다. key에 열 이름을 넣었다 | 과일 농장, 게임 데이터 모두 경고 0개 |
+
+옛 경로와 새 경로(이 문서의 21~37단계 결과는 옛 경로로 적혀 있다):
+
+| 새 자리 | 옛 경로 |
+| :--- | :--- |
+| `core/` | `components/cell-value`, `components/copy-evidence`, `components/data-table`, `components/explain/value-explain`, `components/map/map-parts`, `components/record-table`, `components/table-name`, `components/use-auto-links`, `components/use-domain-model`, `components/use-korean-names`, `components/workspace-provider`, `lib/client/app-config`, `lib/client/auto-links`, `lib/client/column-profile`, `lib/client/db-import`, `lib/client/design-sheet`, `lib/client/doc-import`, `lib/client/doc-infer`, `lib/client/doc-links`, `lib/client/doc-terms`, `lib/client/domain-model`, `lib/client/duckdb`, `lib/client/evidence`, `lib/client/file-import`, `lib/client/follow`, `lib/client/korean-name`, `lib/client/local-files`, `lib/client/opfs`, `lib/client/relations`, `lib/client/row-filter`, `lib/client/schema`, `lib/client/string-table`, `lib/client/table-view`, `lib/client/value-explain` |
+| `shared/` | `components/theme-toggle`, `lib/chart-spec`, `lib/client/export-xlsx`, `lib/client/theme`, `lib/query-result` |
+| `server/` | `lib/server/*` |
+| `features/charts/` | `components/charts/chart-builder`, `components/charts/chart-svg`, `components/charts/charts-page`, `components/charts/dashboard-view`, `components/charts/use-saved-charts`, `components/live-rows`, `lib/client/chart-data` |
+| `features/check/` | `components/check/data-checks`, `components/check/missing-ids`, `lib/client/data-checks`, `lib/client/integrity` |
+| `features/compare/` | `components/compare/compare-view`, `components/compare/patch-bar`, `components/compare/patch-checklist`, `components/compare/table-diff`, `components/compare/use-patch-ids`, `lib/client/compare` |
+| `features/checklist/` | `components/checklist-card`, `lib/client/checklist` |
+| `features/docs/` | `components/docs/doc-check-panel`, `components/docs/doc-checklist`, `components/docs/doc-original`, `components/docs/doc-parts`, `components/docs/doc-view`, `components/docs/docs-overview`, `components/docs/use-candidates`, `components/docs/use-doc-check`, `components/table-doc-notes`, `components/table-overview`, `lib/client/doc-analysis`, `lib/client/doc-check`, `lib/client/doc-notes` |
+| `features/follow/` | `components/follow/follow-panel`, `components/follow/follow-trail` |
+| `features/row-tree/` | `components/row-tree/row-tree-panel`, `lib/client/row-tree` |
+| `features/join/` | `components/join-builder`, `lib/client/join` |
+| `features/map/` | `components/map/domain-map`, `components/map/table-card`, `components/map/table-domain-line`, `components/map/tables-view` |
+| `features/relations/` | `components/relation-view/table-relation-view`, `components/relations/relation-form`, `components/relations/relation-parts`, `components/relations/relation-suggestions`, `components/relations/relation-transfer`, `components/relations/relations-diagram`, `components/relations/relations-tabs`, `components/relations/relations-view`, `components/relations/table-node`, `lib/client/diagram-layout`, `lib/client/relation-layout` |
+| `features/search/` | `components/value-search`, `lib/client/search`, `lib/client/value-index` |
+| `features/sources/` | `components/database-connect-form`, `components/path-import`, `components/path-import-page`, `components/sample-loader`, `components/source-add-menu`, `components/source-detail`, `components/source-list`, `components/team-settings`, `components/word-dictionary`, `lib/client/team-settings` |
+| `features/table/` | `components/column-info`, `components/column-table`, `components/row-filter-bar`, `components/row-source-switch`, `components/table-graph`, `components/table-links`, `components/table-page`, `components/table-preview` |
+| `features/tc/` | `components/tc/tc-view`, `lib/client/tc-links` |
+| `features/vectors/` | `components/vectors/vector-view`, `lib/client/vectors` |
+| `features/home/` | `components/home-start` |
+| `features/shell/` | `components/sidebar`, `components/top-bar` |
 

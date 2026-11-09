@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { CompareView } from "@/components/compare/compare-view";
+import { CompareView } from "@/features/compare";
 
 export default function ComparePage() {
   return (

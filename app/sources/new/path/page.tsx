@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { PathImportPage } from "@/components/path-import-page";
+import { PathImportPage } from "@/features/sources";
 
 export default function NewFromPathPage() {
   return (

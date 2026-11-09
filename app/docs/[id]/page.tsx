@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { DocView } from "@/components/docs/doc-view";
+import { DocView } from "@/features/docs";
 
 export default function DocPage({ params }: PageProps<"/docs/[id]">) {
   return (

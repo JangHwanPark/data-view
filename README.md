@@ -153,11 +153,12 @@ docker compose up -d
 | 경로 | 내용 |
 | --- | --- |
 | `app/` | 화면 경로와 서버 API(Route Handler) |
-| `components/` | 화면 컴포넌트 |
-| `lib/client/` | 브라우저에서 도는 로직(DuckDB-WASM, 파일과 기획서 읽기, 관계, 추론) |
-| `lib/server/` | 서버 로직(MySQL, 접속 정보 암호화, 로컬 파일, 환경변수) |
+| `features/<기능>/` | 기능 하나의 화면과 계산(차트, 점검, 패치 비교, 기획서, 시스템 지도, 참조 관계, 테이블 화면 …). 밖에는 `index.ts`로만 내보냄 |
+| `core/` | 여러 기능이 같이 쓰는 데이터 모델(DuckDB-WASM, 파일과 기획서 읽기, 참조 관계, 자동 연결, 한글 이름)과 공통 화면 조각(`core/ui`) |
+| `shared/` | 앱을 모르는 코드(결과 표 모양, 차트 질의 모양, 엑셀 내보내기, 테마) |
+| `server/` | 서버 로직(MySQL, Qdrant, 접속 정보 암호화, 로컬 파일, 환경변수) |
 | `scripts/` | 설치 후 워커 파일 복사, 테스트 데이터 생성 |
-| `docs/DESIGN.md` | 설계 문서 |
+| `docs/DESIGN.md` | 설계 문서(9장에 폴더 구조와 의존 방향 규칙) |
 | `start.bat` | Windows 실행 파일 |
 
 ## 기술 스택

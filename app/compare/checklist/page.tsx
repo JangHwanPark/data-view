@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { PatchChecklist } from "@/components/compare/patch-checklist";
+import { PatchChecklist } from "@/features/compare";
 
 export default function PatchChecklistPage() {
   return (
