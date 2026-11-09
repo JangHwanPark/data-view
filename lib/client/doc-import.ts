@@ -27,6 +27,8 @@ export interface DocRun {
 export interface DocCell {
   runs: DocRun[];
   span: number; // 가로로 합친 칸 수
+  rowSpan?: number; // 세로로 합친 칸 수(36단계). 합친 칸의 첫 칸에만 있다
+  merged?: boolean; // 위 칸과 세로로 합쳐진 칸. 원문 창에서 그리지 않는다
 }
 export type DocBlock =
   | { kind: "heading"; sectionId: string; level: number; label?: string; runs: DocRun[]; style: string }
@@ -86,6 +88,8 @@ function tableOf(tbl: Element, rowTag: string, cellTag: string, textTag: string)
 // - 제목 수준: styles.xml의 스타일 이름(heading 1, 제목 1)이나 스타일 id(Heading1)
 // - 번호: numbering.xml의 번호 형식(1., 가., ①)과 글머리표를 목록마다 세어 붙인다
 // - 표: 가로로 합친 칸(gridSpan)을 살린다. 불일치 검출용 표(DocTable)는 합친 칸 뒤를 빈 칸으로 채워 열을 맞춘다
+//   세로로 합친 칸(vMerge)은 원문 창에서 한 칸으로 그리고, 불일치 검출용 표에서는 아래 칸마다 위 칸 값을 채운다
+//   (「아이템 | 1001」을 세 줄에 걸쳐 합쳐 두면 세 줄 모두 1001의 행으로 본다)
 // - 글상자: 문단 안의 글상자 글은 따로 조각으로 둔다. 대체 내용(mc:Fallback)은 같은 글이 두 번 나오므로 뺀다
 // - 지운 글자(w:delText)는 읽지 않는다
 async function parseDocx(buffer: ArrayBuffer): Promise<ParsedDoc> {
@@ -147,14 +151,46 @@ async function parseDocx(buffer: ArrayBuffer): Promise<ParsedDoc> {
         .map((tr) =>
           Array.from(tr.children)
             .filter((tc) => tc.tagName === "w:tc")
-            .map((tc) => ({
-              runs: Array.from(tc.getElementsByTagName("w:p")).flatMap((p, i) => [...(i ? [{ text: " " }] : []), ...runsOf(p)]),
-              span: Number(tc.getElementsByTagName("w:gridSpan")[0]?.getAttribute("w:val") ?? 1) || 1,
-            })),
+            .map((tc): DocCell & { vMerge?: "restart" | "continue" } => {
+              const vMerge = tc.getElementsByTagName("w:tcPr")[0]?.getElementsByTagName("w:vMerge")[0];
+              return {
+                runs: Array.from(tc.getElementsByTagName("w:p")).flatMap((p, i) => [...(i ? [{ text: " " }] : []), ...runsOf(p)]),
+                span: Number(tc.getElementsByTagName("w:gridSpan")[0]?.getAttribute("w:val") ?? 1) || 1,
+                ...(vMerge ? { vMerge: vMerge.getAttribute("w:val") === "restart" ? "restart" : "continue" } : {}),
+              };
+            }),
         );
       if (!rows.length) continue;
+      // 세로 합침: 칸의 격자 위치(앞 칸들의 가로 합침 수를 더한 값)로 위 줄의 같은 자리 칸을 찾는다.
+      const starts = new Map<number, DocCell>(); // 격자 위치 → 지금 이어지는 합친 칸의 첫 칸
+      const above = new Map<number, string>(); // 격자 위치 → 합친 칸의 글(불일치 검출용 표에 채운다)
+      const flat = rows.map((row, r) => {
+        let col = 0;
+        const out: string[] = [];
+        for (const cell of row) {
+          const text = clean(cell.runs.map((x) => x.text).join(""));
+          if (cell.vMerge === "continue" && starts.has(col)) {
+            starts.get(col)!.rowSpan = (starts.get(col)!.rowSpan ?? 1) + 1;
+            cell.merged = true;
+            out.push(above.get(col) ?? "", ...Array(cell.span - 1).fill(""));
+          } else {
+            if (cell.vMerge === "restart") {
+              starts.set(col, cell);
+              // 머리글 줄을 합친 칸(두 줄 머리글)은 아래 줄에 채우지 않는다. 데이터 줄로 잘못 읽힌다.
+              if (r > 0) above.set(col, text);
+              else above.delete(col);
+            } else {
+              starts.delete(col);
+              above.delete(col);
+            }
+            out.push(text, ...Array(cell.span - 1).fill(""));
+          }
+          delete cell.vMerge;
+          col += cell.span;
+        }
+        return out;
+      });
       blocks.push({ kind: "table", raw: index, sectionId: "", rows });
-      const flat = rows.map((r) => r.flatMap((c) => [clean(c.runs.map((x) => x.text).join("")), ...Array(c.span - 1).fill("")]));
       current.tables.push({ header: flat[0], rows: flat.slice(1) });
     }
   }
