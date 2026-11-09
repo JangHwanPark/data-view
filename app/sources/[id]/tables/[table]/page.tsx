@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { TablePage as TableScreen } from "@/components/table-page";
+import { TablePage as TableScreen } from "@/features/table";
 
 export default function TablePage({ params }: PageProps<"/sources/[id]/tables/[table]">) {
   return (

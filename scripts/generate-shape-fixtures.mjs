@@ -30,6 +30,7 @@ import {
   Paragraph,
   Table,
   TableCell,
+  VerticalMergeType,
   TableRow,
   Textbox,
   TextRun,
@@ -185,11 +186,13 @@ writeBook("Asset", {
   rows: assets,
   design: [
     ["Id", "재화 번호"],
-    ["Type", "재화 종류. GOLD, SEED, FRUIT, GEM"],
+    // 35단계 시험용: 설명이 없는 테이블(AssetType)을 가리킨다
+    ["Type", "재화 종류. GOLD, SEED, FRUIT, GEM. <AssetType> 테이블 참조"],
     ["FruitId", "과일 상자일 때 담긴 과일. <Fruit> 테이블 참조"],
   ],
 });
 expected.designRefs.push({ table: "Asset", column: "FruitId", target: "Fruit", targetColumn: null });
+expected.brokenDesignRefs = [{ table: "Asset", column: "Type", target: "AssetType", note: "설명이 가리키는 테이블이 데이터에 없다(35단계)" }];
 
 // ---- 보상 세 가지(두 줄 머리글, 머리말이 모두 「보상」) ----
 const assetIds = [5001, 5002, 5003, 5005, 5006, 5007];
@@ -249,7 +252,25 @@ expected.designRefs.push({ table: "FruitPrice", column: "FruitId", target: "Frui
 const body = (text) => new Paragraph({ children: [new TextRun(text)] });
 const tocLine = (level, text, page) =>
   new Paragraph({ style: `TOC${level}`, children: [new TextRun(`${text}\t${page}`)] });
-const cell = (text, opts = {}) => new TableCell({ children: [new Paragraph({ children: [new TextRun({ text, bold: opts.bold })] })], columnSpan: opts.span });
+const cell = (text, opts = {}) =>
+  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text, bold: opts.bold })] })], columnSpan: opts.span, verticalMerge: opts.vMerge });
+
+// 세로로 합친 칸(36단계). 같은 계절의 과일을 Season 칸 하나로 묶은 표. 마지막 과일은 일부러 다른 계절 과일을 끼워 넣었다.
+// 합친 칸의 값을 아래 줄에도 채워 읽으면, 끼워 넣은 과일의 Season이 데이터와 다르다고 나와야 한다.
+const plainFruits = fruits.filter((r) => typeof r[0] === "number" && r[0] !== 1012);
+const seasonCount = new Map();
+for (const r of plainFruits) seasonCount.set(r[7], (seasonCount.get(r[7]) ?? 0) + 1);
+const mergedSeason = [...seasonCount].find(([, n]) => n >= 3)[0];
+const inSeason = plainFruits.filter((r) => r[7] === mergedSeason).slice(0, 3);
+const outOfSeason = plainFruits.find((r) => r[7] !== mergedSeason);
+const mergedRows = [...inSeason, outOfSeason];
+expected.mergedCells = {
+  section: "1.1.1 성장 단계",
+  header: ["Season", "Id", "Period"],
+  season: mergedSeason,
+  ids: mergedRows.map((r) => r[0]),
+  mismatch: { table: "Fruit", id: outOfSeason[0], column: "Season", doc: mergedSeason, data: outOfSeason[7] },
+};
 
 // 기획서 문장의 「이름: 수치」. 같은 문장의 ID로 데이터 행을 찾아 비교한다.
 const priceOf = (fruitId) => priceRows.find((r) => r[1] === fruitId)[2];
@@ -306,6 +327,15 @@ const doc = new Document({
         new Paragraph({ heading: HeadingLevel.HEADING_3, children: [new TextRun("1.1.1 성장 단계")] }),
         new Paragraph({ numbering: { reference: "bullets", level: 0 }, children: [new TextRun("Level#1부터 Level#3까지 Growth 테이블의 Id를 넣는다.")] }),
         new Paragraph({ numbering: { reference: "bullets", level: 0 }, children: [new TextRun("수확 계절(Season)은 1 봄부터 4 겨울까지다.")] }),
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: [
+            new TableRow({ children: [cell("Season", { bold: true }), cell("Id", { bold: true }), cell("Period", { bold: true })] }),
+            ...mergedRows.map((r, i) =>
+              new TableRow({ children: [cell(i === 0 ? String(mergedSeason) : "", { vMerge: i === 0 ? VerticalMergeType.RESTART : VerticalMergeType.CONTINUE }), cell(String(r[0])), cell(String(r[8]))] }),
+            ),
+          ],
+        }),
         new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun("2. 보상")] }),
         body("보상 데이터 테이블은 세 가지다. 매일 받는 보상은 RewardDaily 테이블, 주간 보상은 RewardWeekly 테이블, 이벤트 보상은 RewardEvent 테이블에 둔다. 보상으로 주는 재화는 Asset 테이블을 참조한다."),
         new Table({

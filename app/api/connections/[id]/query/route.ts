@@ -1,7 +1,7 @@
-import { MYSQL, runChart, validSpec, whereSql, type SpecFilter } from "@/lib/chart-spec";
-import { errorResponse, rejectCrossOrigin } from "@/lib/server/http";
-import { errorCode, listTables, withConnection } from "@/lib/server/mysql";
-import { resolveConnection } from "@/lib/server/resolve-connection";
+import { MYSQL, runChart, validSpec, whereSql, type SpecFilter } from "@/shared/lib/chart-spec";
+import { errorResponse, rejectCrossOrigin } from "@/server/http";
+import { errorCode, listTables, withConnection } from "@/server/mysql";
+import { resolveConnection } from "@/server/resolve-connection";
 
 // DB 실시간 조회(32단계). 스냅샷이 아니라 개발 DB에 지금 바로 묻는다.
 // SQL은 받지 않는다. 테이블과 컬럼은 DB 목록에 있는 것만, 값은 매개변수(?)로만 넣는다. 세션은 읽기 전용이고 30초를 넘으면 끊는다(withConnection).

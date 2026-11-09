@@ -1,4 +1,4 @@
-import { DatabaseConnectForm } from "@/components/database-connect-form";
+import { DatabaseConnectForm } from "@/features/sources";
 
 export default function NewDatabasePage() {
   return <DatabaseConnectForm />;

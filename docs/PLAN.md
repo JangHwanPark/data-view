@@ -78,6 +78,11 @@
 | 28 | 용어 통일 (완료, 아래 「28단계 결과」) | 3-13 |
 | 29 | QA 우선 높음: 근거 복사, 비활성 행 참조 검사, 문장 수치 비교, 설치본(Node 없이)과 배포 압축 안내 (완료, 아래 「29단계 결과」) | 5-1, 5-3, 5-4, 5-10, 1-8 |
 | 30 | QA 우선 중간: 경계값과 여러 조건 거르기, 문자열 키 펼쳐 보기, TC 시트 잇기, 팀 공유 설정 (완료, 아래 「30단계 결과」) | 5-6~5-9 |
+| 31~34 | 미뤘던 예전 계획: 시트가 많을 때, 차트와 DB 실시간 조회, Qdrant, 차트 저장과 대시보드 (완료, [DESIGN.md](DESIGN.md) 11절) | |
+| 35 | 데이터 점검 넓히기: 아무도 쓰지 않는 행, 기획 설명(#Design)이 가리키는데 없는 테이블, 이름이 한두 글자 다른 테이블 쌍 (완료, 아래 「35단계 결과」) | 5절 |
+| 36 | 자동 참조 관계 넓히기: 타입 열과 대상 ID 열의 앞자리가 다른 조건부 참조, 기획서 docx 표의 세로 병합 칸 (완료, 아래 「36단계 결과」) | 3-2, 3-7 |
+| 37 | 패치 전후 비교 넓히기: 개발 DB의 전후 비교, 바뀐 Id 목록을 다른 화면에서 쓰기 (완료, 아래 「37단계 결과」) | 4.9 |
+| 38 | 다듬기: 사이드바 hydration 경고, 한글 이름의 꾸밈말 순서, 기능별 폴더 구조로 옮기기(`features/<기능>`, `core/`, `shared/`, `server/`, 의존 방향 `app → features → core → shared`를 ESLint로 검사, 기능 하나씩 `git mv`로 옮기고 그때마다 빌드와 화면 시험) (완료, 아래 「38단계 결과」) | |
 
 ## 3. 정할 것
 
@@ -242,3 +247,79 @@
 같이 한 것: 다른 세션의 고침(개발 서버 instant 검증에서 duckdb-wasm이 서버에서 평가되며 나던 오류)을 `fix/duckdb-dev-instant`로 옮겼다(지금 개발 브랜치 기준으로 충돌을 풀고, 화면의 「Issues」 표시가 0개이고 CSV 불러오기가 그대로인 것을 확인).
 
 남은 것: 팀 공유 설정으로 참조 관계를 옮기는 것은 예전 「참조 관계 내보내기/가져오기」와 같은 코드라 이번에 따로 시험하지 않았다. TC 화면의 「테스트용 TC」 단추는 한글 파일 이름이라 시험 브라우저에서 확인하지 못해 영문 이름 복사본으로 시험했다.
+
+## 35단계 결과
+
+`stage/35-data-checks` 브랜치에서 했다. 「없는 ID 찾기」 화면에 탭 셋을 더했다(`lib/client/data-checks.ts`, `components/check/data-checks.tsx`).
+
+| | 한 일 | 확인 |
+| :--- | :--- | :--- |
+| 쓰지 않는 행 | 다른 테이블이 참조하는 테이블마다, 참조하는 곳(확인한 관계와 앱이 찾은 관계 모두, 번호 붙은 열 묶음, 구분자, 타입 조건 그대로) 어디에도 나오지 않는 Id를 센다. `;`로 막은 행은 따로 센다. 참조하는 쪽도 자기 Id 열이면(Id → Id, 같은 Id로 이어 붙인 짝 테이블) 「쓴다」고 보지 않는다. 탭을 열 때 세고, 데이터가 바뀌기 전까지 기억한다. 줄을 펼치면 Id(앞 100개)가 나오고 누르면 그 행을 연다 | 과일 농장: Fruit 22행 중 7개(1018~1024), 비활성 1개(1003) 따로 = 엑셀에서 파이썬으로 센 값. 게임 데이터: 15곳, Stage 900행 중 663개 = 파이썬으로 센 값 |
+| 기획 설명 확인 | 엑셀 #Design 설명의 `<테이블>`이 불러온 데이터에 없는 곳. 비슷한 이름의 테이블이 있으면 함께 보여준다. 가짜 데이터에 Asset.Type 설명이 없는 `<AssetType>`을 가리키게 더했다(`expected.json`의 brokenDesignRefs) | 과일 농장 1곳(Asset.Type → AssetType) = `expected.json`. 게임 데이터, 시트 많은 데이터 0곳 |
+| 비슷한 이름 | 이름을 낱말(큰 글자, `_`, 숫자에서 끊음)로 나눠, 낱말 수가 같고 한 낱말만 한 글자(그 낱말이 8글자 이상이면 두 글자) 다른 테이블 쌍. 숫자만 다른 쌍(Stage1, Stage2)과 대소문자만 다른 복사본은 뺀다. #Design 머리말까지 같으면 표시한다 | 과일 농장 1쌍(FruitPrice ↔ FruitPrise, 머리말 「과일 가격」 같음) = `expected.json`의 typoPair. 게임 데이터 0쌍(처음 규칙에서 나왔던 Equipment ↔ EquipSet을 낱말 규칙으로 뺌), 시트 많은 데이터 0쌍(P01Apple ↔ P02Apple, P01Apple ↔ P01Maple을 뺌) |
+
+남은 것: 쓰지 않는 행은 앱이 찾은 참조 관계에 기대므로, 관계를 못 찾은 참조하는 곳(예: 게임 데이터 Stage.unlock_stage_id 같은 자기 참조)이 있으면 「쓰지 않음」으로 더 많이 센다. 회사 데이터에서 많이 나오면 36단계에서 관계 찾기를 넓힐 때 같이 본다.
+
+## 36단계 결과
+
+`stage/36-auto-relations` 브랜치에서 했다.
+
+| | 한 일 | 확인 |
+| :--- | :--- | :--- |
+| 종류 + 이름 없는 ID | 자동 참조 관계 찾기에 네 번째 규칙(`lib/client/auto-links.ts`). `cond_type`과 `target_id`처럼 접두어가 다르고 종류 값도 테이블 이름이 아닐 때(KILL, CLEAR), 종류 값마다 그 행들의 ID가 가장 많이 들어 있는 테이블을 값으로 찾는다. 쿼리 하나로 종류 값 × 모든 테이블의 맞는 수를 센다. 남은 종류 열과 이름으로 대상을 못 찾는 ID 열이 하나씩일 때만 짝짓고, 고유값 5개 이상, 90% 이상 맞아야 하며, 여러 테이블에 똑같이 맞으면 버린다. 자기 테이블을 가리키는 이름(prev_quest_id)은 이름 있는 열로 본다 | 게임 데이터: QuestCondition.target_id → KILL은 Monster, CLEAR는 Stage, COLLECT는 Item, LEVEL은 없음 = 생성 스크립트에 적은 뜻. 51개 테이블의 참조 관계를 모두 뽑아 바꾸기 전과 비교해 이 3개만 늘었음(101 → 104). 과일 농장 9개 그대로 |
+| 세로로 합친 칸 | 워드 기획서 표의 `w:vMerge`를 읽는다(`lib/client/doc-import.ts`). 원문 창은 한 칸(rowspan)으로 그리고, 불일치 검출용 표는 아래 칸마다 위 칸 값을 채운다. 머리글 줄을 합친 칸은 채우지 않는다. 가짜 기획서 1.1.1절에 Season을 세로로 합친 표를 더했고, 다른 계절 과일 하나를 일부러 끼워 넣었다(`expected.json`의 mergedCells) | 다른 값 「Fruit Id 1001 · Season: 기획서 4, 데이터 1」 하나만 나옴 = mergedCells.mismatch. 같은 칸에 묶인 1002, 1005, 1009는 맞음. 원문 창에서 Season 칸이 4줄에 걸친 한 칸 |
+
+남은 것: 종류 열이나 이름 없는 ID 열이 둘 이상인 테이블(param1_id, param2_id)은 짝을 몰라 찾지 않는다. 회사 데이터에 이런 모양이 많으면 열 순서(종류 열 바로 뒤의 ID 열)로 짝짓는 규칙을 더 본다.
+
+## 37단계 결과
+
+`stage/37-patch-compare` 브랜치에서 했다.
+
+| | 한 일 | 확인 |
+| :--- | :--- | :--- |
+| 개발 DB 전후 비교 | 소스 화면의 「다시 불러오기」가 다시 읽기 직전 상태를 테이블마다 parquet로 떠서 OPFS `files/<소스 id>/prev/`에 한 벌 남긴다(`snapshotDb`, `lib/client/db-import.ts`). 「지금 상태를 비교 기준으로 남기기」로 패치 전에 직접 남길 수도 있다. 앱은 열 때마다 DB를 다시 읽으므로, 이렇게 남긴 상태가 있어야 패치 뒤에 다시 열어도 비교된다. 비교할 때 p_<id> 스키마에 올려 파일의 이전 파일과 같은 비교 코드(`lib/client/compare.ts`)를 쓴다 | 가짜 게임 DB(MariaDB 51테이블)에서 기준을 남기고 Item 값 2행 바꾸기, 1행 넣기, ShopProduct가 쓰는 100153 지우기 → 앱을 다시 열어 비교: 「51개 중 1개」, Item 새 1 · 사라짐 1 · 바뀜 2(sell_price 42118→42119, 26402→26403), 깨지는 곳 ShopProduct.item_id 4행 등. 다시 불러오기 뒤에는 그 직전 상태가 새 기준이 되어 0개 |
+| 테이블 화면 거르기 | 이전 버전이 있는 소스의 테이블 화면에 「이번 패치」 줄: 새로 생긴 행·값이 바뀐 행·사라진 행 수, 「바뀐 행만 / 새로 생긴 행 / 값이 바뀐 행」 거르기(주소 `patch=all·added·changed`, 다른 거르기·행 트리와 같이 남음), Id 목록 복사(한 줄에 하나), 테스트 항목과 전후 비교로 가기. 전후 비교 화면에도 「테이블 화면에서 거르기」를 두었다 | DB: 바뀐 행만 3행, 새로 생긴 행 1행, 복사 「103041」. 게임 Item.xlsx 이전 판 → 지금 판: 새 40 · 바뀜 60 · 사라짐 25, 바뀐 행만 100행, 값이 바뀐 행 60행, 행 트리를 열어도 거르기 유지. 이전 판이 없는 소스(Common.xlsx의 Grade)에는 줄이 없음 |
+| 패치 테스트 항목 | `/compare/checklist`: 새로 생기거나 값이 바뀐 Id(테이블마다 앞 100개)를 기획서 테스트 항목과 같은 행 트리로 펼치고, 「이번 패치에서 새로 생긴 행」, 「값 바뀜: 열 전 → 후」를 적는다. 없는 ID를 참조하게 된 항목이 위로 온다. 확인/문제/보류와 메모는 같은 `checklists.json`에 `patch:<소스 id>:<기준 시각>` 키로 두고, 엑셀로 내보낸다. 카드는 `components/checklist-card.tsx`로 빼서 두 화면이 같이 쓴다 | DB: Item 항목 3개, 103041 → Currency 9, Grade 2 / 100002 「값 바뀜: sell_price 42118 → 42119」. 파일: 항목 100개, 먼저 볼 항목 2개(새 행 103030이 없는 Grade 9072782를 참조), 확인 표시가 새로고침 뒤에도 남음 |
+
+Python으로 두 Item.xlsx를 따로 세면 바뀐 행이 61개다. 지금 판에 일부러 넣은 중복 ID 101514의 두 번째 줄만 값이 달라서다. 앱은 중복 ID의 첫 줄로 비교하는데, 「첫 줄」을 정하는 정렬이 없어 DuckDB가 아무 줄이나 고를 수 있었다. 파일 순서(`rowid`)로 고정했고, 첫 줄 기준이면 60개가 맞다.
+
+가짜 DB를 latin1 클라이언트로 넣으면 한글이 깨져 들어가므로 `seed.sql` 맨 앞에 `SET NAMES utf8mb4;`를 넣었다(`scripts/generate-game-fixtures.mjs`).
+
+남은 것: 기준은 소스마다 한 벌이다(파일과 같음). 테이블마다 최대 20만 행까지만 불러오므로, 잘린 테이블은 잘린 범위 안에서만 비교한다. 회사 DB 크기에서 parquet 저장 시간과 OPFS 용량을 재 봐야 한다.
+
+## 38단계 결과
+
+`stage/38-polish` 브랜치에서 했다.
+
+| | 한 일 | 확인 |
+| :--- | :--- | :--- |
+| 사이드바 hydration 경고 | 원인: 사이드바와 화면은 Suspense 안에 있어 `WorkspaceProvider`보다 늦게 하이드레이션될 수 있다. 그 사이 OPFS 복원이 끝나면 서버 HTML(「불러온 파일 없음」)과 브라우저가 그리려는 소스 목록이 달라 오류가 났다. 가끔만 나던 까닭이다. `useWorkspace()`가 하이드레이션 중에는 서버와 같은 빈 작업 공간을 돌려주고, 끝나면 곧바로 실제 값으로 다시 그린다(`useSyncExternalStore`의 서버 값) | 데이터를 올린 뒤 네 화면을 오가며 CPU를 느리게 한 시험: 고치기 전 16번 중 1번(사이드바 TableTree의 `<p>` ↔ `<div>`), 고친 뒤 128번 중 0번. 모든 화면 × 기본, ko-KR/서울 시간대, 어두운 테마, 저장한 사이드바 설정에서 0번 |
+| 한글 이름 꾸밈말 순서 | 테이블 이름 끝의 꾸밈말(Daily, Weekly, Monthly, Event, Repeat, Limited, Special, Season)을 앞으로 옮긴다(RewardDaily → 일일 보상, QuestRepeat → 반복 퀘스트). 사전에 있어 옮겨지는 단어만 옮기고, 앞(EventShop)에 오면 그대로다. 사전에 Monthly(월간), Limited(한정), Special(특별)을 더했다 | 가짜 데이터 362개 테이블에서 바뀐 이름은 RewardDaily, RewardWeekly, RewardEvent 3개뿐(셋 다 #Design 머리말 「보상」이 있어 화면에는 머리말이 나온다) |
+| 기능별 폴더 구조 | `components/`, `lib/`를 `features/<기능>/`, `core/`, `shared/`, `server/`로 옮겼다(파일 130개, `git mv`라 이력이 이어진다). 기능 밖에서는 `features/<기능>/index.ts`로만 가져온다. 의존 방향 `app → features → core → shared`를 `eslint.config.mjs`의 `no-restricted-imports`로 검사한다(규칙은 DESIGN.md 9장). 코드 내용은 바꾸지 않고 위치와 import만 바꿨다. 이름이 겹치는 두 화면 파일만 이름을 바꿨다(`check/data-checks.tsx` → `data-check-panels.tsx`, `team-settings.tsx` → `team-settings-panel.tsx`) | 타입 검사, 린트(규칙을 어기는 파일을 일부러 만들어 오류 3개가 나는 것도 확인), 빌드 통과. 옮기기 전과 같은 시험을 다시 돌림: 게임 51개 테이블과 과일 농장의 자동 참조 관계 목록이 옮기기 전과 한 줄도 다르지 않음(104개, 9개), 데이터 점검 탭 6개의 건수, 기획서 세로 병합 칸, 패치 전후 비교(파일 새 40 · 바뀜 60 · 사라짐 25, DB 새 1 · 사라짐 1 · 바뀜 2, 거르기, Id 복사, 테스트 항목)가 37단계와 같음. 화면 22개를 차례로 열어 오류 없음(아래 하나 빼고) |
+| 시스템 지도 「테이블별 참조 관계」의 key 경고 | 화면을 모두 열어 보다가 찾은 예전부터 있던 경고. 열 여러 개로 된 참조 관계(Level#1~3 → Growth)가 카드에 같은 key로 여러 번 들어갔다. key에 열 이름을 넣었다 | 과일 농장, 게임 데이터 모두 경고 0개 |
+
+옛 경로와 새 경로(이 문서의 21~37단계 결과는 옛 경로로 적혀 있다):
+
+| 새 자리 | 옛 경로 |
+| :--- | :--- |
+| `core/` | `components/cell-value`, `components/copy-evidence`, `components/data-table`, `components/explain/value-explain`, `components/map/map-parts`, `components/record-table`, `components/table-name`, `components/use-auto-links`, `components/use-domain-model`, `components/use-korean-names`, `components/workspace-provider`, `lib/client/app-config`, `lib/client/auto-links`, `lib/client/column-profile`, `lib/client/db-import`, `lib/client/design-sheet`, `lib/client/doc-import`, `lib/client/doc-infer`, `lib/client/doc-links`, `lib/client/doc-terms`, `lib/client/domain-model`, `lib/client/duckdb`, `lib/client/evidence`, `lib/client/file-import`, `lib/client/follow`, `lib/client/korean-name`, `lib/client/local-files`, `lib/client/opfs`, `lib/client/relations`, `lib/client/row-filter`, `lib/client/schema`, `lib/client/string-table`, `lib/client/table-view`, `lib/client/value-explain` |
+| `shared/` | `components/theme-toggle`, `lib/chart-spec`, `lib/client/export-xlsx`, `lib/client/theme`, `lib/query-result` |
+| `server/` | `lib/server/*` |
+| `features/charts/` | `components/charts/chart-builder`, `components/charts/chart-svg`, `components/charts/charts-page`, `components/charts/dashboard-view`, `components/charts/use-saved-charts`, `components/live-rows`, `lib/client/chart-data` |
+| `features/check/` | `components/check/data-checks`, `components/check/missing-ids`, `lib/client/data-checks`, `lib/client/integrity` |
+| `features/compare/` | `components/compare/compare-view`, `components/compare/patch-bar`, `components/compare/patch-checklist`, `components/compare/table-diff`, `components/compare/use-patch-ids`, `lib/client/compare` |
+| `features/checklist/` | `components/checklist-card`, `lib/client/checklist` |
+| `features/docs/` | `components/docs/doc-check-panel`, `components/docs/doc-checklist`, `components/docs/doc-original`, `components/docs/doc-parts`, `components/docs/doc-view`, `components/docs/docs-overview`, `components/docs/use-candidates`, `components/docs/use-doc-check`, `components/table-doc-notes`, `components/table-overview`, `lib/client/doc-analysis`, `lib/client/doc-check`, `lib/client/doc-notes` |
+| `features/follow/` | `components/follow/follow-panel`, `components/follow/follow-trail` |
+| `features/row-tree/` | `components/row-tree/row-tree-panel`, `lib/client/row-tree` |
+| `features/join/` | `components/join-builder`, `lib/client/join` |
+| `features/map/` | `components/map/domain-map`, `components/map/table-card`, `components/map/table-domain-line`, `components/map/tables-view` |
+| `features/relations/` | `components/relation-view/table-relation-view`, `components/relations/relation-form`, `components/relations/relation-parts`, `components/relations/relation-suggestions`, `components/relations/relation-transfer`, `components/relations/relations-diagram`, `components/relations/relations-tabs`, `components/relations/relations-view`, `components/relations/table-node`, `lib/client/diagram-layout`, `lib/client/relation-layout` |
+| `features/search/` | `components/value-search`, `lib/client/search`, `lib/client/value-index` |
+| `features/sources/` | `components/database-connect-form`, `components/path-import`, `components/path-import-page`, `components/sample-loader`, `components/source-add-menu`, `components/source-detail`, `components/source-list`, `components/team-settings`, `components/word-dictionary`, `lib/client/team-settings` |
+| `features/table/` | `components/column-info`, `components/column-table`, `components/row-filter-bar`, `components/row-source-switch`, `components/table-graph`, `components/table-links`, `components/table-page`, `components/table-preview` |
+| `features/tc/` | `components/tc/tc-view`, `lib/client/tc-links` |
+| `features/vectors/` | `components/vectors/vector-view`, `lib/client/vectors` |
+| `features/home/` | `components/home-start` |
+| `features/shell/` | `components/sidebar`, `components/top-bar` |
+

@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { SourceDetail } from "@/components/source-detail";
+import { SourceDetail } from "@/features/sources";
 
 export default function SourcePage({ params }: PageProps<"/sources/[id]">) {
   return (

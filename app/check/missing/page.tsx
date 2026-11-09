@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { MissingIds } from "@/components/check/missing-ids";
+import { MissingIds } from "@/features/check";
 
 export default function MissingIdsPage() {
   return (
